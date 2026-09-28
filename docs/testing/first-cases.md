@@ -410,4 +410,158 @@ cargo fmt --all -- --check
 
 ---
 
-**Authoritative Status**: This document catalogs all implemented backend test cases. Keep it updated when adding new tests.
+## Shell UI Test Cases (Frontend)
+
+### Desktop Application Tests
+
+#### TC-018: Desktop App Rendering
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/App.test.tsx`  
+**Function**: Shell UI component tests
+
+**Purpose**: Verify desktop shell UI renders correctly with all key components.
+
+**Test Cases**:
+- Titlebar component renders
+- Sidebar component with agent list renders
+- MainStage component with tabs renders
+
+**Expected Result**: ✅ All components render without errors
+
+**Command**:
+```bash
+cd apps/desktop && pnpm test
+```
+
+**Offline**: ✅ Yes
+
+---
+
+#### TC-019: Sidebar Multiple Agents
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/Sidebar.test.tsx`
+
+**Purpose**: Verify Sidebar displays multiple agents and shows active state.
+
+**Expected Result**:
+- ✅ Shows "产品经理开发工具", "运营专家", "研发助作"
+- ✅ Active agent has `.active` class
+
+---
+
+#### TC-020: MainStage Tabs
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/MainStage.test.tsx`
+
+**Purpose**: Verify MainStage displays all tabs including Chat.
+
+**Expected Result**:
+- ✅ Shows Chat, Computer, Routines, Skills, Connectors, Memory tabs
+- ✅ Chat tab active by default
+- ✅ ChatStage component renders when chat tab selected
+
+---
+
+#### TC-021: ValidationGateWidget Actions
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/ValidationGateWidget.test.tsx`
+
+**Purpose**: Verify ValidationGateWidget has 通过/丢弃 buttons and dismisses correctly.
+
+**Expected Result**:
+- ✅ Shows "验证闸门 Widget"
+- ✅ Shows "通过" (approve) button
+- ✅ Shows "丢弃" (reject) button
+- ✅ Widget dismisses after approve click
+- ✅ Widget dismisses after reject click
+
+---
+
+### Web Admin Tests
+
+#### TC-022: Web Admin App Rendering
+
+**Layer**: Unit  
+**File**: `apps/web-admin/src/App.test.tsx`
+
+**Purpose**: Verify web admin shell UI renders correctly.
+
+**Expected Result**:
+- ✅ Topbar renders
+- ✅ Sidebar renders
+- ✅ InstancesPage renders by default
+
+**Command**:
+```bash
+cd apps/web-admin && pnpm test
+```
+
+**Offline**: ✅ Yes
+
+---
+
+#### TC-023: Web Admin Sidebar Chinese Labels
+
+**Layer**: Unit  
+**File**: `apps/web-admin/src/components/Sidebar.test.tsx`
+
+**Purpose**: Verify Sidebar displays Chinese navigation labels.
+
+**Expected Result**:
+- ✅ Shows "实例" (Instances)
+- ✅ Shows "节点与运行时" (Nodes & Runtime)
+- ✅ Shows "观测" (Observability)
+- ✅ Shows "审批审计" (Approval Audit)
+- ✅ Active page highlighted
+
+---
+
+#### TC-024: InstancesPage Table
+
+**Layer**: Unit  
+**File**: `apps/web-admin/src/pages/InstancesPage.test.tsx`
+
+**Purpose**: Verify InstancesPage renders table with instance data.
+
+**Expected Result**:
+- ✅ Shows "Agent 实例" heading
+- ✅ Table renders with headers: 实例 ID, Agent, 租户, 状态, 节点, 镜像 Digest
+- ✅ Multiple instance rows render
+- ✅ Status badges (Ready, Provisioning, etc.) display
+- ✅ Search filter control present
+
+---
+
+## All Tests Summary
+
+### Backend Tests (Rust)
+
+```bash
+# Run all backend tests (excludes openstaff-desktop Tauri)
+cargo test --workspace --exclude openstaff-desktop
+```
+
+**Expected**: ✅ 17 tests pass (TC-001 through TC-017)
+
+### Frontend Tests (TypeScript)
+
+```bash
+# Desktop app tests
+cd apps/desktop && pnpm test
+
+# Web admin tests
+cd apps/web-admin && pnpm test
+
+# Run all frontend tests from root
+pnpm test
+```
+
+**Expected**: ✅ 7 test suites pass (TC-018 through TC-024)
+
+---
+
+**Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.

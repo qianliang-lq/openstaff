@@ -1,18 +1,29 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
-import App from "./App";
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import App from './App';
 
-// Stub unit test for Web Admin App component
-describe("App", () => {
-  it("renders OpenStaff Admin Console heading", () => {
+describe('App - Web Admin Shell UI', () => {
+  it('should render the application', () => {
     render(<App />);
-    const heading = screen.getByRole("heading", {
-      name: /OpenStaff Admin Console/i,
-    });
-    expect(heading).toBeInTheDocument();
+    const app = document.querySelector('.app');
+    expect(app).toBeInTheDocument();
   });
 
-  it.todo("should display agent directory in T1");
+  it('should display Topbar component', () => {
+    render(<App />);
+    const topbar = document.querySelector('.topbar');
+    expect(topbar).toBeInTheDocument();
+  });
 
-  it.todo("should handle user management in T3");
+  it('should display Sidebar with navigation', () => {
+    render(<App />);
+    const sidebar = document.querySelector('.sidebar');
+    expect(sidebar).toBeInTheDocument();
+  });
+
+  it('should display InstancesPage by default', () => {
+    render(<App />);
+    const instancesPage = document.querySelector('.instances-page');
+    expect(instancesPage).toBeInTheDocument();
+  });
 });

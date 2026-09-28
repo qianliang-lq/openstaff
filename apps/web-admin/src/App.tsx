@@ -1,28 +1,25 @@
+import { useState } from 'react';
+import Sidebar from './components/Sidebar';
+import Topbar from './components/Topbar';
+import InstancesPage from './pages/InstancesPage';
+import './App.css';
+
+export type PageType = 'instances' | 'nodes' | 'observability' | 'audit';
+
 function App() {
+  const [activePage, setActivePage] = useState<PageType>('instances');
+
   return (
-    <div className="container">
-      <h1>OpenStaff Admin Console</h1>
-      <p>管理控制台 / Administration Console</p>
-
-      <div className="info">
-        <h2>Status</h2>
-        <p>✅ React + TypeScript initialized</p>
-        <p>⏳ Agent management - coming in T1</p>
-        <p>⏳ User management - coming in T3</p>
-        <p>⏳ Audit logs viewer - coming in T3</p>
-        <p>⏳ System metrics - coming in T4</p>
-      </div>
-
-      <div className="modules">
-        <h2>Planned Modules</h2>
-        <ul>
-          <li>Agent Directory & Status</li>
-          <li>Session Management</li>
-          <li>Approval Policy Editor</li>
-          <li>Connector Configuration</li>
-          <li>Audit Log Browser</li>
-          <li>System Health Dashboard</li>
-        </ul>
+    <div className="app">
+      <Sidebar activePage={activePage} onPageChange={setActivePage} />
+      <div className="main">
+        <Topbar currentPage={activePage} />
+        <div className="content">
+          {activePage === 'instances' && <InstancesPage />}
+          {activePage === 'nodes' && <div className="stub-page">节点与运行时 (开发中)</div>}
+          {activePage === 'observability' && <div className="stub-page">观测 (开发中)</div>}
+          {activePage === 'audit' && <div className="stub-page">审批审计 (开发中)</div>}
+        </div>
       </div>
     </div>
   );

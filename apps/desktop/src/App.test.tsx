@@ -1,16 +1,29 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
-import App from "./App";
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import App from './App';
 
-// Stub unit test for Desktop App component
-describe("App", () => {
-  it("renders OpenStaff Desktop heading", () => {
-    render(<App />);
-    const heading = screen.getByRole("heading", { name: /OpenStaff Desktop/i });
-    expect(heading).toBeInTheDocument();
+describe('App - Desktop Shell UI', () => {
+  it('should render the application', () => {
+    const { container } = render(<App />);
+    const app = container.querySelector('.app');
+    expect(app).toBeTruthy();
   });
 
-  it.todo("should display agent sidebar in T1");
+  it('should display Titlebar component', () => {
+    const { container } = render(<App />);
+    const titlebar = container.querySelector('.titlebar');
+    expect(titlebar).toBeTruthy();
+  });
 
-  it.todo("should handle chat interface interactions");
+  it('should display Sidebar with agent list', () => {
+    const { container } = render(<App />);
+    const sidebar = container.querySelector('.sidebar');
+    expect(sidebar).toBeTruthy();
+  });
+
+  it('should display MainStage with tabs', () => {
+    const { container } = render(<App />);
+    const mainStage = container.querySelector('.main');
+    expect(mainStage).toBeTruthy();
+  });
 });

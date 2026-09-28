@@ -1,0 +1,168 @@
+.instances-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--g10);
+  margin-bottom: 4px;
+}
+
+.page-desc {
+  font-size: 12px;
+  color: var(--g6);
+}
+
+.btn-create {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+
+.btn-create:hover {
+  opacity: 0.9;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.search {
+  height: 32px;
+  width: 240px;
+  border: 1px solid var(--g4);
+  border-radius: var(--radius);
+  padding: 0 12px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-text {
+  color: var(--g6);
+  font-size: 13px;
+}
+
+.select-fake {
+  height: 32px;
+  border: 1px solid var(--g4);
+  border-radius: var(--radius);
+  padding: 0 28px 0 12px;
+  background: #fff;
+  color: var(--g8);
+  display: flex;
+  align-items: center;
+  position: relative;
+  font-size: 13px;
+}
+
+.select-fake::after {
+  content: '▾';
+  position: absolute;
+  right: 10px;
+  color: var(--g6);
+  font-size: 10px;
+}
+
+.table-wrap {
+  background: #fff;
+  border: 1px solid var(--g4);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  flex: 1;
+  overflow-y: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--g7);
+  background: var(--g2);
+  border-bottom: 1px solid var(--g4);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--g3);
+  font-size: 13px;
+  color: var(--g9);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+.mono {
+  font-family: 'SF Mono', 'Noto Sans Mono CJK SC', Menlo, monospace;
+  font-size: 12px;
+  color: var(--g8);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.tag-ready {
+  background: rgba(14, 213, 125, 0.12);
+  color: #0aa861;
+}
+
+.tag-provisioning {
+  background: rgba(255, 156, 0, 0.14);
+  color: #d97700;
+}
+
+.tag-failed {
+  background: rgba(245, 47, 62, 0.12);
+  color: var(--error);
+}
+
+.ops {
+  display: flex;
+  gap: 6px;
+}
+
+.link {
+  color: var(--link);
+  font-size: 13px;
+  padding: 0 4px;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
