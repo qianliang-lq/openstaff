@@ -5,14 +5,30 @@
 default:
     @just --list
 
-# Run full development stack
+# Run full development stack (backend services)
 dev:
-    @echo "🚀 Starting OpenStaff development stack..."
-    @echo "Note: Full stack orchestration coming soon"
-    @echo "For now, run components individually:"
-    @echo "  - Desktop: cd apps/desktop && pnpm dev"
-    @echo "  - Admin:   cd apps/web-admin && pnpm dev"
-    @echo "  - API:     cargo run -p openstaff-api"
+    @echo "🚀 Starting OpenStaff backend services..."
+    @echo ""
+    @echo "Backend services will run on:"
+    @echo "  - API:       http://localhost:3000"
+    @echo "  - Gateway:   http://localhost:3001"
+    @echo "  - Scheduler: http://localhost:3002"
+    @echo ""
+    @echo "Frontend apps (run separately after 'pnpm install'):"
+    @echo "  - Desktop:   cd apps/desktop && pnpm dev"
+    @echo "  - Admin:     cd apps/web-admin && pnpm dev"
+    @echo ""
+    just dev-services
+
+# Run all backend services in parallel
+dev-services:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'kill 0' SIGINT
+    cargo run -p openstaff-api &
+    cargo run -p openstaff-gateway &
+    cargo run -p openstaff-scheduler &
+    wait
 
 # Install all dependencies (Rust + Node)
 install:
@@ -68,3 +84,10 @@ run-scheduler:
 type-check:
     @echo "📝 Type checking TypeScript..."
     pnpm type-check
+
+# Check health of all backend services
+health:
+    @echo "🏥 Checking service health..."
+    @curl -s http://localhost:3000/health | jq . || echo "❌ API not running"
+    @curl -s http://localhost:3001/health | jq . || echo "❌ Gateway not running"
+    @curl -s http://localhost:3002/health | jq . || echo "❌ Scheduler not running"
