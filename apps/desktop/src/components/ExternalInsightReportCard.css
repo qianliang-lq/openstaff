@@ -1,0 +1,207 @@
+.external-insight-report-card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin: 16px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.report-header {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: linear-gradient(135deg, #ff4141 0%, #ff6b6b 100%);
+  color: #ffffff;
+  gap: 12px;
+}
+
+.report-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.report-title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.expand-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: #ffffff;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.expand-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.report-body {
+  padding: 16px;
+}
+
+.report-summary {
+  margin-bottom: 16px;
+}
+
+.summary-label {
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.summary-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.summary-item {
+  padding: 8px 0;
+  color: #555555;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.summary-item::before {
+  content: '•';
+  color: #ff4141;
+  font-weight: bold;
+  display: inline-block;
+  width: 1em;
+  margin-left: -1em;
+  padding-right: 8px;
+}
+
+.report-details {
+  margin-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 16px;
+}
+
+.bucket-section {
+  margin-bottom: 24px;
+}
+
+.bucket-section:last-child {
+  margin-bottom: 0;
+}
+
+.bucket-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ff4141;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #ff4141;
+}
+
+.bucket-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fact-item {
+  padding: 12px;
+  background: #f9f9f9;
+  border-radius: 6px;
+  border-left: 3px solid #ff4141;
+}
+
+.fact-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.fact-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #ffe0e0;
+  color: #ff4141;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.fact-title {
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.fact-summary {
+  color: #666666;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.fact-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.fact-link {
+  color: #ff4141;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.fact-link:hover {
+  color: #ff6b6b;
+  text-decoration: underline;
+}
+
+.pdf-link {
+  font-weight: 600;
+}
+
+.link-separator {
+  color: #cccccc;
+  font-size: 13px;
+}
+
+.report-footer {
+  padding: 12px 16px;
+  background: #f9f9f9;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.view-full-btn {
+  background: #ff4141;
+  border: none;
+  border-radius: 4px;
+  color: #ffffff;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-full-btn:hover {
+  background: #ff6b6b;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 65, 65, 0.3);
+}
+
+.view-full-btn:active {
+  transform: translateY(0);
+}

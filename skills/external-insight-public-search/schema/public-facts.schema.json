@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://openstaff.dev/schemas/external-insight/public-facts.schema.json",
+  "title": "External Insight Public Facts",
+  "description": "外部洞察公开搜索结果的事实记录格式",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["bucket", "title", "summary_zh", "url", "tags"],
+    "properties": {
+      "bucket": {
+        "type": "string",
+        "enum": ["竞对", "组织提效", "前沿模型", "技术底座"],
+        "description": "信息分类桶：竞对动态、组织提效、前沿模型、技术底座"
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "description": "标题（英文或中文，保持原始语言）"
+      },
+      "summary_zh": {
+        "type": "string",
+        "minLength": 1,
+        "description": "中文摘要：清晰、准确地描述核心内容"
+      },
+      "url": {
+        "type": "string",
+        "format": "uri",
+        "description": "原文链接（必须可访问）"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "description": "标签列表：TOP互联网/AI公司、学术研究、期刊论文、研究报告、智库报告、TOP学校等"
+      },
+      "pdf_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "PDF 下载链接（可选，优先提供）"
+      }
+    },
+    "additionalProperties": false
+  }
+}
