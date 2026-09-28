@@ -7,7 +7,7 @@ import './App.css';
 export type TabType = 'chat' | 'computer' | 'routines' | 'skills' | 'connectors' | 'memory';
 
 function App() {
-  const [activeAgent, setActiveAgent] = useState('产品经理开发工具');
+  const [activeAgent, setActiveAgent] = useState('产品经理数字员工');
   const [activeTab, setActiveTab] = useState<TabType>('chat');
 
   return (

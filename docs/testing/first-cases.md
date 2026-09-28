@@ -446,7 +446,7 @@ cd apps/desktop && pnpm test
 **Purpose**: Verify Sidebar displays multiple agents and shows active state.
 
 **Expected Result**:
-- ✅ Shows "产品经理开发工具", "运营专家", "研发助作"
+- ✅ Shows "产品经理数字员工", "运营专家", "研发协作"
 - ✅ Active agent has `.active` class
 
 ---

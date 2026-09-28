@@ -12,7 +12,7 @@ interface Instance {
 const mockInstances: Instance[] = [
   {
     id: 'eb-sjn-3bi3i',
-    agent: '产品经理开发工具',
+    agent: '产品经理数字员工',
     tenant: 'tenant-acme',
     status: 'Ready',
     node: 'node-bj-53',
@@ -28,7 +28,7 @@ const mockInstances: Instance[] = [
   },
   {
     id: 'ei-dev-5bii',
-    agent: '研发助作',
+    agent: '研发协作',
     tenant: 'tenant-beta',
     status: 'Provisioning',
     node: 'node-bj-58',
@@ -44,7 +44,7 @@ const mockInstances: Instance[] = [
   },
   {
     id: 'eq-pm-6bt4',
-    agent: '产品经理开发工具',
+    agent: '产品经理数字员工',
     tenant: 'tenant-beta',
     status: 'Ready',
     node: 'node-bj-12',

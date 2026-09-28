@@ -17,7 +17,7 @@ interface SidebarProps {
 const mockAgents: Agent[] = [
   {
     id: '1',
-    name: '产品经理开发工具',
+    name: '产品经理数字员工',
     role: 'PRD · 跑Routine',
     status: 'online',
     avatar: '产',
@@ -33,7 +33,7 @@ const mockAgents: Agent[] = [
   },
   {
     id: '3',
-    name: '研发助作',
+    name: '研发协作',
     role: '待命',
     status: 'idle',
     avatar: '研',
