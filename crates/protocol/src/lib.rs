@@ -6,6 +6,7 @@ pub struct Message {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct EventEnvelope {
     pub event_id: String,
     pub event_type: String,

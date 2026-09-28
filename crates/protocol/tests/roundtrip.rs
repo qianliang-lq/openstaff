@@ -159,7 +159,8 @@ fn test_event_envelope_protocol_version_field() {
     let json_value: serde_json::Value =
         serde_json::from_str(&json_str).expect("Failed to parse JSON");
 
-    assert_eq!(json_value["protocol_version"], "2.1");
+    // With camelCase serialization, field is protocolVersion in JSON
+    assert_eq!(json_value["protocolVersion"], "2.1");
 
     let deserialized: EventEnvelope =
         serde_json::from_str(&json_str).expect("Failed to deserialize");
