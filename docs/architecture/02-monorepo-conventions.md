@@ -299,22 +299,59 @@ docker-compose up
 
 ## Testing Strategy
 
-### Unit Tests
+> **⭐ See [Testing Strategy Documentation](../testing/strategy.md) for comprehensive details.**
 
-- **Crates**: `cargo test -p openstaff-protocol`
-- **Services**: `cargo test -p openstaff-api`
-- **Frontend**: `pnpm test` (per-app)
+### Test Layers (Summary)
 
-### Integration Tests
+1. **Unit Tests**: Fast, offline, isolated tests for individual components
+2. **Contract Tests**: Protocol roundtrip and API schema validation
+3. **Integration Tests**: Multi-component tests with minimal dependencies (T1+)
+4. **Smoke Tests**: Live health checks on running services (online, gated in CI)
+5. **E2E Tests**: Full user workflows (T2+, deferred)
 
-- **Service-to-service**: `tests/integration/`
-- **E2E**: `tests/e2e/` (Playwright for desktop/admin)
+### CI Default Gate (Offline Only)
 
-### Contract Tests
+The default CI pipeline runs **only offline tests**:
 
-- **Protocol**: Versioned JSON schemas in `crates/protocol/schemas/`
-- **API**: OpenAPI spec generated from code
-- **Gateway**: Mock LLM provider for tests
+```bash
+cargo test --workspace  # Rust unit + contract tests
+pnpm test              # Frontend unit tests
+```
+
+**Online tests** (smoke, E2E) are in separate CI jobs, triggered by:
+- Manual `workflow_dispatch`
+- PR label: `test-online` or `test-e2e`
+
+### Directory Conventions
+
+**Rust**:
+- Unit tests: `src/` with `#[cfg(test)]` modules
+- Contract tests: `crates/protocol/tests/roundtrip.rs`
+- Integration tests: `tests/` directories (T1+)
+
+**Frontend**:
+- Unit tests: `src/__tests__/` (Vitest)
+- E2E tests: `tests/e2e/` (Playwright, T2+)
+
+### Quick Commands
+
+```bash
+# Offline tests (fast, CI default)
+cargo test --workspace
+pnpm test
+
+# Smoke tests (online, requires running services)
+just dev              # Start services
+just smoke            # Run smoke tests
+
+# Full pre-commit check
+just format && just lint && just test
+```
+
+### References
+
+- **[Testing Strategy](../testing/strategy.md)** - Full documentation
+- **[First Test Cases](../testing/first-cases.md)** - Test case catalog
 
 ---
 

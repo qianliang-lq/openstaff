@@ -1,23 +1,15 @@
 use axum::{
-    extract::State,
     routing::{get, post},
     Json, Router,
 };
 use openstaff_protocol::Message;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-
-#[derive(Clone)]
-struct AppState {
-    version: String,
-}
 
 #[derive(Serialize)]
 struct HealthResponse {
     status: String,
     service: String,
-    version: String,
 }
 
 #[derive(Serialize)]
@@ -30,11 +22,10 @@ struct EchoRequest {
     content: String,
 }
 
-async fn health_check(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
+async fn health_check() -> Json<HealthResponse> {
     Json(HealthResponse {
-        status: "healthy".to_string(),
-        service: "openstaff-api".to_string(),
-        version: state.version.clone(),
+        status: "ok".to_string(),
+        service: "api".to_string(),
     })
 }
 
@@ -57,17 +48,12 @@ async fn main() -> anyhow::Result<()> {
         .compact()
         .init();
 
-    let state = Arc::new(AppState {
-        version: env!("CARGO_PKG_VERSION").to_string(),
-    });
-
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health_check))
         .route("/api/v1/echo", post(echo_handler))
         .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http())
-        .with_state(state);
+        .layer(TraceLayer::new_for_http());
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);

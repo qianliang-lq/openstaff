@@ -16,9 +16,11 @@
     "dev": "pnpm --filter @openstaff/desktop dev",
     "dev:admin": "pnpm --filter @openstaff/web-admin dev",
     "build": "pnpm -r build",
+    "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "format": "pnpm -r format",
-    "type-check": "pnpm -r type-check"
+    "type-check": "pnpm -r type-check",
+    "test:smoke": "./scripts/smoke.sh"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

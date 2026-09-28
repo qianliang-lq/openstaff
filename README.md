@@ -128,6 +128,7 @@ just build      # 构建所有项目
 
 - **⭐ [Agent 开发指南](AGENTS.md)** - 开始开发 agents
 - **⭐ [Monorepo 约定](docs/architecture/02-monorepo-conventions.md)** - 权威性架构规范
+- **⭐ [测试策略](docs/testing/strategy.md)** - 测试层与 CI 集成
 - [架构概览](docs/architecture.md)
 - [安装指南](INSTALL.md)
 - [商业计划](docs/2026-09-28-openstaff-business-plan-v0.1_6794.md)
@@ -189,6 +190,9 @@ cargo check --workspace
 
 ### Documentation
 
+- **⭐ [Agent Development Guide](AGENTS.md)** - Start developing agents
+- **⭐ [Monorepo Conventions](docs/architecture/02-monorepo-conventions.md)** - Authoritative architecture spec
+- **⭐ [Testing Strategy](docs/testing/strategy.md)** - Test layers and CI integration
 - [Business Plan](docs/2026-09-28-openstaff-business-plan-v0.1_6794.md)
 - [Product & UX Plan](docs/2026-09-28-openstaff-product-ux-v0.1_acb0.md)
 - [Technical Plan](docs/2026-09-28-openstaff-tech-plan-v0.1_f5ef.md)
