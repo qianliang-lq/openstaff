@@ -8,7 +8,6 @@ members = [
     "services/gateway",
     "services/runtime",
     "services/scheduler",
-    "services/runtime",
 ]
 
 [workspace.package]
