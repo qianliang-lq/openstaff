@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 function App() {
-  const [greeting, setGreeting] = useState('');
-  const [name, setName] = useState('');
+  const [greeting, setGreeting] = useState("");
+  const [name, setName] = useState("");
 
   async function greet() {
-    setGreeting(await invoke('greet', { name }));
+    setGreeting(await invoke("greet", { name }));
   }
 
   return (
