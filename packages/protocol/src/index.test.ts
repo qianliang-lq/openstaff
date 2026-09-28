@@ -25,18 +25,25 @@ describe('Message', () => {
 describe('EventEnvelope', () => {
   it('creates valid EventEnvelope object', () => {
     const envelope: EventEnvelope = {
+      eventId: 'evt-123',
       eventType: 'test.event',
-      payload: { data: 'test' },
       timestamp: Date.now(),
+      protocolVersion: '1.0',
+      payload: { type: 'Message', data: { content: 'hello' } },
     };
+    expect(envelope.eventId).toBe('evt-123');
     expect(envelope.eventType).toBe('test.event');
-    expect(envelope.payload).toEqual({ data: 'test' });
+    expect(envelope.protocolVersion).toBe('1.0');
+    expect(envelope.payload).toEqual({ type: 'Message', data: { content: 'hello' } });
   });
 
   it('validates EventEnvelope type guard', () => {
     const validEnvelope = {
+      eventId: 'evt-456',
       eventType: 'test',
-      payload: {},
+      timestamp: 123456789,
+      protocolVersion: '1.0',
+      payload: { type: 'Message', data: { content: 'test' } },
     };
     const invalidEnvelope = {
       type: 'test',
