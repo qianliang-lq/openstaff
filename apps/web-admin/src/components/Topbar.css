@@ -1,0 +1,90 @@
+.topbar {
+  height: var(--topbar-h);
+  background: #fff;
+  border-bottom: 1px solid var(--g4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--g7);
+  font-size: 13px;
+}
+
+.breadcrumb .sep {
+  color: var(--g5);
+}
+
+.breadcrumb .cur {
+  color: var(--g10);
+  font-weight: 500;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bell {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--g2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--g7);
+  position: relative;
+  font-size: 14px;
+}
+
+.bell .dot {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  background: var(--primary);
+  border-radius: 50%;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b6b, var(--primary));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-meta {
+  line-height: 1.3;
+}
+
+.user-meta .name {
+  font-size: 13px;
+  color: var(--g10);
+  font-weight: 500;
+}
+
+.user-meta .role {
+  font-size: 11px;
+  color: var(--g6);
+}
