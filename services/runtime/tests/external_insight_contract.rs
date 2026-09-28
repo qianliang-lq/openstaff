@@ -1,24 +1,8 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use openstaff_runtime::external_insight::{
+    create_report_card_payload_if_passed, should_emit_report_card, ExternalInsightFact,
+    ReconcileResult,
+};
 use std::fs;
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-struct ExternalInsightFact {
-    bucket: String,
-    title: String,
-    summary_zh: String,
-    url: String,
-    tags: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pdf_url: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ReconcileResult {
-    status: String,
-    facts: Vec<ExternalInsightFact>,
-    errors: Vec<String>,
-}
 
 /// TC-028: Facts Schema Contract
 /// Validates that facts JSON conforms to the schema defined in
@@ -227,30 +211,4 @@ fn test_reconcile_gate_pass_allows_report_card() {
         "Summary must be limited to ≤ 3 items, got {}",
         summary.len()
     );
-}
-
-// Helper functions that would be in runtime service implementation
-
-fn should_emit_report_card(reconcile: &ReconcileResult) -> bool {
-    reconcile.status == "PASS"
-}
-
-fn create_report_card_payload_if_passed(reconcile: &ReconcileResult) -> Option<Value> {
-    if reconcile.status != "PASS" {
-        return None;
-    }
-
-    // Create summary from first 3 facts
-    let summary: Vec<String> = reconcile
-        .facts
-        .iter()
-        .take(3)
-        .map(|fact| fact.title.clone())
-        .collect();
-
-    Some(serde_json::json!({
-        "reconcile_status": "PASS",
-        "facts": reconcile.facts,
-        "summary": summary,
-    }))
 }
