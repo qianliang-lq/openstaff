@@ -7,6 +7,11 @@
   overflow: hidden;
 }
 
+.external-insight-report-card.reconcile-failed {
+  border-color: #ffaa00;
+  background: #fffbf0;
+}
+
 .report-header {
   display: flex;
   align-items: center;
@@ -14,6 +19,10 @@
   background: linear-gradient(135deg, #ff4141 0%, #ff6b6b 100%);
   color: #ffffff;
   gap: 12px;
+}
+
+.reconcile-failed .report-header {
+  background: linear-gradient(135deg, #ffaa00 0%, #ffcc00 100%);
 }
 
 .report-icon {
@@ -25,6 +34,17 @@
   flex: 1;
   font-size: 16px;
   font-weight: 600;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.status-badge.failed {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .expand-btn {
@@ -204,4 +224,46 @@
 
 .view-full-btn:active {
   transform: translateY(0);
+}
+
+.failed-message {
+  display: flex;
+  gap: 16px;
+  padding: 24px;
+  align-items: flex-start;
+}
+
+.failed-icon {
+  font-size: 48px;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.failed-text {
+  flex: 1;
+}
+
+.failed-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ff8800;
+  margin-bottom: 8px;
+}
+
+.failed-desc {
+  font-size: 14px;
+  color: #666666;
+  line-height: 1.6;
+}
+
+.view-full-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.view-full-btn:disabled:hover {
+  background: #cccccc;
+  transform: none;
+  box-shadow: none;
 }

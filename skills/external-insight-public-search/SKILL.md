@@ -9,6 +9,42 @@ description: >-
 
 用于数字员工系统的每日外部行业洞察公开搜索。写完必须落盘 facts，供后续对账和分析使用。
 
+---
+
+## 架构边界（CRITICAL）
+
+### 执行环境
+
+- **本 skill 在 `runtime` 服务中执行**，不在 scheduler 或其他服务中运行
+- 公开 Web 出口**必须**通过 Gateway 的 bypass 工具路径（fully audited）
+- **禁止**直接访问外网以逃避审计
+
+### Reconcile 门禁（强制执行）
+
+**规则**：除非 facts 存在且 reconcile PASS，否则**禁止**向 Desktop 发送报告卡片事件。
+
+#### 流程
+
+1. Skill 生成 `YYYY-MM-DD-public-facts.json`
+2. Runtime 调用 reconcile 工具验证（去重、质量检查、URL 可达性）
+3. 仅当 `reconcile_status: "PASS"` 时发送 `EventEnvelope::ExternalInsightReport`
+4. Desktop 仅渲染已通过 reconcile 的报告
+
+#### Reconcile 检查项
+
+- ✅ URL 可达性（HTTP 200-299）
+- ✅ 去重检查（与历史 covered-log 比对）
+- ✅ Schema 合规性（符合 `public-facts.schema.json`）
+- ✅ 内容质量（summary_zh 非空、tags 非空、bucket 有效）
+- ✅ 栏目限额（每栏目硬顶 5 条）
+
+#### 失败处理
+
+- 若 reconcile FAILED → 记录错误日志，**不推送**报告卡片
+- 可选：推送阻塞状态卡片，提示用户「报告验证失败」
+
+---
+
 ## 输出路径
 
 - `artifacts/external-insight/YYYY-MM-DD-public.md`
@@ -94,3 +130,15 @@ description: >-
 3. 每个栏目 3-5 条，硬顶 5 条
 4. 包含 URL、标签、可选 PDF 链接
 5. 中文摘要清晰、准确
+6. **通过 reconcile 门禁检查（`reconcile_status: "PASS"`）**
+7. 仅在 reconcile PASS 后才发送报告卡片到 Desktop
+
+---
+
+## 技术约束
+
+- **执行位置**: Runtime 服务
+- **网络访问**: 仅通过 Gateway bypass 工具路径
+- **输出验证**: 必须通过 reconcile 门禁
+- **协议约束**: 不修改 `crates/protocol` EventEnvelope（当前 MVP）
+- **调度触发**: 由 Scheduler 服务触发，skill 不关心调度时间

@@ -102,4 +102,30 @@ describe('ExternalInsightReportCard', () => {
 
     expect(screen.getByText('查看完整报告')).toBeInTheDocument();
   });
+
+  it('应该在reconcile_status为FAILED时显示失败状态', () => {
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcile_status="FAILED" />
+    );
+
+    expect(screen.getByText('报告验证失败')).toBeInTheDocument();
+    expect(screen.getByText(/本日报告未通过质量检查门禁/)).toBeInTheDocument();
+    expect(screen.getByText('查看详情')).toBeDisabled();
+  });
+
+  it('应该在reconcile_status为FAILED时不显示摘要要点', () => {
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcile_status="FAILED" />
+    );
+
+    expect(screen.queryByText('摘要要点：')).not.toBeInTheDocument();
+    expect(screen.queryByText('Factory CLI v0.228.0 发布')).not.toBeInTheDocument();
+  });
+
+  it('应该在reconcile_status未提供时默认为PASS', () => {
+    render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
+
+    expect(screen.queryByText('报告验证失败')).not.toBeInTheDocument();
+    expect(screen.getByText('摘要要点：')).toBeInTheDocument();
+  });
 });

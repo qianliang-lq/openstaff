@@ -13,10 +13,44 @@ export interface ExternalInsightFact {
 export interface ExternalInsightReportCardProps {
   date: string;
   facts: ExternalInsightFact[];
+  reconcile_status?: 'PASS' | 'FAILED';
 }
 
-function ExternalInsightReportCard({ date, facts }: ExternalInsightReportCardProps) {
+function ExternalInsightReportCard({
+  date,
+  facts,
+  reconcile_status = 'PASS',
+}: ExternalInsightReportCardProps) {
   const [expanded, setExpanded] = useState(false);
+
+  if (reconcile_status === 'FAILED') {
+    return (
+      <div className="external-insight-report-card reconcile-failed">
+        <div className="report-header">
+          <div className="report-icon">🔍</div>
+          <div className="report-title">外部洞察日报 · {date}</div>
+          <div className="status-badge failed">⚠️</div>
+        </div>
+        <div className="report-body">
+          <div className="failed-message">
+            <div className="failed-icon">⚠️</div>
+            <div className="failed-text">
+              <div className="failed-title">报告验证失败</div>
+              <div className="failed-desc">
+                本日报告未通过质量检查门禁（reconcile）。可能原因：URL
+                不可达、重复内容、或格式不符合规范。
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="report-footer">
+          <button className="view-full-btn" disabled>
+            查看详情
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const summaryFacts = facts.slice(0, 3);
   const factsByBucket = facts.reduce(
