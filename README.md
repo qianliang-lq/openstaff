@@ -21,11 +21,30 @@
 
 ### 架构
 
-- **本地客户端**（Rust）：轻量托盘 + 小窗口，聊天优先；可在用户授权下执行本机工具
-- **云端实例**（容器/K8s）：每个 Agent 可拥有隔离沙箱电脑、浏览器/桌面子代理、记忆与例程
-- **控制面**：会话路由、审批策略、连接器/MCP、多 Agent 协作（SendToAgent、频道/群组房）
+- **桌面客户端**（Tauri 2 + React）：轻量桌面应用，聊天优先 UI；Rust 后端处理本机工具授权
+- **Web 管理控制台**（React）：Agent 管理、审批策略、审计日志、系统监控
+- **云端服务**（Rust 微服务）：API、LLM Gateway、调度器
+- **Agent 运行时**（容器/K8s）：每个 Agent 独立沙箱、浏览器/桌面子代理、记忆与例程
 
 详见 [docs/architecture.md](docs/architecture.md) 和完整计划文档。
+
+### Monorepo 结构
+
+```
+openstaff/
+├── apps/
+│   ├── desktop/         # Tauri + React 桌面客户端
+│   └── web-admin/       # React 管理控制台
+├── services/
+│   ├── api/             # 控制面 API
+│   ├── gateway/         # LLM 网关
+│   └── scheduler/       # 例程调度器
+├── crates/
+│   ├── protocol/        # 共享协议定义（Rust）
+│   └── runtime-agent/   # Agent 运行时库
+├── packages/            # 共享前端包（规划中）
+└── docs/                # 完整计划文档
+```
 
 ### 设计原则
 
@@ -35,19 +54,62 @@
 
 本项目采用 **Apache License 2.0**。如社区有强烈需求，未来可考虑切换至 MIT 或其他宽松许可证。
 
-### 快速开始（待完成）
+### 快速开始
 
-项目当前处于**早期 MVP 阶段**。构建与部署指南将在 T0 里程碑后提供。
+项目当前处于**早期 MVP 阶段（T0 完成）**。
+
+#### 前置要求
+- Rust stable (通过 `rust-toolchain.toml` 自动管理)
+- Node.js >= 18
+- pnpm >= 8
+- [just](https://github.com/casey/just) (可选，推荐)
+- **系统依赖**: 详见 [INSTALL.md](INSTALL.md)（Tauri 需要 GTK 等库）
+
+#### 安装依赖
 
 ```bash
 # 克隆仓库
 git clone https://github.com/qianliang-lq/openstaff.git
 cd openstaff
 
-# 检查 Rust 工作区
-cargo check --workspace
+# 安装所有依赖（Rust + Node.js）
+just install
+# 或者
+cargo fetch && pnpm install
+```
 
-# 后续将提供完整构建与部署文档
+#### 开发
+
+```bash
+# 检查 Rust 工作区
+just check
+# 或 cargo check --workspace
+
+# 运行测试
+just test
+# 或 cargo test --workspace
+
+# 启动桌面客户端开发服务器（T1+）
+cd apps/desktop && pnpm dev
+
+# 启动管理控制台（T1+）
+cd apps/web-admin && pnpm dev
+
+# 运行后端服务占位
+cargo run -p openstaff-api
+cargo run -p openstaff-gateway
+cargo run -p openstaff-scheduler
+```
+
+#### 一键命令（需要 just）
+
+```bash
+just install    # 安装所有依赖
+just check      # 检查 Rust 代码
+just test       # 运行测试
+just lint       # 代码检查
+just format     # 格式化代码
+just build      # 构建所有项目
 ```
 
 ### 文档

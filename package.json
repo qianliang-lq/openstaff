@@ -1,0 +1,30 @@
+{
+  "name": "openstaff-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenStaff - Open-Source Digital Staff OS",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qianliang-lq/openstaff"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter @openstaff/desktop dev",
+    "dev:admin": "pnpm --filter @openstaff/web-admin dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format",
+    "type-check": "pnpm -r type-check"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

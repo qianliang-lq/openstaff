@@ -2,8 +2,11 @@
 resolver = "2"
 members = [
     "crates/protocol",
-    "crates/client",
     "crates/runtime-agent",
+    "apps/desktop/src-tauri",
+    "services/api",
+    "services/gateway",
+    "services/scheduler",
 ]
 
 [workspace.package]
@@ -18,3 +21,4 @@ serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 thiserror = "1.0"
+openstaff-protocol = { path = "crates/protocol" }

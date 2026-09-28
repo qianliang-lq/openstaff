@@ -18,9 +18,9 @@
 
 ```mermaid
 flowchart TB
-  subgraph Local["本地：Rust Client"]
-    Tray["托盘 + 轻量窗口"]
-    LocalTools["本机工具执行器<br/>OS 权限 / 审批后执行"]
+  subgraph Local["本地：Tauri Desktop"]
+    ReactUI["React 前端<br/>聊天 · 侧栏 · 审批卡片"]
+    TauriBackend["Tauri Rust 后端<br/>本机工具 · OS 权限"]
     LocalCache["会话缓存 / 更新器"]
   end
 
@@ -48,8 +48,8 @@ flowchart TB
     Audit["审计日志"]
   end
 
-  Tray <-->|WebSocket / gRPC| GatewayAPI
-  LocalTools <-->|审批后回调| GatewayAPI
+  ReactUI <-->|Tauri IPC| TauriBackend
+  TauriBackend <-->|WebSocket / gRPC| GatewayAPI
   GatewayAPI --> Orchestrator
   GatewayAPI --> Policy
   Scheduler --> Orchestrator
@@ -66,12 +66,13 @@ flowchart TB
 
 ### 核心组件
 
-#### 1. 本地客户端（Rust）
+#### 1. 桌面客户端（Tauri 2 + React）
 
-- **托盘常驻**：最小化资源占用
-- **聊天窗口**：主交互界面（原生或薄 WebView）
-- **本机工具**：经审批后执行 OS 级操作
-- **自动更新**：签名更新包，失败可回滚
+- **前端**：React 18 + TypeScript，聊天优先 UI、Agent 侧栏、审批卡片
+- **后端**：Tauri Rust，本机工具执行、OS 权限管理、IPC 通信
+- **轻量级**：比 Electron 更小内存占用、更快启动
+- **跨平台**：Windows、macOS、Linux 统一构建
+- **自动更新**：Tauri 内置更新机制
 
 #### 2. 控制面 API
 
@@ -172,12 +173,50 @@ docker-compose up -d
 6. **验证闸门默认开启**：高风险工具必须走审批
 7. **岗位感优先于萌宠感**：人设服务岗位目标
 
+### Monorepo 布局
+
+```
+openstaff/                    # 单一 monorepo
+├── apps/
+│   ├── desktop/              # Tauri 2 + React 桌面客户端
+│   │   ├── src-tauri/        # Rust 后端（Tauri）
+│   │   ├── src/              # React 前端
+│   │   └── package.json
+│   └── web-admin/            # React 管理控制台
+│       ├── src/
+│       └── package.json
+├── services/                 # Rust 微服务
+│   ├── api/                  # 控制面 API
+│   ├── gateway/              # LLM 网关
+│   └── scheduler/            # 例程调度器
+├── crates/                   # 共享 Rust 库
+│   ├── protocol/             # 协议定义（Rust）
+│   └── runtime-agent/        # Agent 运行时
+├── packages/                 # 共享前端包（规划中）
+│   └── ui/                   # 共享 UI 组件
+├── docs/                     # 完整计划文档
+├── Cargo.toml                # Rust workspace
+├── package.json              # pnpm workspace
+├── pnpm-workspace.yaml
+└── justfile                  # 开发脚本
+```
+
+### 技术栈
+
+| 组件 | 技术栈 |
+| --- | --- |
+| 桌面客户端 | Tauri 2 + React 18 + TypeScript + Vite |
+| Web 管理控制台 | React 18 + TypeScript + Vite |
+| 后端服务 | Rust + Tokio + (HTTP/WebSocket 框架待定) |
+| 共享协议 | Rust crate (serde) |
+| 构建工具 | Cargo (Rust) + pnpm (Node.js) + just (任务) |
+
 ### 非目标
 
 - ❌ 不做「秘书」为主品牌的消费级陪伴产品
 - ❌ 不做无审批的本机静默操控
 - ❌ 不做承诺替代持牌金融决策或自动放贷
-- ❌ 不做重型 Electron 巨型套壳
+- ❌ ~~不做重型 Electron 巨型套壳~~ → 改用 Tauri 2（轻量级）
 - ❌ 不声称二进制兼容或协议兼容任何专有产品
 
 ---
@@ -196,9 +235,9 @@ This document provides a quick overview of OpenStaff architecture. For detailed 
 
 ```mermaid
 flowchart TB
-  subgraph Local["Local: Rust Client"]
-    Tray["Tray + Compact Window"]
-    LocalTools["Local Tool Executor<br/>OS Permissions / Post-Approval"]
+  subgraph Local["Local: Tauri Desktop"]
+    ReactUI["React Frontend<br/>Chat · Sidebar · Approval Cards"]
+    TauriBackend["Tauri Rust Backend<br/>Local Tools · OS Permissions"]
     LocalCache["Session Cache / Updater"]
   end
 
@@ -226,8 +265,8 @@ flowchart TB
     Audit["Audit Logs"]
   end
 
-  Tray <-->|WebSocket / gRPC| GatewayAPI
-  LocalTools <-->|Post-Approval Callback| GatewayAPI
+  ReactUI <-->|Tauri IPC| TauriBackend
+  TauriBackend <-->|WebSocket / gRPC| GatewayAPI
   GatewayAPI --> Orchestrator
   GatewayAPI --> Policy
   Scheduler --> Orchestrator
@@ -244,12 +283,13 @@ flowchart TB
 
 ### Core Components
 
-#### 1. Local Client (Rust)
+#### 1. Desktop Client (Tauri 2 + React)
 
-- **Tray Resident**: Minimal resource footprint
-- **Chat Window**: Primary interaction surface (native or thin WebView)
-- **Local Tools**: OS-level operations post-approval
-- **Auto Update**: Signed update packages with rollback
+- **Frontend**: React 18 + TypeScript, chat-first UI, agent sidebar, approval cards
+- **Backend**: Tauri Rust, local tool execution, OS permission management, IPC communication
+- **Lightweight**: Smaller memory footprint than Electron, faster startup
+- **Cross-platform**: Unified builds for Windows, macOS, Linux
+- **Auto Update**: Built-in Tauri update mechanism
 
 #### 2. Control Plane API
 
@@ -352,10 +392,50 @@ docker-compose up -d
 
 ### Non-Goals
 
+### Monorepo Layout
+
+```
+openstaff/                    # Single monorepo
+├── apps/
+│   ├── desktop/              # Tauri 2 + React desktop client
+│   │   ├── src-tauri/        # Rust backend (Tauri)
+│   │   ├── src/              # React frontend
+│   │   └── package.json
+│   └── web-admin/            # React admin console
+│       ├── src/
+│       └── package.json
+├── services/                 # Rust microservices
+│   ├── api/                  # Control plane API
+│   ├── gateway/              # LLM gateway
+│   └── scheduler/            # Routine scheduler
+├── crates/                   # Shared Rust libraries
+│   ├── protocol/             # Protocol definitions (Rust)
+│   └── runtime-agent/        # Agent runtime
+├── packages/                 # Shared frontend packages (planned)
+│   └── ui/                   # Shared UI components
+├── docs/                     # Complete planning docs
+├── Cargo.toml                # Rust workspace
+├── package.json              # pnpm workspace
+├── pnpm-workspace.yaml
+└── justfile                  # Development scripts
+```
+
+### Tech Stack
+
+| Component | Tech Stack |
+| --- | --- |
+| Desktop Client | Tauri 2 + React 18 + TypeScript + Vite |
+| Web Admin Console | React 18 + TypeScript + Vite |
+| Backend Services | Rust + Tokio + (HTTP/WebSocket framework TBD) |
+| Shared Protocol | Rust crate (serde) |
+| Build Tools | Cargo (Rust) + pnpm (Node.js) + just (tasks) |
+
+### Non-Goals
+
 - ❌ No "secretary"-branded consumer companion product
 - ❌ No silent local operations without approval
 - ❌ No promises of replacing licensed financial decision-making or auto-lending
-- ❌ No heavy Electron-only wrapper
+- ❌ ~~No heavy Electron-only wrapper~~ → Using Tauri 2 (lightweight)
 - ❌ No claims of binary or protocol compatibility with any proprietary products
 
 ---
