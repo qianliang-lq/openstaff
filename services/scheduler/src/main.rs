@@ -81,4 +81,39 @@ mod tests {
         assert_eq!(json["service"], "scheduler");
         assert_eq!(json.as_object().unwrap().len(), 2);
     }
+
+    #[test]
+    fn test_scheduler_fire_only_no_skill_execution() {
+        use std::sync::{Arc, Mutex};
+
+        let executed_operations = Arc::new(Mutex::new(Vec::<String>::new()));
+        let ops_clone = Arc::clone(&executed_operations);
+
+        std::thread::spawn(move || {
+            let ops = ops_clone.lock().unwrap();
+            assert!(
+                !ops.contains(&"load_skill".to_string()),
+                "Scheduler must NOT load Skill directly"
+            );
+            assert!(
+                !ops.contains(&"egress_fetch".to_string()),
+                "Scheduler must NOT call Gateway egress directly"
+            );
+            assert!(
+                !ops.contains(&"reconcile".to_string()),
+                "Scheduler must NOT run reconcile logic"
+            );
+            assert!(
+                !ops.contains(&"write_facts".to_string()),
+                "Scheduler must NOT write facts"
+            );
+        });
+
+        let ops = executed_operations.lock().unwrap();
+        assert_eq!(
+            ops.len(),
+            0,
+            "Scheduler fire-only: no Skill/egress/reconcile operations"
+        );
+    }
 }

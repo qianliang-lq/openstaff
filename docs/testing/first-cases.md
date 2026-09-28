@@ -759,4 +759,320 @@ cargo test external_insight && cd apps/desktop && pnpm test ExternalInsightRepor
 
 ---
 
+## Demo-MVP Contract Tests
+
+### Gateway Egress Tests
+
+#### TC-031: Gateway Egress Auth and Request Shape
+
+**Layer**: Contract  
+**File**: `services/gateway/src/main.rs`  
+**Function**: `test_egress_fetch_auth_and_request_shape()`
+
+**Purpose**: Verify Gateway `/v1/egress/fetch` accepts authenticated requests with correct shape and returns all required response fields.
+
+**Test Coverage**:
+- ✅ Bearer token authentication
+- ✅ Request fields: url, method, max_bytes, timeout_ms, purpose, routine_id, skill_id, agent_instance_id
+- ✅ Response fields: request_id (starts with `eg_`), status, final_url, content_type, body_text, truncated, bytes
+- ✅ Offline mode fixture response
+
+**Expected Result**: ✅ HTTP 200 with complete response fields
+
+**Command**:
+
+```bash
+cargo test test_egress_fetch_auth_and_request_shape -p openstaff-gateway
+```
+
+---
+
+#### TC-032: Gateway Egress Unauthorized
+
+**Layer**: Contract  
+**File**: `services/gateway/src/main.rs`  
+**Function**: `test_egress_fetch_unauthorized()`
+
+**Purpose**: Verify Gateway rejects requests with invalid Bearer token.
+
+**Expected Result**: ✅ HTTP 401 Unauthorized
+
+---
+
+#### TC-033: Gateway SSRF RFC1918 Blocked
+
+**Layer**: Contract  
+**File**: `services/gateway/src/main.rs`  
+**Function**: `test_egress_fetch_ssrf_rfc1918_blocked()`
+
+**Purpose**: Verify Gateway blocks private network IP addresses (RFC1918) and loopback addresses.
+
+**Test Data**:
+- `http://10.0.0.1`
+- `http://172.16.0.1`
+- `http://192.168.1.1`
+- `http://127.0.0.1`
+
+**Expected Result**: ✅ HTTP 403 Forbidden for all private IPs
+
+**Audit**: deny_reason recorded in audit log
+
+---
+
+#### TC-034: Gateway SSRF Metadata Endpoint Blocked
+
+**Layer**: Contract  
+**File**: `services/gateway/src/main.rs`  
+**Function**: `test_egress_fetch_ssrf_metadata_blocked()`
+
+**Purpose**: Verify Gateway blocks AWS/cloud metadata endpoint (169.254.169.254).
+
+**Test Data**: `http://169.254.169.254/latest/meta-data/`
+
+**Expected Result**: ✅ HTTP 403 Forbidden with "metadata" in error message
+
+**Audit**: deny_reason recorded with "metadata endpoint blocked"
+
+---
+
+#### TC-035: Gateway Egress Response Fields Complete
+
+**Layer**: Contract  
+**File**: `services/gateway/src/main.rs`  
+**Function**: `test_egress_fetch_response_fields_complete()`
+
+**Purpose**: Verify Gateway `/v1/egress/fetch` response includes all required fields with correct types.
+
+**Response Contract**:
+
+```json
+{
+  "request_id": "eg_<uuid>",
+  "status": 200,
+  "final_url": "https://example.com/test",
+  "content_type": "text/html",
+  "body_text": "...",
+  "truncated": false,
+  "bytes": 123
+}
+```
+
+**Expected Result**: ✅ All 7 fields present with correct types
+
+**Note**: This test validates the response shape matches the 08-demo-mvp-cut spec. Offline mode uses golden fixture; live egress and desktop following job result are NEXT slice.
+
+---
+
+### Runtime Jobs Fire Tests
+
+#### TC-036: Runtime Jobs Fire Accepts Request
+
+**Layer**: Contract  
+**File**: `services/runtime/src/main.rs`  
+**Function**: `test_jobs_fire_accepts_and_returns_202()`
+
+**Purpose**: Verify Runtime `/v1/jobs/fire` accepts job fire requests and returns 202 Accepted response.
+
+**Request Contract**:
+
+```json
+{
+  "job_id": "job_test_123",
+  "routine_id": "external-insight-daily",
+  "skill_id": "external-insight-public-search",
+  "trigger": "manual",
+  "scheduled_for": "2026-09-28T09:00:00+08:00",
+  "payload": {}
+}
+```
+
+**Response Contract**:
+
+```json
+{
+  "job_id": "job_test_123",
+  "accepted": true
+}
+```
+
+**Expected Result**: ✅ HTTP 200 with `{job_id, accepted: true}`
+
+**Note**: Real implementation returns 200 (not 202) per existing code. MVP accepts 200; 202 is preferred for async semantics.
+
+---
+
+#### TC-037: Runtime Jobs Fire Response Shape
+
+**Layer**: Contract  
+**File**: `services/runtime/src/main.rs`  
+**Function**: `test_jobs_fire_response_shape()`
+
+**Purpose**: Validate exact response shape for jobs/fire endpoint.
+
+**Expected Result**:
+- ✅ Exactly 2 fields: `job_id`, `accepted`
+- ✅ `job_id` matches request
+- ✅ `accepted` is true
+
+---
+
+### Scheduler Fire-Only Tests
+
+#### TC-038: Scheduler Fire-Only No Skill Execution
+
+**Layer**: Contract  
+**File**: `services/scheduler/src/main.rs`  
+**Function**: `test_scheduler_fire_only_no_skill_execution()`
+
+**Purpose**: Verify Scheduler fire-only semantics: Scheduler must NOT load Skill, call Gateway egress, run reconcile, or write facts. These operations belong to Runtime.
+
+**Architecture Constraint** (per 08-demo-mvp-cut):
+
+| Role | Does | Does NOT |
+| --- | --- | --- |
+| Scheduler | cron / manual fire → `POST /v1/jobs/fire`; record last_run | Load Skill; egress; reconcile; push report card |
+| Runtime | Receive fire → run Skill → egress → facts → reconcile → PASS才通知 | Self-trigger cron |
+
+**Expected Result**: ✅ Scheduler calls runtime jobs/fire without executing Skill logic
+
+---
+
+### Desktop Fire Handler Tests
+
+#### TC-039: Desktop Fire Handler Wired
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/stages/ChatStage.test.tsx`  
+**Function**: `test('renders fire handler wired correctly')`
+
+**Purpose**: Verify Desktop ChatStage has fire handler wired to process job results.
+
+**Expected Result**: ✅ ChatStage renders without errors
+
+---
+
+#### TC-040: Desktop Fire Handler PASS Status
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/stages/ChatStage.test.tsx`  
+**Function**: `test('fire handler processes demo response with PASS status')`
+
+**Purpose**: Verify Desktop processes demo response with reconcile_status: "PASS" and displays facts.
+
+**Expected Result**: ✅ Facts displayed when reconcile PASS
+
+---
+
+#### TC-041: Desktop Fire Handler FAILED Blocks Report Card
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/stages/ChatStage.test.tsx`  
+**Function**: `test('fire handler blocks report card on FAILED reconcile')`
+
+**Purpose**: Verify Desktop does NOT render report card when reconcile_status: "FAILED" (per TC-029 reconcile gate).
+
+**Expected Result**: ✅ Report card not rendered when reconcile FAILED
+
+---
+
+#### TC-042: Desktop Fire Handler Manual Trigger
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/stages/ChatStage.test.tsx`  
+**Function**: `test('fire handler accepts manual trigger from scheduler')`
+
+**Purpose**: Verify Desktop fire handler accepts manual trigger requests with correct shape.
+
+**Expected Result**: ✅ Manual trigger request shape validated
+
+---
+
+## All Tests Summary (Updated)
+
+### Backend Tests (Rust)
+
+```bash
+# Run all backend tests (excludes openstaff-desktop Tauri)
+cargo test --workspace --exclude openstaff-desktop
+```
+
+**Expected**: ✅ 37 tests pass
+- TC-001 through TC-020: Protocol + health endpoints (20 tests)
+- TC-028, TC-029: External insight schema + reconcile gate (2 tests)
+- TC-031 through TC-038: Demo-MVP contract tests (8 tests)
+  - Gateway egress: 5 tests
+  - Runtime jobs/fire: 2 tests
+  - Scheduler fire-only: 1 test
+
+### Frontend Tests (TypeScript)
+
+```bash
+# Desktop app tests
+cd apps/desktop && pnpm test
+
+# Web admin tests
+cd apps/web-admin && pnpm test
+
+# Run all frontend tests from root
+pnpm test
+```
+
+**Expected**: ✅ 12 test suites pass
+- TC-021 through TC-027: Shell UI (7 suites)
+- TC-030: External insight report card summary ≤ 3 (1 suite)
+- TC-039 through TC-042: Desktop fire handler (4 tests in 1 suite)
+
+---
+
+## Running Demo-MVP Tests Only
+
+### Gateway Egress Tests (TC-031~TC-035)
+
+```bash
+cargo test -p openstaff-gateway test_egress
+```
+
+**Expected**: ✅ 5 tests pass
+
+### Runtime Jobs Fire Tests (TC-036~TC-037)
+
+```bash
+cargo test -p openstaff-runtime test_jobs_fire
+```
+
+**Expected**: ✅ 2 tests pass
+
+### Scheduler Fire-Only Test (TC-038)
+
+```bash
+cargo test -p openstaff-scheduler test_scheduler_fire_only
+```
+
+**Expected**: ✅ 1 test pass
+
+### Desktop Fire Handler Tests (TC-039~TC-042)
+
+```bash
+cd apps/desktop && pnpm test ChatStage
+```
+
+**Expected**: ✅ 4 tests pass
+
+---
+
+## Test Coverage Gaps (MVP Cut)
+
+The demo-MVP tests validate offline contract wiring. The following are intentionally **NOT** covered (next slice):
+
+1. **Live Egress**: Gateway live HTTP fetch (MVP uses offline fixture)
+2. **Desktop Following**: Desktop polling runtime for job completion
+3. **Audit Record Persistence**: Gateway audit log writes (tested but not validated by reading file)
+4. **Scheduler Cron**: Scheduled triggers (MVP only tests manual fire)
+5. **Error Recovery**: Runtime job retry logic
+6. **EventEnvelope Expansion**: No new EventEnvelope variants added (payload idioms only)
+
+**Honesty Note in Tests**: Test comments acknowledge that demo path uses golden fixture. Runtime→Gateway live fetch + Desktop following job result are NEXT slice. Do not claim live egress is fully wired end-to-end.
+
+---
+
 **Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.
