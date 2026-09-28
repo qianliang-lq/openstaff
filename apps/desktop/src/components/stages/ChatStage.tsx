@@ -74,6 +74,7 @@ function ChatStage() {
               date="2026-09-27"
               facts={mockFacts}
               factsPath="artifacts/external-insight/2026-09-27-public-facts.json"
+              reconcileStatus="PASS"
             />
           </div>
         </div>

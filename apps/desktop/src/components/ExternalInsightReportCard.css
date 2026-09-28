@@ -1,30 +1,61 @@
 .external-insight-report-card {
   background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid var(--g4);
+  border-radius: var(--radius-lg);
   margin: 16px 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
 
 .report-header {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  background: linear-gradient(135deg, #ff4141 0%, #ff6b6b 100%);
-  color: #ffffff;
-  gap: 12px;
+  background: #ffffff;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--g4);
 }
 
-.report-icon {
-  font-size: 24px;
-  line-height: 1;
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
 
 .report-title {
-  flex: 1;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
+  color: var(--g10);
+}
+
+.header-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.badge-success {
+  background: rgba(14, 213, 125, 0.12);
+  color: #00b365;
+}
+
+.badge-audited {
+  background: rgba(44, 104, 255, 0.12);
+  color: #2c68ff;
+}
+
+.report-meta {
+  font-size: 11px;
+  color: var(--g7);
+  font-weight: 500;
 }
 
 .report-body {
@@ -32,42 +63,75 @@
 }
 
 .report-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
-.summary-label {
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.summary-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
 .summary-item {
-  padding: 8px 0;
-  color: #555555;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.summary-bullet {
+  color: var(--g7);
   font-size: 14px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+
+.summary-content {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-text {
+  font-size: 13px;
+  color: var(--g9);
+  line-height: 1.6;
+}
+
+.domain-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--g3);
+  color: var(--g8);
+  white-space: nowrap;
+}
+
+.guidance-section {
+  padding: 12px;
+  background: rgba(255, 15, 35, 0.04);
+  border: 1px solid rgba(255, 15, 35, 0.12);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+
+.guidance-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+
+.guidance-text {
+  font-size: 12px;
+  color: var(--g8);
   line-height: 1.5;
 }
 
-.summary-item::before {
-  content: '•';
-  color: #ff4141;
-  font-weight: bold;
-  display: inline-block;
-  width: 1em;
-  margin-left: -1em;
-  padding-right: 8px;
-}
-
 .report-details {
-  margin-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  margin-top: 0;
+  border-top: 1px solid var(--g4);
   padding-top: 16px;
 }
 
@@ -80,12 +144,12 @@
 }
 
 .bucket-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: #ff4141;
+  color: var(--primary);
   margin: 0 0 12px 0;
   padding-bottom: 8px;
-  border-bottom: 2px solid #ff4141;
+  border-bottom: 2px solid var(--primary);
 }
 
 .bucket-facts {
@@ -96,9 +160,9 @@
 
 .fact-item {
   padding: 12px;
-  background: #f9f9f9;
-  border-radius: 6px;
-  border-left: 3px solid #ff4141;
+  background: var(--g2);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--primary);
 }
 
 .fact-tags {
@@ -111,23 +175,23 @@
 .fact-tag {
   display: inline-block;
   padding: 2px 8px;
-  background: #ffe0e0;
-  color: #ff4141;
+  background: rgba(255, 15, 35, 0.1);
+  color: var(--primary);
   border-radius: 3px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
 }
 
 .fact-title {
   font-weight: 600;
-  color: #333333;
+  color: var(--g10);
   margin-bottom: 8px;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.4;
 }
 
 .fact-summary {
-  color: #666666;
+  color: var(--g8);
   font-size: 13px;
   line-height: 1.6;
   margin-bottom: 8px;
@@ -141,15 +205,15 @@
 }
 
 .fact-link {
-  color: #ff4141;
+  color: var(--primary);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   transition: color 0.2s;
 }
 
 .fact-link:hover {
-  color: #ff6b6b;
+  color: var(--accent);
   text-decoration: underline;
 }
 
@@ -158,56 +222,50 @@
 }
 
 .link-separator {
-  color: #cccccc;
-  font-size: 13px;
+  color: var(--g5);
+  font-size: 12px;
 }
 
 .report-footer {
   padding: 12px 16px;
-  background: #f9f9f9;
-  border-top: 1px solid #e0e0e0;
+  background: var(--g2);
+  border-top: 1px solid var(--g4);
   display: flex;
-  gap: 12px;
-  justify-content: center;
+  gap: 10px;
 }
 
-.view-details-btn,
-.open-facts-btn {
-  border: none;
-  border-radius: 4px;
-  padding: 10px 24px;
-  font-size: 14px;
-  font-weight: 600;
+.btn-primary-report,
+.btn-secondary-report {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s;
-  flex: 1;
-  max-width: 200px;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    border-color 0.15s;
 }
 
-.view-details-btn {
-  background: #ffffff;
-  border: 1px solid #ff4141;
-  color: #ff4141;
+.btn-primary-report {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: #fff;
 }
 
-.view-details-btn:hover {
-  background: #fff5f5;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(255, 65, 65, 0.2);
+.btn-primary-report:hover {
+  opacity: 0.9;
 }
 
-.open-facts-btn {
-  background: #ff4141;
-  color: #ffffff;
+.btn-secondary-report {
+  background: #fff;
+  border: 1px solid var(--g4);
+  color: var(--g8);
 }
 
-.open-facts-btn:hover {
-  background: #ff6b6b;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(255, 65, 65, 0.3);
-}
-
-.view-details-btn:active,
-.open-facts-btn:active {
-  transform: translateY(0);
+.btn-secondary-report:hover {
+  background: var(--g2);
+  border-color: var(--g5);
 }

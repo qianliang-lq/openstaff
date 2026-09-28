@@ -28,29 +28,58 @@ describe('ExternalInsightReportCard', () => {
     },
   ];
 
-  it('应该渲染报告卡片标题和日期', () => {
-    render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
+  it('应该渲染报告卡片标题和徽章', () => {
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
+    );
 
-    expect(screen.getByText(/外部洞察日报.*2026-09-27/)).toBeInTheDocument();
+    expect(screen.getByText('外搜洞察日报')).toBeInTheDocument();
+    expect(screen.getByText('reconcile PASS')).toBeInTheDocument();
+    expect(screen.getByText('已审计')).toBeInTheDocument();
+    expect(screen.getByText('Routine · Skill')).toBeInTheDocument();
   });
 
-  it('应该默认显示3条摘要要点', () => {
-    render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
+  it('应该在 reconcileStatus 为 FAILED 时不渲染卡片', () => {
+    const { container } = render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="FAILED" />
+    );
+
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('应该默认显示3条摘要要点并包含域名芯片', () => {
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
+    );
 
     expect(screen.getByText('Factory CLI v0.228.0 发布')).toBeInTheDocument();
     expect(screen.getByText('GitHub Copilot 企业设置校验器')).toBeInTheDocument();
     expect(screen.getByText('iCoder-27B 工业编码模型')).toBeInTheDocument();
+    expect(screen.getAllByText('example.com').length).toBeGreaterThan(0);
+  });
+
+  it('应该显示指导部分', () => {
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
+    );
+
+    expect(screen.getByText('外部→我方→低成本下一步：')).toBeInTheDocument();
+    expect(screen.getByText(/建议评估 MCP 协议集成可行性/)).toBeInTheDocument();
   });
 
   it('应该在折叠状态下不显示详细内容', () => {
-    render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
+    );
 
     expect(screen.queryByText('竞对')).not.toBeInTheDocument();
     expect(screen.queryByText('Factory 发布新版本，包含多项新功能')).not.toBeInTheDocument();
   });
 
   it('应该在点击查看详情按钮后显示详细内容', () => {
-    render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
+    );
 
     const viewDetailsBtn = screen.getByText('查看详情');
     fireEvent.click(viewDetailsBtn);
@@ -62,7 +91,9 @@ describe('ExternalInsightReportCard', () => {
   });
 
   it('应该显示PDF链接（如果存在）', () => {
-    render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
+    );
 
     const viewDetailsBtn = screen.getByText('查看详情');
     fireEvent.click(viewDetailsBtn);
@@ -73,7 +104,9 @@ describe('ExternalInsightReportCard', () => {
   });
 
   it('应该显示标签', () => {
-    render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
+    );
 
     const viewDetailsBtn = screen.getByText('查看详情');
     fireEvent.click(viewDetailsBtn);
@@ -84,7 +117,9 @@ describe('ExternalInsightReportCard', () => {
   });
 
   it('应该在展开后点击收起详情按钮能够折叠', () => {
-    render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
+    );
 
     const viewDetailsBtn = screen.getByText('查看详情');
     fireEvent.click(viewDetailsBtn);
@@ -98,7 +133,9 @@ describe('ExternalInsightReportCard', () => {
   });
 
   it('应该渲染查看详情和打开facts按钮', () => {
-    render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
+    );
 
     expect(screen.getByText('查看详情')).toBeInTheDocument();
     expect(screen.getByText('打开 facts')).toBeInTheDocument();
@@ -123,7 +160,9 @@ describe('ExternalInsightReportCard', () => {
       },
     ];
 
-    render(<ExternalInsightReportCard date="2026-09-27" facts={manyFacts} />);
+    render(
+      <ExternalInsightReportCard date="2026-09-27" facts={manyFacts} reconcileStatus="PASS" />
+    );
 
     expect(screen.getByText('Factory CLI v0.228.0 发布')).toBeInTheDocument();
     expect(screen.getByText('GitHub Copilot 企业设置校验器')).toBeInTheDocument();

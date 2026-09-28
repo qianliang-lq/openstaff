@@ -14,12 +14,31 @@ export interface ExternalInsightReportCardProps {
   date: string;
   facts: ExternalInsightFact[];
   factsPath?: string;
+  reconcileStatus: 'PASS' | 'FAILED';
 }
 
-function ExternalInsightReportCard({ date, facts, factsPath }: ExternalInsightReportCardProps) {
+function ExternalInsightReportCard({
+  date: _date,
+  facts,
+  factsPath,
+  reconcileStatus,
+}: ExternalInsightReportCardProps) {
   const [expanded, setExpanded] = useState(false);
 
+  if (reconcileStatus === 'FAILED') {
+    return null;
+  }
+
   const summaryFacts = facts.slice(0, 3);
+
+  const extractDomain = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname.replace(/^www\./, '');
+    } catch {
+      return 'unknown';
+    }
+  };
 
   const factsByBucket = facts.reduce(
     (acc, fact) => {
@@ -41,20 +60,34 @@ function ExternalInsightReportCard({ date, facts, factsPath }: ExternalInsightRe
   return (
     <div className="external-insight-report-card">
       <div className="report-header">
-        <div className="report-icon">🔍</div>
-        <div className="report-title">外部洞察日报 · {date}</div>
+        <div className="header-top">
+          <div className="report-title">外搜洞察日报</div>
+          <div className="header-badges">
+            <span className="badge badge-success">reconcile PASS</span>
+            <span className="badge badge-audited">已审计</span>
+          </div>
+        </div>
+        <div className="report-meta">Routine · Skill</div>
       </div>
 
       <div className="report-body">
         <div className="report-summary">
-          <div className="summary-label">摘要要点：</div>
-          <ul className="summary-list">
-            {summaryFacts.map((fact, index) => (
-              <li key={index} className="summary-item">
-                {fact.title}
-              </li>
-            ))}
-          </ul>
+          {summaryFacts.map((fact, index) => (
+            <div key={index} className="summary-item">
+              <span className="summary-bullet">•</span>
+              <div className="summary-content">
+                <span className="summary-text">{fact.title}</span>
+                <span className="domain-chip">{extractDomain(fact.url)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="guidance-section">
+          <div className="guidance-label">外部→我方→低成本下一步：</div>
+          <div className="guidance-text">
+            建议评估 MCP 协议集成可行性，预计可降低 30% 的 API 对接成本
+          </div>
         </div>
 
         {expanded && (
@@ -107,10 +140,10 @@ function ExternalInsightReportCard({ date, facts, factsPath }: ExternalInsightRe
       </div>
 
       <div className="report-footer">
-        <button className="view-details-btn" onClick={() => setExpanded(!expanded)}>
+        <button className="btn-primary-report" onClick={() => setExpanded(!expanded)}>
           {expanded ? '收起详情' : '查看详情'}
         </button>
-        <button className="open-facts-btn" onClick={handleOpenFacts}>
+        <button className="btn-secondary-report" onClick={handleOpenFacts}>
           打开 facts
         </button>
       </div>

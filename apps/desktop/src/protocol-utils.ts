@@ -1,4 +1,4 @@
-import { Message } from "@openstaff/protocol";
+import { Message } from '@openstaff/protocol';
 
 /**
  * Protocol utilities for desktop app
