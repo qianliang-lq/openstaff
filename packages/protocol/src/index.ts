@@ -15,14 +15,14 @@ export interface Message {
  * Tagged union matching Rust #[serde(tag = "type", content = "data")]
  */
 export type EventPayload =
-  | { type: 'Message'; data: Message }
-  | { type: 'AgentStateChange'; data: { agent_id: string; state: string } }
-  | { type: 'ToolCall'; data: { tool_name: string; args: unknown } }
-  | { type: 'ApprovalRequest'; data: { request_id: string; action: string } };
+  | { type: "Message"; data: Message }
+  | { type: "AgentStateChange"; data: { agent_id: string; state: string } }
+  | { type: "ToolCall"; data: { tool_name: string; args: unknown } }
+  | { type: "ApprovalRequest"; data: { request_id: string; action: string } };
 
 /**
  * EventEnvelope - corresponds to Rust openstaff_protocol::EventEnvelope
- * With #[serde(rename_all = "camelCase")] serialization
+ * JSON fields are camelCase due to Rust #[serde(rename_all = "camelCase")]
  */
 export interface EventEnvelope {
   eventId: string;
@@ -59,6 +59,9 @@ export function isEventEnvelope(obj: unknown): obj is EventEnvelope {
     typeof (obj as EventEnvelope).timestamp === 'number' &&
     'protocolVersion' in obj &&
     typeof (obj as EventEnvelope).protocolVersion === 'string' &&
-    'payload' in obj
+    'payload' in obj &&
+    typeof (obj as EventEnvelope).payload === 'object' &&
+    (obj as EventEnvelope).payload !== null &&
+    'type' in (obj as EventEnvelope).payload
   );
 }

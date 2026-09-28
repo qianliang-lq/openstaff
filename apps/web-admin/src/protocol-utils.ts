@@ -1,18 +1,25 @@
-import { EventEnvelope } from "@openstaff/protocol";
+import { EventEnvelope, EventPayload } from "@openstaff/protocol";
 
 /**
  * Protocol utilities for admin console
  * Uses @openstaff/protocol for type-safe event handling
  */
 
-export function createEventEnvelope(
+export function createMessageEnvelope(
+  eventId: string,
   eventType: string,
-  payload: unknown,
+  message: string,
 ): EventEnvelope {
+  const payload: EventPayload = {
+    type: "Message",
+    data: { content: message },
+  };
   return {
+    eventId,
     eventType,
-    payload,
     timestamp: Date.now(),
+    protocolVersion: "1.0",
+    payload,
   };
 }
 

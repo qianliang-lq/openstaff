@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Message, EventEnvelope, isMessage, isEventEnvelope } from './index';
+import { Message, EventEnvelope, EventPayload, isMessage, isEventEnvelope } from './index';
 
 describe('Message', () => {
   it('creates valid Message object', () => {
@@ -23,7 +23,7 @@ describe('Message', () => {
 });
 
 describe('EventEnvelope', () => {
-  it('creates valid EventEnvelope object', () => {
+  it('creates valid EventEnvelope with Message payload', () => {
     const envelope: EventEnvelope = {
       eventId: 'evt-123',
       eventType: 'test.event',
@@ -37,6 +37,24 @@ describe('EventEnvelope', () => {
     expect(envelope.payload).toEqual({ type: 'Message', data: { content: 'hello' } });
   });
 
+  it('creates valid EventEnvelope with AgentStateChange payload', () => {
+    const envelope: EventEnvelope = {
+      eventId: 'e2',
+      eventType: 'agent.state',
+      timestamp: 1234567890,
+      protocolVersion: '1.0',
+      payload: {
+        type: 'AgentStateChange',
+        data: { agent_id: 'agent1', state: 'running' },
+      },
+    };
+    expect(envelope.payload.type).toBe('AgentStateChange');
+    if (envelope.payload.type === 'AgentStateChange') {
+      expect(envelope.payload.data.agent_id).toBe('agent1');
+      expect(envelope.payload.data.state).toBe('running');
+    }
+  });
+
   it('validates EventEnvelope type guard', () => {
     const validEnvelope = {
       eventId: 'evt-456',
@@ -45,14 +63,22 @@ describe('EventEnvelope', () => {
       protocolVersion: '1.0',
       payload: { type: 'Message', data: { content: 'test' } },
     };
-    const invalidEnvelope = {
+    const invalidEnvelope1 = {
       type: 'test',
       payload: {},
     };
+    const invalidEnvelope2 = {
+      eventId: 'e1',
+      eventType: 'test',
+      timestamp: 'invalid',
+      protocolVersion: '1.0',
+      payload: { type: 'Message' },
+    };
 
     expect(isEventEnvelope(validEnvelope)).toBe(true);
-    expect(isEventEnvelope(invalidEnvelope)).toBe(false);
+    expect(isEventEnvelope(invalidEnvelope1)).toBe(false);
+    expect(isEventEnvelope(invalidEnvelope2)).toBe(false);
   });
 
-  it.todo('roundtrip test with Rust EventEnvelope when implemented');
+  it.todo('roundtrip test with Rust EventEnvelope serialization');
 });

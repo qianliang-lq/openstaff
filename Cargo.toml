@@ -6,6 +6,7 @@ members = [
     "apps/desktop/src-tauri",
     "services/api",
     "services/gateway",
+    "services/runtime",
     "services/scheduler",
     "services/runtime",
 ]

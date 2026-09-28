@@ -66,4 +66,32 @@ mod tests {
         assert_eq!(health.status, "ok");
         assert_eq!(health.service, "api");
     }
+
+    #[test]
+    fn test_event_envelope_json_format() {
+        let env = EventEnvelope {
+            event_id: "e1".to_string(),
+            event_type: "test.message".to_string(),
+            timestamp: 1234567890,
+            protocol_version: "1.0".to_string(),
+            payload: EventPayload::Message(Message {
+                content: "hello".to_string(),
+            }),
+        };
+        let json = serde_json::to_string(&env).unwrap();
+        println!("EventEnvelope JSON: {}", json);
+        
+        let env2 = EventEnvelope {
+            event_id: "e2".to_string(),
+            event_type: "agent.state".to_string(),
+            timestamp: 1234567890,
+            protocol_version: "1.0".to_string(),
+            payload: EventPayload::AgentStateChange {
+                agent_id: "agent1".to_string(),
+                state: "running".to_string(),
+            },
+        };
+        let json2 = serde_json::to_string(&env2).unwrap();
+        println!("AgentStateChange JSON: {}", json2);
+    }
 }
