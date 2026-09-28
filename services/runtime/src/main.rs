@@ -48,7 +48,10 @@ async fn main() -> anyhow::Result<()> {
     let port = std::env::var("PORT").unwrap_or_else(|_| "3003".to_string());
     let addr = format!("0.0.0.0:{}", port);
 
-    tracing::info!("🚀 OpenStaff Runtime Service v{}", env!("CARGO_PKG_VERSION"));
+    tracing::info!(
+        "🚀 OpenStaff Runtime Service v{}",
+        env!("CARGO_PKG_VERSION")
+    );
     tracing::info!("📡 Listening on http://{}", addr);
     tracing::info!("🏥 Health check: http://{}/health", addr);
 

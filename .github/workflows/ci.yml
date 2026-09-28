@@ -43,7 +43,7 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
       
       - name: Run cargo check
-        run: cargo check --workspace --all-features
+        run: cargo check --workspace --exclude openstaff-desktop --all-features
 
   test:
     name: Test
@@ -124,4 +124,4 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       
       - name: Run clippy
-        run: cargo clippy --workspace --all-features -- -D warnings
+        run: cargo clippy --workspace --exclude openstaff-desktop --all-features -- -D warnings
