@@ -73,7 +73,7 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       
       - name: Run tests
-        run: cargo test --workspace --all-features
+        run: cargo test --workspace --all-features --exclude openstaff-desktop
 
   fmt:
     name: Format

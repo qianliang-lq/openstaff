@@ -48,9 +48,10 @@ check:
     cargo check --workspace --all-features
 
 # Run all Rust tests
+# Excludes openstaff-desktop (Tauri) which requires GTK/WebKit on Linux
 test:
     @echo "🧪 Running Rust tests..."
-    cargo test --workspace
+    cargo test --workspace --exclude openstaff-desktop
 
 # Format all code (Rust + TypeScript)
 format:
