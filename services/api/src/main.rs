@@ -1,24 +1,10 @@
 use axum::{
-    extract::State,
     routing::{get, post},
     Json, Router,
 };
-use openstaff_protocol::Message;
+use openstaff_protocol::{HealthResponse, Message};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-
-#[derive(Clone)]
-struct AppState {
-    version: String,
-}
-
-#[derive(Serialize)]
-struct HealthResponse {
-    status: String,
-    service: String,
-    version: String,
-}
 
 #[derive(Serialize)]
 struct EchoResponse {
@@ -30,12 +16,8 @@ struct EchoRequest {
     content: String,
 }
 
-async fn health_check(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "healthy".to_string(),
-        service: "openstaff-api".to_string(),
-        version: state.version.clone(),
-    })
+async fn health_check() -> Json<HealthResponse> {
+    Json(HealthResponse::ok("api"))
 }
 
 async fn echo_handler(Json(payload): Json<EchoRequest>) -> Json<EchoResponse> {
@@ -57,17 +39,12 @@ async fn main() -> anyhow::Result<()> {
         .compact()
         .init();
 
-    let state = Arc::new(AppState {
-        version: env!("CARGO_PKG_VERSION").to_string(),
-    });
-
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health_check))
         .route("/api/v1/echo", post(echo_handler))
         .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http())
-        .with_state(state);
+        .layer(TraceLayer::new_for_http());
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);
@@ -80,4 +57,47 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::util::ServiceExt;
+
+    #[tokio::test]
+    async fn test_health_endpoint_returns_ok() {
+        let app = Router::new().route("/health", get(health_check));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let health: HealthResponse = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(health.status, "ok");
+        assert_eq!(health.service, "api");
+    }
+
+    #[test]
+    fn test_health_response_json_contract() {
+        let health = HealthResponse::ok("api");
+        let json = serde_json::to_value(&health).unwrap();
+
+        assert_eq!(json["status"], "ok");
+        assert_eq!(json["service"], "api");
+        assert_eq!(json.as_object().unwrap().len(), 2);
+    }
 }

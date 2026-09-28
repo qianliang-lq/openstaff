@@ -1,31 +1,9 @@
-use axum::{extract::State, routing::get, Json, Router};
-use serde::Serialize;
-use std::sync::Arc;
+use axum::{routing::get, Json, Router};
+use openstaff_protocol::HealthResponse;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
-#[derive(Clone)]
-struct AppState {
-    version: String,
-}
-
-#[derive(Serialize)]
-struct HealthResponse {
-    status: String,
-    service: String,
-    version: String,
-    features: Vec<String>,
-}
-
-async fn health_check(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "healthy".to_string(),
-        service: "openstaff-scheduler".to_string(),
-        version: state.version.clone(),
-        features: vec![
-            "cron-routines (planned)".to_string(),
-            "event-triggers (planned)".to_string(),
-        ],
-    })
+async fn health_check() -> Json<HealthResponse> {
+    Json(HealthResponse::ok("scheduler"))
 }
 
 async fn root() -> &'static str {
@@ -39,16 +17,11 @@ async fn main() -> anyhow::Result<()> {
         .compact()
         .init();
 
-    let state = Arc::new(AppState {
-        version: env!("CARGO_PKG_VERSION").to_string(),
-    });
-
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health_check))
         .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http())
-        .with_state(state);
+        .layer(TraceLayer::new_for_http());
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3002".to_string());
     let addr = format!("0.0.0.0:{}", port);
@@ -61,4 +34,47 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::util::ServiceExt;
+
+    #[tokio::test]
+    async fn test_health_endpoint_returns_ok() {
+        let app = Router::new().route("/health", get(health_check));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let health: HealthResponse = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(health.status, "ok");
+        assert_eq!(health.service, "scheduler");
+    }
+
+    #[test]
+    fn test_health_response_json_contract() {
+        let health = HealthResponse::ok("scheduler");
+        let json = serde_json::to_value(&health).unwrap();
+
+        assert_eq!(json["status"], "ok");
+        assert_eq!(json["service"], "scheduler");
+        assert_eq!(json.as_object().unwrap().len(), 2);
+    }
 }

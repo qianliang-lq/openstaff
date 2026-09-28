@@ -7,6 +7,7 @@
 ## Quick Links
 
 - **Architecture Conventions**: [docs/architecture/02-monorepo-conventions.md](docs/architecture/02-monorepo-conventions.md) ⭐ **START HERE**
+- **Testing Strategy**: [docs/testing/strategy.md](docs/testing/strategy.md) ⭐ **Test layers & CI**
 - **Protocol Reference**: [crates/protocol/](crates/protocol/)
 - **Tech Plan**: [docs/2026-09-28-openstaff-tech-plan-v0.1_f5ef.md](docs/2026-09-28-openstaff-tech-plan-v0.1_f5ef.md)
 
