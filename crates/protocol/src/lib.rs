@@ -10,6 +10,7 @@ pub struct EventEnvelope {
     pub event_id: String,
     pub event_type: String,
     pub timestamp: u64,
+    pub protocol_version: String,
     pub payload: EventPayload,
 }
 
