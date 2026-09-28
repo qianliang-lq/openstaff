@@ -6,12 +6,18 @@ use std::path::PathBuf;
 #[derive(Debug, Serialize)]
 pub struct AuditRecord {
     pub timestamp: String,
-    pub role: Option<String>,
+    pub request_id: String,
+    pub agent_instance_id: String,
     pub routine_id: Option<String>,
+    pub skill_id: String,
+    pub purpose: String,
+    pub method: String,
     pub url: String,
+    pub final_url: String,
     pub status: u16,
     pub bytes: usize,
-    pub operation: String,
+    pub latency_ms: u64,
+    pub deny_reason: Option<String>,
 }
 
 pub fn ensure_audit_dir() -> anyhow::Result<()> {
@@ -38,11 +44,14 @@ pub fn write_audit_record(record: &AuditRecord) -> anyhow::Result<()> {
     writeln!(file, "{}", json_line)?;
 
     tracing::debug!(
-        "Audit: {} {} → {} ({}B)",
-        record.operation,
+        "Audit: {} {} {} → {} ({}B, {}ms) {}",
+        record.request_id,
+        record.method,
         record.url,
         record.status,
-        record.bytes
+        record.bytes,
+        record.latency_ms,
+        record.deny_reason.as_ref().map(|r| format!("DENIED: {}", r)).unwrap_or_default()
     );
 
     Ok(())

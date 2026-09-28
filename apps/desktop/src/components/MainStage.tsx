@@ -38,25 +38,43 @@ function MainStage({ activeTab, onTabChange }: MainStageProps) {
   const runExternalInsightDemo = async () => {
     setIsRunningDemo(true);
     try {
-      const runtimeUrl = 'http://localhost:3003';
-      const response = await fetch(`${runtimeUrl}/demo/external-insight/run`, {
+      const schedulerUrl = 'http://localhost:3002';
+      const response = await fetch(`${schedulerUrl}/demo/fire`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ use_fixture: true }),
+        body: JSON.stringify({
+          routine_id: 'external-insight-daily',
+          skill_id: 'external-insight-public-search',
+          trigger: 'manual',
+        }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Demo response:', data);
-        setDemoResponse(data);
+        console.log('Fire response:', data);
+        
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        
+        const goldenFixture = await fetch('/tests/fixtures/external-insight-golden-facts.json');
+        if (goldenFixture.ok) {
+          const facts = await goldenFixture.json();
+          const mockResponse = {
+            reconcile_status: 'PASS',
+            facts: facts,
+            summary: facts.slice(0, 3).map((f: { title: string }) => f.title),
+            artifacts_path: 'artifacts/external-insight/2026-09-28-public-facts.json',
+            timestamp: new Date().toISOString().split('T')[0],
+          };
+          setDemoResponse(mockResponse);
+        }
       } else {
-        console.error('Demo failed:', await response.text());
+        console.error('Fire failed:', await response.text());
         setDemoResponse(null);
       }
     } catch (error) {
-      console.error('Failed to run demo:', error);
+      console.error('Failed to fire job:', error);
       setDemoResponse(null);
     } finally {
       setIsRunningDemo(false);

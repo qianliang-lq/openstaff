@@ -1,53 +1,77 @@
 use axum::{http::StatusCode, Json};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 pub struct FireRequest {
-    #[serde(default = "default_skill")]
-    pub skill: String,
+    #[serde(default = "default_routine_id")]
+    pub routine_id: String,
+    #[serde(default = "default_skill_id")]
+    pub skill_id: String,
+    #[serde(default = "default_trigger")]
+    pub trigger: String,
 }
 
-fn default_skill() -> String {
+fn default_routine_id() -> String {
+    "external-insight-daily".to_string()
+}
+
+fn default_skill_id() -> String {
     "external-insight-public-search".to_string()
+}
+
+fn default_trigger() -> String {
+    "manual".to_string()
 }
 
 #[derive(Debug, Serialize)]
 pub struct FireResponse {
     pub fired: bool,
-    pub skill: String,
-    pub runtime_url: String,
+    pub job_id: String,
+    pub routine_id: String,
     pub message: String,
 }
 
 pub async fn fire_external_insight(
     Json(req): Json<FireRequest>,
 ) -> Result<Json<FireResponse>, (StatusCode, String)> {
-    let runtime_url = std::env::var("RUNTIME_URL")
-        .unwrap_or_else(|_| "http://localhost:3003".to_string());
+    let runtime_url =
+        std::env::var("RUNTIME_URL").unwrap_or_else(|_| "http://localhost:3003".to_string());
+
+    let job_id = format!("job_{}", Uuid::new_v4());
+    let scheduled_for = Utc::now().to_rfc3339();
 
     tracing::info!(
-        "🔥 Firing routine for skill: {} (runtime: {})",
-        req.skill,
-        runtime_url
+        "🔥 Firing job {} for routine {} (skill: {}, trigger: {})",
+        job_id,
+        req.routine_id,
+        req.skill_id,
+        req.trigger
     );
 
     let client = reqwest::Client::new();
-    let runtime_endpoint = format!("{}/demo/external-insight/run", runtime_url);
+    let runtime_endpoint = format!("{}/v1/jobs/fire", runtime_url);
 
     let payload = serde_json::json!({
-        "use_fixture": true,
+        "job_id": job_id,
+        "routine_id": req.routine_id,
+        "skill_id": req.skill_id,
+        "trigger": req.trigger,
+        "scheduled_for": scheduled_for,
+        "payload": {}
     });
 
     match client.post(&runtime_endpoint).json(&payload).send().await {
         Ok(response) => {
             let status = response.status();
-            if status.is_success() {
-                tracing::info!("✅ Runtime executed successfully");
+            if status == 202 {
+                tracing::info!("✅ Job {} accepted by runtime", job_id);
                 Ok(Json(FireResponse {
                     fired: true,
-                    skill: req.skill.clone(),
-                    runtime_url: runtime_endpoint,
-                    message: format!("Successfully fired {} routine", req.skill),
+                    job_id: job_id.clone(),
+                    routine_id: req.routine_id.clone(),
+                    message: format!("Job {} fired successfully", job_id),
                 }))
             } else {
                 let error_text = response

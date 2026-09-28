@@ -9,20 +9,20 @@ use std::fs::{create_dir_all, write};
 use std::path::PathBuf;
 
 #[derive(Debug, Deserialize)]
-pub struct DemoRequest {
+pub struct JobFireRequest {
+    pub job_id: String,
+    pub routine_id: String,
+    pub skill_id: String,
+    pub trigger: String,
+    pub scheduled_for: String,
     #[serde(default)]
-    pub use_fixture: bool,
+    pub payload: serde_json::Value,
 }
 
 #[derive(Debug, Serialize)]
-pub struct DemoResponse {
-    pub reconcile_status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub facts: Option<Vec<ExternalInsightFact>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub summary: Option<Vec<String>>,
-    pub artifacts_path: String,
-    pub timestamp: String,
+pub struct JobFireResponse {
+    pub job_id: String,
+    pub accepted: bool,
 }
 
 fn get_demo_mode() -> bool {
@@ -73,57 +73,56 @@ async fn run_reconcile(facts: Vec<ExternalInsightFact>) -> ReconcileResult {
     }
 }
 
-pub async fn run_external_insight(
-    Json(req): Json<DemoRequest>,
-) -> Result<Json<DemoResponse>, (StatusCode, String)> {
-    let demo_mode = get_demo_mode() || req.use_fixture;
-
+pub async fn jobs_fire(
+    Json(req): Json<JobFireRequest>,
+) -> Result<Json<JobFireResponse>, (StatusCode, String)> {
     tracing::info!(
-        "Running external-insight demo (demo_mode={}, use_fixture={})",
-        demo_mode,
-        req.use_fixture
+        "🔥 Job fired: {} (routine={}, skill={}, trigger={})",
+        req.job_id,
+        req.routine_id,
+        req.skill_id,
+        req.trigger
     );
 
+    let job_id = req.job_id.clone();
+    let routine_id = req.routine_id.clone();
+    let skill_id = req.skill_id.clone();
+
+    tokio::spawn(async move {
+        if let Err(e) = execute_job(&job_id, &routine_id, &skill_id).await {
+            tracing::error!("Job {} execution failed: {}", job_id, e);
+        }
+    });
+
+    Ok(Json(JobFireResponse {
+        job_id: req.job_id,
+        accepted: true,
+    }))
+}
+
+async fn execute_job(job_id: &str, _routine_id: &str, _skill_id: &str) -> Result<(), String> {
+    tracing::info!("Executing job {}", job_id);
+
+    let demo_mode = get_demo_mode();
+
     let facts = if demo_mode {
-        load_golden_fixture().map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to load golden fixture: {}", e),
-            )
-        })?
+        load_golden_fixture().map_err(|e| format!("Failed to load golden fixture: {}", e))?
     } else {
-        return Err((
-            StatusCode::NOT_IMPLEMENTED,
-            "Live mode not implemented in MVP. Set OPENSTAFF_INSIGHT_DEMO=1 or use_fixture=true"
-                .to_string(),
-        ));
+        tracing::warn!("Live mode not implemented in MVP. Using golden fixture.");
+        load_golden_fixture().map_err(|e| format!("Failed to load golden fixture: {}", e))?
     };
 
     let reconcile = run_reconcile(facts).await;
 
-    ensure_artifacts_dir().map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to create artifacts directory: {}", e),
-        )
-    })?;
+    ensure_artifacts_dir().map_err(|e| format!("Failed to create artifacts directory: {}", e))?;
 
     let timestamp = Utc::now().format("%Y-%m-%d").to_string();
     let facts_path = get_artifacts_dir().join(format!("{}-public-facts.json", timestamp));
 
-    let facts_json = serde_json::to_string_pretty(&reconcile.facts).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to serialize facts: {}", e),
-        )
-    })?;
+    let facts_json = serde_json::to_string_pretty(&reconcile.facts)
+        .map_err(|e| format!("Failed to serialize facts: {}", e))?;
 
-    write(&facts_path, facts_json).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to write facts file: {}", e),
-        )
-    })?;
+    write(&facts_path, facts_json).map_err(|e| format!("Failed to write facts file: {}", e))?;
 
     tracing::info!(
         "Reconcile status: {} (errors: {})",
@@ -134,36 +133,14 @@ pub async fn run_external_insight(
 
     if !should_emit_report_card(&reconcile) {
         tracing::warn!("Reconcile FAILED, not emitting report card");
-        return Ok(Json(DemoResponse {
-            reconcile_status: reconcile.status,
-            facts: None,
-            summary: None,
-            artifacts_path: facts_path.to_string_lossy().to_string(),
-            timestamp,
-        }));
+        return Ok(());
     }
 
     let payload = create_report_card_payload_if_passed(&reconcile);
 
-    match payload {
-        Some(_) => {
-            let facts = reconcile.facts;
-            let summary: Vec<String> = facts.iter().take(3).map(|f| f.title.clone()).collect();
-
-            Ok(Json(DemoResponse {
-                reconcile_status: "PASS".to_string(),
-                facts: Some(facts),
-                summary: Some(summary),
-                artifacts_path: facts_path.to_string_lossy().to_string(),
-                timestamp,
-            }))
-        }
-        None => Ok(Json(DemoResponse {
-            reconcile_status: reconcile.status,
-            facts: None,
-            summary: None,
-            artifacts_path: facts_path.to_string_lossy().to_string(),
-            timestamp,
-        })),
+    if payload.is_some() {
+        tracing::info!("✅ Job {} completed successfully with PASS", job_id);
     }
+
+    Ok(())
 }

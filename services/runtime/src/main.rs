@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health_check))
-        .route("/demo/external-insight/run", post(demo::run_external_insight))
+        .route("/v1/jobs/fire", post(demo::jobs_fire))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
 
@@ -36,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
     );
     tracing::info!("📡 Listening on http://{}", addr);
     tracing::info!("🏥 Health check: http://{}/health", addr);
-    tracing::info!("🎯 Demo endpoint: POST http://{}/demo/external-insight/run", addr);
+    tracing::info!("🔥 Jobs endpoint: POST http://{}/v1/jobs/fire", addr);
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;

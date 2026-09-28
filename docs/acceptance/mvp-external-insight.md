@@ -1,6 +1,6 @@
 # External Insight MVP 验收指南
 
-> **状态**: Demo-Ready MVP  
+> **状态**: Demo-Ready MVP (08-demo-mvp-cut aligned)  
 > **日期**: 2026-09-28  
 > **范围**: 外搜洞察端到端离线演示能力
 
@@ -8,28 +8,30 @@
 
 ## 概述
 
-本 MVP 实现了 External Insight（外搜洞察）的完整离线演示流程：
+本 MVP 实现了 External Insight（外搜洞察）的完整离线演示流程，严格遵循 `08-demo-mvp-cut.md` 架构：
 
-- **Gateway**: 公网旁路工具（web_fetch/web_search），带全量审计
-- **Runtime**: Skill 执行管道，reconcile 门禁，artifacts 写入
-- **Scheduler**: Fire-only 触发器（调用 Runtime）
-- **Desktop**: 一键演示按钮，渲染报告卡片（sketch 17 规范）
+- **Gateway**: 公网旁路唯一出口 `POST /v1/egress/fetch`，带 SSRF 防护和全量审计
+- **Runtime**: Jobs fire 端点 `POST /v1/jobs/fire`，异步执行 Skill，reconcile 门禁
+- **Scheduler**: Fire-only 触发器（调用 Runtime jobs/fire）
+- **Desktop**: 一键「立即跑」按钮 → Scheduler → Runtime fire 语义
 
 **关键特性**:
 - ✅ 离线模式（Golden Fixture）默认启用
-- ✅ 完整审计日志（Gateway egress）
-- ✅ Reconcile 门禁（PASS 才发卡）
-- ✅ 不修改 `/health` 或 `crates/protocol`
+- ✅ 完整审计日志（Gateway egress）带 request_id/latency_ms/deny_reason
+- ✅ SSRF 防护（RFC1918 + 169.254.169.254 blocked）
+- ✅ Reconcile 门禁（PASS 才通知，FAILED 静默）
+- ✅ 不修改 `/health` 或 `crates/protocol` EventEnvelope 枚举
+- ✅ Runtime 禁止直接 reqwest 公网，一律走 Gateway
 
 ---
 
 ## 服务端点
 
-| 服务 | 端口 | 健康检查 | Demo 端点 |
+| 服务 | 端口 | 健康检查 | 核心端点 |
 | --- | --- | --- | --- |
-| Gateway | 3001 | `GET /health` | `POST /bypass/web_fetch`<br>`POST /bypass/web_search` |
+| Gateway | 3001 | `GET /health` | `POST /v1/egress/fetch` (需 Bearer token) |
 | Scheduler | 3002 | `GET /health` | `POST /demo/fire` |
-| Runtime | 3003 | `GET /health` | `POST /demo/external-insight/run` |
+| Runtime | 3003 | `GET /health` | `POST /v1/jobs/fire` (返回 202 Accepted) |
 | Desktop | 5173 | (Vite dev) | UI 按钮「跑一次外搜洞察（演示）」 |
 
 ---
@@ -55,6 +57,7 @@ cargo run -p openstaff-runtime &
 - `OPENSTAFF_GATEWAY_EGRESS_MODE=offline` (默认): Gateway 返回 fixture
 - `OPENSTAFF_INSIGHT_DEMO=1` (默认): Runtime 使用 golden fixture
 - `RUNTIME_URL=http://localhost:3003`: Scheduler 调用的 Runtime 地址
+- `RUNTIME_SERVICE_TOKEN=dev-runtime-token` (默认): Gateway 验证 Runtime 的 Bearer token
 
 ### 2. 启动 Desktop
 
@@ -80,50 +83,88 @@ pnpm dev
 
 ## 验收检查项
 
-### TC-Gateway: 公网旁路审计
+### TC-Gateway: 公网旁路审计 + SSRF 防护
 
 ```bash
-# 调用 web_fetch
-curl -X POST http://localhost:3001/bypass/web_fetch \
+# 调用 egress/fetch（需 Bearer token）
+curl -X POST http://localhost:3001/v1/egress/fetch \
+  -H "Authorization: Bearer dev-runtime-token" \
   -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com", "role": "demo", "routine_id": "test-001"}'
+  -d '{
+    "url": "https://example.com",
+    "method": "GET",
+    "max_bytes": 524288,
+    "timeout_ms": 15000,
+    "purpose": "external_insight",
+    "routine_id": "test-001",
+    "skill_id": "external-insight-public-search",
+    "agent_instance_id": "agent-demo-001"
+  }'
+
+# 测试 SSRF 防护（应返回 403）
+curl -X POST http://localhost:3001/v1/egress/fetch \
+  -H "Authorization: Bearer dev-runtime-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "http://169.254.169.254/latest/meta-data",
+    "method": "GET",
+    "max_bytes": 524288,
+    "timeout_ms": 15000,
+    "purpose": "test",
+    "routine_id": null,
+    "skill_id": "test",
+    "agent_instance_id": "test"
+  }'
 
 # 检查审计日志
 cat artifacts/gateway-audit/egress-audit.jsonl
 ```
 
 **预期**:
-- 返回 200 + fixture HTML（offline 模式）
-- 审计日志包含：timestamp, role, routine_id, url, status, bytes, operation
+- 返回 200 + fixture HTML（offline 模式），包含 request_id, status, final_url, content_type, body_text, truncated, bytes
+- SSRF 测试返回 403 Forbidden，deny_reason 记入审计
+- 审计日志包含：ts, request_id, agent_instance_id, routine_id, skill_id, purpose, method, url, final_url, status, bytes, latency_ms, deny_reason
 
-### TC-Runtime: Demo 端点 + Reconcile
+### TC-Runtime: Jobs fire + 异步执行
 
 ```bash
-# 直接调用 Runtime demo 端点
-curl -X POST http://localhost:3003/demo/external-insight/run \
+# 调用 Runtime jobs/fire 端点
+curl -X POST http://localhost:3003/v1/jobs/fire \
   -H "Content-Type: application/json" \
-  -d '{"use_fixture": true}'
+  -d '{
+    "job_id": "job_test_001",
+    "routine_id": "external-insight-daily",
+    "skill_id": "external-insight-public-search",
+    "trigger": "manual",
+    "scheduled_for": "2026-09-28T12:00:00Z",
+    "payload": {}
+  }'
 ```
 
 **预期**:
-- 返回 JSON: `{"reconcile_status": "PASS", "facts": [...], "summary": [...], "artifacts_path": "...", "timestamp": "2026-09-28"}`
-- 写入 `artifacts/external-insight/2026-09-28-public-facts.json`（Golden Fixture 内容）
-- summary 最多 3 条
+- 返回 202 Accepted: `{"job_id": "job_test_001", "accepted": true}`
+- 后台异步执行，写入 `artifacts/external-insight/2026-09-28-public-facts.json`（Golden Fixture 内容）
+- Runtime 日志显示「Reconcile status: PASS」
 - facts 包含 5 条（竞对/组织提效/前沿模型/技术底座）
 
-### TC-Scheduler: Fire-only
+### TC-Scheduler: Fire-only（调用 Runtime jobs/fire）
 
 ```bash
 # 调用 Scheduler fire 端点
 curl -X POST http://localhost:3002/demo/fire \
   -H "Content-Type: application/json" \
-  -d '{"skill": "external-insight-public-search"}'
+  -d '{
+    "routine_id": "external-insight-daily",
+    "skill_id": "external-insight-public-search",
+    "trigger": "manual"
+  }'
 ```
 
 **预期**:
-- 返回 `{"fired": true, "skill": "...", "runtime_url": "...", "message": "..."}`
-- Scheduler 转发请求到 Runtime
-- Runtime 写入 artifacts（同 TC-Runtime）
+- 返回 `{"fired": true, "job_id": "job_...", "routine_id": "external-insight-daily", "message": "Job ... fired successfully"}`
+- Scheduler 生成 job_id，调用 Runtime `/v1/jobs/fire`
+- Runtime 返回 202 Accepted
+- Runtime 异步执行并写入 artifacts（同 TC-Runtime）
 
 ### TC-Desktop: 一键演示
 
