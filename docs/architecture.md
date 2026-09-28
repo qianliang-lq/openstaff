@@ -8,11 +8,13 @@
 
 ### 快速导航
 
-本文档提供 OpenStaff 架构的快速概览。详细计划请参考：
+本文档提供 OpenStaff 架构的快速概览。详细文档请参考：
 
+- **⭐ [Monorepo 约定](architecture/02-monorepo-conventions.md)** - 权威性架构规范
 - [商业计划 v0.1](2026-09-28-openstaff-business-plan-v0.1_6794.md)
 - [产品与 UX 方案 v0.1](2026-09-28-openstaff-product-ux-v0.1_acb0.md)
 - [技术计划 v0.1](2026-09-28-openstaff-tech-plan-v0.1_f5ef.md)
+- [Agent 开发指南](../AGENTS.md)
 
 ### 总架构
 
@@ -225,11 +227,13 @@ openstaff/                    # 单一 monorepo
 
 ### Quick Navigation
 
-This document provides a quick overview of OpenStaff architecture. For detailed plans, see:
+This document provides a quick overview of OpenStaff architecture. For detailed documentation, see:
 
+- **⭐ [Monorepo Conventions](architecture/02-monorepo-conventions.md)** - Authoritative architecture spec
 - [Business Plan v0.1](2026-09-28-openstaff-business-plan-v0.1_6794.md)
 - [Product & UX Plan v0.1](2026-09-28-openstaff-product-ux-v0.1_acb0.md)
 - [Technical Plan v0.1](2026-09-28-openstaff-tech-plan-v0.1_f5ef.md)
+- [Agent Development Guide](../AGENTS.md)
 
 ### High-Level Architecture
 

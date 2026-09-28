@@ -126,10 +126,13 @@ just build      # 构建所有项目
 
 ### 文档
 
+- **⭐ [Agent 开发指南](AGENTS.md)** - 开始开发 agents
+- **⭐ [Monorepo 约定](docs/architecture/02-monorepo-conventions.md)** - 权威性架构规范
+- [架构概览](docs/architecture.md)
+- [安装指南](INSTALL.md)
 - [商业计划](docs/2026-09-28-openstaff-business-plan-v0.1_6794.md)
 - [产品与 UX 方案](docs/2026-09-28-openstaff-product-ux-v0.1_acb0.md)
 - [技术计划](docs/2026-09-28-openstaff-tech-plan-v0.1_f5ef.md)
-- [架构概览](docs/architecture.md)
 
 ### 贡献
 
