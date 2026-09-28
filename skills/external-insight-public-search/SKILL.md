@@ -27,8 +27,10 @@ description: >-
 
 1. Skill 生成 `YYYY-MM-DD-public-facts.json`
 2. Runtime 调用 reconcile 工具验证（去重、质量检查、URL 可达性）
-3. 仅当 `reconcile_status: "PASS"` 时发送 `EventEnvelope::ExternalInsightReport`
+3. 仅当 `reconcile_status: "PASS"` 时推送报告数据到 Desktop（MVP: mock 数据）
 4. Desktop 仅渲染已通过 reconcile 的报告
+
+**注**: MVP 使用 stub/mock 数据；正式事件类型将稍后通过 `crates/protocol` 添加
 
 #### Reconcile 检查项
 

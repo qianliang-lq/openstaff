@@ -42,9 +42,10 @@ let routine = Routine {
    - `artifacts/external-insight/YYYY-MM-DD-public.md` - Markdown 报告
    - `artifacts/external-insight/YYYY-MM-DD-public-facts.json` - 结构化事实
 5. **Reconcile 门禁**: Runtime 调用 reconcile 工具验证 facts（去重、质量检查、URL 可达性）
-6. **条件推送**:
-   - 若 `reconcile_status: "PASS"` → 通过 WebSocket 向 Desktop 客户端推送报告卡片事件
-   - 若 `reconcile_status: "FAILED"` → 记录错误日志，不推送（或推送阻塞状态卡片）
+6. **条件推送** (MVP: stub/mock only):
+   - 若 `reconcile_status: "PASS"` → 通过 WebSocket 向 Desktop 客户端推送报告卡片数据
+   - 若 `reconcile_status: "FAILED"` → 记录错误日志，不推送
+   - **注**: 正式事件类型将稍后通过 `crates/protocol` 添加；MVP 使用 mock 数据
 
 ---
 
@@ -73,8 +74,10 @@ let routine = Routine {
 
 1. Skill 生成 `YYYY-MM-DD-public-facts.json`
 2. Runtime 调用 reconcile 工具验证 facts（去重、质量检查、URL 可达性）
-3. 仅当 `reconcile_status: "PASS"` 时，Runtime 才发送 `EventEnvelope::ExternalInsightReport`
+3. 仅当 `reconcile_status: "PASS"` 时，Runtime 才推送报告数据到 Desktop
 4. Desktop 仅渲染已通过 reconcile 的报告
+
+**注**: MVP 使用 mock 数据；正式事件类型将稍后通过 `crates/protocol::EventEnvelope` 添加
 
 #### UI 设计规范（产品定稿）
 
@@ -174,39 +177,46 @@ let routine = Routine {
 
 **做**：
 
-- 监听 `EventEnvelope::ExternalInsightReport` 事件
+- 接收报告数据推送（MVP: mock 数据；正式事件类型将稍后通过 `crates/protocol` 添加）
 - 仅渲染 `reconcile_status: "PASS"` 的报告
 - 支持展开/折叠查看详情
 - 提供跳转原文链接
-- 显示 reconcile FAILED 的阻塞状态（可选）
 
 **不做**：
 
 - ❌ 不执行搜索（Backend 完成）
 - ❌ 不生成报告内容（Skill 完成）
 - ❌ 不渲染未经 reconcile 的报告
+- ❌ 不显示 reconcile FAILED 状态（静默不渲染）
 
 ---
 
-## EventEnvelope 扩展（未来）
+## EventEnvelope 扩展（未来计划）
 
-当前 Stub 阶段使用 mock 数据。正式实现需要在 `crates/protocol` 添加事件类型：
+**当前 MVP 状态**：使用 stub/mock 数据，**不存在** `EventEnvelope::ExternalInsightReport` 变体。
+
+**未来实现**：需要在 `crates/protocol` 添加正式事件类型（通过 RFC 流程）。协议扩展是架构决策，不在此次 UI 打磨范围内。
+
+**示例草案**（仅供参考，非当前协议）：
 
 ```rust
-// crates/protocol/src/events.rs
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// 未来可能在 crates/protocol/src/events.rs 添加
+// 当前 MVP 不包含此变体
+
 pub enum EventEnvelope {
     // ... 现有事件类型
 
-    /// 外部洞察报告推送
-    ExternalInsightReport {
-        date: String,              // YYYY-MM-DD
-        report_path: String,       // artifacts/external-insight/...
-        facts_path: String,        // artifacts/external-insight/...-facts.json
-        summary: Vec<String>,      // 3-5 条摘要要点
-    },
+    /// 外部洞察报告推送（待添加）
+    // ExternalInsightReport {
+    //     date: String,
+    //     report_path: String,
+    //     facts_path: String,
+    //     summary: Vec<String>,
+    // },
 }
 ```
+
+**MVP 阶段**：Desktop 使用 mock facts 数组直接渲染 `ExternalInsightReportCard` 组件。
 
 ---
 
