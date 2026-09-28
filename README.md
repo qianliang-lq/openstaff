@@ -63,7 +63,7 @@ openstaff/
 - Node.js >= 18
 - pnpm >= 8
 - [just](https://github.com/casey/just) (可选，推荐)
-- **系统依赖**: 详见 [INSTALL.md](INSTALL.md)（Tauri 需要 GTK 等库）
+- **系统依赖**: 详见 [INSTALL.md](INSTALL.md)（Tauri 桌面客户端需要 GTK 等库；仅开发后端服务则无需）
 
 #### 安装依赖
 
