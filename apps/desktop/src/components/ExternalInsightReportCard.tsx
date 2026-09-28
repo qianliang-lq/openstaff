@@ -13,46 +13,14 @@ export interface ExternalInsightFact {
 export interface ExternalInsightReportCardProps {
   date: string;
   facts: ExternalInsightFact[];
-  reconcile_status?: 'PASS' | 'FAILED';
+  factsPath?: string;
 }
 
-function ExternalInsightReportCard({
-  date,
-  facts,
-  reconcile_status = 'PASS',
-}: ExternalInsightReportCardProps) {
+function ExternalInsightReportCard({ date, facts, factsPath }: ExternalInsightReportCardProps) {
   const [expanded, setExpanded] = useState(false);
 
-  if (reconcile_status === 'FAILED') {
-    return (
-      <div className="external-insight-report-card reconcile-failed">
-        <div className="report-header">
-          <div className="report-icon">🔍</div>
-          <div className="report-title">外部洞察日报 · {date}</div>
-          <div className="status-badge failed">⚠️</div>
-        </div>
-        <div className="report-body">
-          <div className="failed-message">
-            <div className="failed-icon">⚠️</div>
-            <div className="failed-text">
-              <div className="failed-title">报告验证失败</div>
-              <div className="failed-desc">
-                本日报告未通过质量检查门禁（reconcile）。可能原因：URL
-                不可达、重复内容、或格式不符合规范。
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="report-footer">
-          <button className="view-full-btn" disabled>
-            查看详情
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const summaryFacts = facts.slice(0, 3);
+
   const factsByBucket = facts.reduce(
     (acc, fact) => {
       if (!acc[fact.bucket]) {
@@ -64,18 +32,17 @@ function ExternalInsightReportCard({
     {} as Record<string, ExternalInsightFact[]>
   );
 
+  const handleOpenFacts = () => {
+    if (factsPath) {
+      console.log('打开 facts 文件:', factsPath);
+    }
+  };
+
   return (
     <div className="external-insight-report-card">
       <div className="report-header">
         <div className="report-icon">🔍</div>
         <div className="report-title">外部洞察日报 · {date}</div>
-        <button
-          className="expand-btn"
-          onClick={() => setExpanded(!expanded)}
-          aria-label={expanded ? '折叠报告' : '展开报告'}
-        >
-          {expanded ? '折叠' : '展开'}
-        </button>
       </div>
 
       <div className="report-body">
@@ -140,7 +107,12 @@ function ExternalInsightReportCard({
       </div>
 
       <div className="report-footer">
-        <button className="view-full-btn">查看完整报告</button>
+        <button className="view-details-btn" onClick={() => setExpanded(!expanded)}>
+          {expanded ? '收起详情' : '查看详情'}
+        </button>
+        <button className="open-facts-btn" onClick={handleOpenFacts}>
+          打开 facts
+        </button>
       </div>
     </div>
   );

@@ -49,11 +49,11 @@ describe('ExternalInsightReportCard', () => {
     expect(screen.queryByText('Factory 发布新版本，包含多项新功能')).not.toBeInTheDocument();
   });
 
-  it('应该在点击展开按钮后显示详细内容', () => {
+  it('应该在点击查看详情按钮后显示详细内容', () => {
     render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
 
-    const expandBtn = screen.getByRole('button', { name: /展开报告/ });
-    fireEvent.click(expandBtn);
+    const viewDetailsBtn = screen.getByText('查看详情');
+    fireEvent.click(viewDetailsBtn);
 
     expect(screen.getByText('竞对')).toBeInTheDocument();
     expect(screen.getByText('组织提效')).toBeInTheDocument();
@@ -64,8 +64,8 @@ describe('ExternalInsightReportCard', () => {
   it('应该显示PDF链接（如果存在）', () => {
     render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
 
-    const expandBtn = screen.getByRole('button', { name: /展开报告/ });
-    fireEvent.click(expandBtn);
+    const viewDetailsBtn = screen.getByText('查看详情');
+    fireEvent.click(viewDetailsBtn);
 
     const pdfLinks = screen.getAllByText('PDF');
     expect(pdfLinks.length).toBe(1);
@@ -75,57 +75,60 @@ describe('ExternalInsightReportCard', () => {
   it('应该显示标签', () => {
     render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
 
-    const expandBtn = screen.getByRole('button', { name: /展开报告/ });
-    fireEvent.click(expandBtn);
+    const viewDetailsBtn = screen.getByText('查看详情');
+    fireEvent.click(viewDetailsBtn);
 
     expect(screen.getAllByText('TOP互联网/AI公司').length).toBeGreaterThan(0);
     expect(screen.getByText('学术研究')).toBeInTheDocument();
     expect(screen.getByText('TOP学校')).toBeInTheDocument();
   });
 
-  it('应该在展开后点击折叠按钮能够折叠', () => {
+  it('应该在展开后点击收起详情按钮能够折叠', () => {
     render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
 
-    const expandBtn = screen.getByRole('button', { name: /展开报告/ });
-    fireEvent.click(expandBtn);
+    const viewDetailsBtn = screen.getByText('查看详情');
+    fireEvent.click(viewDetailsBtn);
 
     expect(screen.getByText('竞对')).toBeInTheDocument();
 
-    const collapseBtn = screen.getByRole('button', { name: /折叠报告/ });
+    const collapseBtn = screen.getByText('收起详情');
     fireEvent.click(collapseBtn);
 
     expect(screen.queryByText('竞对')).not.toBeInTheDocument();
   });
 
-  it('应该渲染查看完整报告按钮', () => {
+  it('应该渲染查看详情和打开facts按钮', () => {
     render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
 
-    expect(screen.getByText('查看完整报告')).toBeInTheDocument();
+    expect(screen.getByText('查看详情')).toBeInTheDocument();
+    expect(screen.getByText('打开 facts')).toBeInTheDocument();
   });
 
-  it('应该在reconcile_status为FAILED时显示失败状态', () => {
-    render(
-      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcile_status="FAILED" />
-    );
+  it('应该限制摘要要点最多3条', () => {
+    const manyFacts: ExternalInsightFact[] = [
+      ...mockFacts,
+      {
+        bucket: '技术底座',
+        title: '第4条',
+        summary_zh: '第4条摘要',
+        url: 'https://example.com/4',
+        tags: ['测试'],
+      },
+      {
+        bucket: '技术底座',
+        title: '第5条',
+        summary_zh: '第5条摘要',
+        url: 'https://example.com/5',
+        tags: ['测试'],
+      },
+    ];
 
-    expect(screen.getByText('报告验证失败')).toBeInTheDocument();
-    expect(screen.getByText(/本日报告未通过质量检查门禁/)).toBeInTheDocument();
-    expect(screen.getByText('查看详情')).toBeDisabled();
-  });
+    render(<ExternalInsightReportCard date="2026-09-27" facts={manyFacts} />);
 
-  it('应该在reconcile_status为FAILED时不显示摘要要点', () => {
-    render(
-      <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcile_status="FAILED" />
-    );
-
-    expect(screen.queryByText('摘要要点：')).not.toBeInTheDocument();
-    expect(screen.queryByText('Factory CLI v0.228.0 发布')).not.toBeInTheDocument();
-  });
-
-  it('应该在reconcile_status未提供时默认为PASS', () => {
-    render(<ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />);
-
-    expect(screen.queryByText('报告验证失败')).not.toBeInTheDocument();
-    expect(screen.getByText('摘要要点：')).toBeInTheDocument();
+    expect(screen.getByText('Factory CLI v0.228.0 发布')).toBeInTheDocument();
+    expect(screen.getByText('GitHub Copilot 企业设置校验器')).toBeInTheDocument();
+    expect(screen.getByText('iCoder-27B 工业编码模型')).toBeInTheDocument();
+    expect(screen.queryByText('第4条')).not.toBeInTheDocument();
+    expect(screen.queryByText('第5条')).not.toBeInTheDocument();
   });
 });

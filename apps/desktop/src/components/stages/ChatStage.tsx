@@ -70,7 +70,11 @@ function ChatStage() {
         <div className="message assistant">
           <div className="message-avatar">研</div>
           <div className="message-content">
-            <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} />
+            <ExternalInsightReportCard
+              date="2026-09-27"
+              facts={mockFacts}
+              factsPath="artifacts/external-insight/2026-09-27-public-facts.json"
+            />
           </div>
         </div>
       </div>
