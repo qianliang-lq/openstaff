@@ -35,6 +35,9 @@ This document catalogs the first test cases implemented in the OpenStaff testing
 | TC-015 | Unit/Contract | `services/gateway/src/main.rs` | `cargo test -p openstaff-gateway` | ✅ Yes | Gateway health JSON contract validation |
 | TC-016 | Unit/Contract | `services/scheduler/src/main.rs` | `cargo test -p openstaff-scheduler` | ✅ Yes | Scheduler /health endpoint returns 200 with correct JSON |
 | TC-017 | Unit/Contract | `services/scheduler/src/main.rs` | `cargo test -p openstaff-scheduler` | ✅ Yes | Scheduler health JSON contract validation |
+| TC-018 | Unit/Contract | `services/runtime/src/main.rs` | `cargo test -p openstaff-runtime` | ✅ Yes | Runtime /health endpoint returns 200 with correct JSON |
+| TC-019 | Unit/Contract | `services/runtime/src/main.rs` | `cargo test -p openstaff-runtime` | ✅ Yes | Runtime health JSON contract validation |
+| TC-020 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | HealthResponse rejects JSON with extra fields |
 
 ---
 
@@ -346,6 +349,55 @@ cargo test test_health_endpoint_returns_ok -p openstaff-scheduler
 
 ---
 
+#### TC-018: Runtime Health Endpoint
+
+**Layer**: Unit/Contract  
+**File**: `services/runtime/src/main.rs`  
+**Function**: `test_health_endpoint_returns_ok()`
+
+**Purpose**: Verify Runtime `/health` endpoint via Router unit test.
+
+**Expected Result**: ✅ HTTP 200 with `{"status":"ok","service":"runtime"}`
+
+**Command**:
+```bash
+cargo test test_health_endpoint_returns_ok -p openstaff-runtime
+```
+
+---
+
+#### TC-019: Runtime Health JSON Contract
+
+**Layer**: Unit/Contract  
+**File**: `services/runtime/src/main.rs`  
+**Function**: `test_health_response_json_contract()`
+
+**Purpose**: Validate exact JSON shape.
+
+**Expected Result**: ✅ Correct JSON format
+
+---
+
+#### TC-020: HealthResponse Rejects Extra Fields
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/roundtrip.rs`  
+**Function**: `test_health_response_rejects_extra_fields()`
+
+**Purpose**: Verify HealthResponse strictly enforces contract by rejecting JSON with extra fields (e.g., "version").
+
+**Test Data**:
+- ❌ `{"status":"ok","service":"api","version":"1.0.0"}` - Should fail
+- ✅ `{"status":"ok","service":"api"}` - Should succeed
+
+**Expected Result**: 
+- ✅ Deserialization fails for JSON with extra fields
+- ✅ Deserialization succeeds for JSON with only status and service
+
+**Implementation**: Uses `#[serde(deny_unknown_fields)]` attribute on HealthResponse
+
+---
+
 ## Test Execution Summary
 
 ### All Tests (Offline, CI Default Gate)
@@ -356,7 +408,7 @@ Run all backend tests:
 cargo test --workspace
 ```
 
-**Expected**: ✅ All 18 tests pass  
+**Expected**: ✅ All 21 backend tests pass (TC-001 through TC-020)  
 **Time**: ~5 seconds
 
 ---
@@ -364,13 +416,14 @@ cargo test --workspace
 ### By Component
 
 ```bash
-# Protocol tests (12 tests)
+# Protocol tests (13 tests)
 cargo test -p openstaff-protocol
 
-# Service tests (6 tests total)
+# Service tests (8 tests total)
 cargo test -p openstaff-api          # 2 tests
 cargo test -p openstaff-gateway      # 2 tests
 cargo test -p openstaff-scheduler    # 2 tests
+cargo test -p openstaff-runtime      # 2 tests
 ```
 
 ---
@@ -545,7 +598,7 @@ cd apps/web-admin && pnpm test
 cargo test --workspace --exclude openstaff-desktop
 ```
 
-**Expected**: ✅ 17 tests pass (TC-001 through TC-017)
+**Expected**: ✅ 21 tests pass (TC-001 through TC-020)
 
 ### Frontend Tests (TypeScript)
 

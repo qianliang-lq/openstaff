@@ -38,3 +38,46 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::util::ServiceExt;
+
+    #[tokio::test]
+    async fn test_health_endpoint_returns_ok() {
+        let app = Router::new().route("/health", get(health_check));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let health: HealthResponse = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(health.status, "ok");
+        assert_eq!(health.service, "runtime");
+    }
+
+    #[test]
+    fn test_health_response_json_contract() {
+        let health = HealthResponse::ok("runtime");
+        let json = serde_json::to_value(&health).unwrap();
+
+        assert_eq!(json["status"], "ok");
+        assert_eq!(json["service"], "runtime");
+        assert_eq!(json.as_object().unwrap().len(), 2);
+    }
+}

@@ -34,6 +34,7 @@ pub enum EventPayload {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct HealthResponse {
     pub status: String,
     pub service: String,
