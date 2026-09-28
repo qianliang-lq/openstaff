@@ -80,7 +80,7 @@ mod tests {
         };
         let json = serde_json::to_string(&env).unwrap();
         println!("EventEnvelope JSON: {}", json);
-        
+
         let env2 = EventEnvelope {
             event_id: "e2".to_string(),
             event_type: "agent.state".to_string(),
