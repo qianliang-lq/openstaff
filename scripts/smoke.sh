@@ -31,10 +31,11 @@ check_service_smoke() {
 # Track failures
 failed=0
 
-# Test all three backend services
+# Test all four backend services
 check_service_smoke "API (port 3000)" "http://localhost:3000/health" || ((failed++))
 check_service_smoke "Gateway (port 3001)" "http://localhost:3001/health" || ((failed++))
 check_service_smoke "Scheduler (port 3002)" "http://localhost:3002/health" || ((failed++))
+check_service_smoke "Runtime (port 3003)" "http://localhost:3003/health" || ((failed++))
 
 echo ""
 if [ $failed -eq 0 ]; then

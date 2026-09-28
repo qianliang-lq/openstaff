@@ -22,5 +22,6 @@ check_service() {
 check_service "API (port 3000)" "http://localhost:3000/health"
 check_service "Gateway (port 3001)" "http://localhost:3001/health"
 check_service "Scheduler (port 3002)" "http://localhost:3002/health"
+check_service "Runtime (port 3003)" "http://localhost:3003/health"
 
 echo "Done!"

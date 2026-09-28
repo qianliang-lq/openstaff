@@ -13,6 +13,7 @@ dev:
     @echo "  - API:       http://localhost:3000"
     @echo "  - Gateway:   http://localhost:3001"
     @echo "  - Scheduler: http://localhost:3002"
+    @echo "  - Runtime:   http://localhost:3003"
     @echo ""
     @echo "Frontend apps (run separately after 'pnpm install'):"
     @echo "  - Desktop:   cd apps/desktop && pnpm dev"
@@ -21,6 +22,10 @@ dev:
     just dev-services
 
 # Run all backend services in parallel
+# Note: Currently starts all services simultaneously.
+# Per 02 §4.1, services should eventually start in dependency order:
+#   Runtime → API/Gateway/Scheduler
+# but for T0 stub implementation, parallel startup is acceptable.
 dev-services:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -28,6 +33,7 @@ dev-services:
     cargo run -p openstaff-api &
     cargo run -p openstaff-gateway &
     cargo run -p openstaff-scheduler &
+    cargo run -p openstaff-runtime &
     wait
 
 # Install all dependencies (Rust + Node)
@@ -80,6 +86,9 @@ run-gateway:
 run-scheduler:
     cargo run -p openstaff-scheduler
 
+run-runtime:
+    cargo run -p openstaff-runtime
+
 # Type check TypeScript projects
 type-check:
     @echo "📝 Type checking TypeScript..."
@@ -91,6 +100,7 @@ health:
     @curl -s http://localhost:3000/health | jq . || echo "❌ API not running"
     @curl -s http://localhost:3001/health | jq . || echo "❌ Gateway not running"
     @curl -s http://localhost:3002/health | jq . || echo "❌ Scheduler not running"
+    @curl -s http://localhost:3003/health | jq . || echo "❌ Runtime not running"
 
 # Run smoke tests (requires services to be running - not a default CI gate)
 smoke:
