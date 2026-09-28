@@ -1,4 +1,7 @@
-use axum::{routing::get, Json, Router};
+mod audit;
+mod bypass;
+
+use axum::{routing::get, routing::post, Json, Router};
 use openstaff_protocol::HealthResponse;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
@@ -17,9 +20,13 @@ async fn main() -> anyhow::Result<()> {
         .compact()
         .init();
 
+    audit::ensure_audit_dir()?;
+
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health_check))
+        .route("/bypass/web_fetch", post(bypass::web_fetch))
+        .route("/bypass/web_search", post(bypass::web_search))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
 
@@ -29,6 +36,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("🚀 OpenStaff LLM Gateway v{}", env!("CARGO_PKG_VERSION"));
     tracing::info!("📡 Listening on http://{}", addr);
     tracing::info!("🏥 Health check: http://{}/health", addr);
+    tracing::info!("🌐 Public egress bypass: /bypass/web_fetch, /bypass/web_search");
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;

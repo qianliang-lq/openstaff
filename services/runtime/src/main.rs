@@ -1,4 +1,7 @@
-use axum::{routing::get, Json, Router};
+mod demo;
+mod external_insight;
+
+use axum::{routing::get, routing::post, Json, Router};
 use openstaff_protocol::HealthResponse;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
@@ -20,6 +23,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health_check))
+        .route("/demo/external-insight/run", post(demo::run_external_insight))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
 
@@ -32,6 +36,7 @@ async fn main() -> anyhow::Result<()> {
     );
     tracing::info!("📡 Listening on http://{}", addr);
     tracing::info!("🏥 Health check: http://{}/health", addr);
+    tracing::info!("🎯 Demo endpoint: POST http://{}/demo/external-insight/run", addr);
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;

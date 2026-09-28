@@ -1,6 +1,19 @@
+import { useEffect, useState } from 'react';
 import ValidationGateWidget from '../ValidationGateWidget';
 import ExternalInsightReportCard, { type ExternalInsightFact } from '../ExternalInsightReportCard';
 import './ChatStage.css';
+
+interface DemoResponse {
+  reconcile_status: string;
+  facts?: ExternalInsightFact[];
+  summary?: string[];
+  artifacts_path: string;
+  timestamp: string;
+}
+
+interface ChatStageProps {
+  demoResponse?: DemoResponse | null;
+}
 
 const mockFacts: ExternalInsightFact[] = [
   {
@@ -31,7 +44,21 @@ const mockFacts: ExternalInsightFact[] = [
   },
 ];
 
-function ChatStage() {
+function ChatStage({ demoResponse }: ChatStageProps) {
+  const [displayedFacts, setDisplayedFacts] = useState<ExternalInsightFact[]>(mockFacts);
+  const [reconcileStatus, setReconcileStatus] = useState<'PASS' | 'FAILED'>('PASS');
+  const [displayDate, setDisplayDate] = useState('2026-09-27');
+
+  useEffect(() => {
+    if (demoResponse && demoResponse.reconcile_status === 'PASS' && demoResponse.facts) {
+      setDisplayedFacts(demoResponse.facts);
+      setReconcileStatus('PASS');
+      setDisplayDate(demoResponse.timestamp || '2026-09-27');
+    } else if (demoResponse && demoResponse.reconcile_status === 'FAILED') {
+      setReconcileStatus('FAILED');
+    }
+  }, [demoResponse]);
+
   return (
     <div className="chat-stage">
       <div className="chat-messages">
@@ -67,17 +94,19 @@ function ChatStage() {
           </div>
         </div>
 
-        <div className="message assistant">
-          <div className="message-avatar">研</div>
-          <div className="message-content">
-            <ExternalInsightReportCard
-              date="2026-09-27"
-              facts={mockFacts}
-              factsPath="artifacts/external-insight/2026-09-27-public-facts.json"
-              reconcileStatus="PASS"
-            />
+        {reconcileStatus === 'PASS' && (
+          <div className="message assistant">
+            <div className="message-avatar">研</div>
+            <div className="message-content">
+              <ExternalInsightReportCard
+                date={displayDate}
+                facts={displayedFacts}
+                factsPath={`artifacts/external-insight/${displayDate}-public-facts.json`}
+                reconcileStatus={reconcileStatus}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="chat-input-area">
