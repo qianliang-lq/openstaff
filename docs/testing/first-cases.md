@@ -467,7 +467,7 @@ cargo fmt --all -- --check
 
 ### Desktop Application Tests
 
-#### TC-018: Desktop App Rendering
+#### TC-021: Desktop App Rendering
 
 **Layer**: Unit  
 **File**: `apps/desktop/src/App.test.tsx`  
@@ -491,7 +491,7 @@ cd apps/desktop && pnpm test
 
 ---
 
-#### TC-019: Sidebar Multiple Agents
+#### TC-022: Sidebar Multiple Agents
 
 **Layer**: Unit  
 **File**: `apps/desktop/src/components/Sidebar.test.tsx`
@@ -504,7 +504,7 @@ cd apps/desktop && pnpm test
 
 ---
 
-#### TC-020: MainStage Tabs
+#### TC-023: MainStage Tabs
 
 **Layer**: Unit  
 **File**: `apps/desktop/src/components/MainStage.test.tsx`
@@ -518,7 +518,7 @@ cd apps/desktop && pnpm test
 
 ---
 
-#### TC-021: ValidationGateWidget Actions
+#### TC-024: ValidationGateWidget Actions
 
 **Layer**: Unit  
 **File**: `apps/desktop/src/components/ValidationGateWidget.test.tsx`
@@ -536,7 +536,7 @@ cd apps/desktop && pnpm test
 
 ### Web Admin Tests
 
-#### TC-022: Web Admin App Rendering
+#### TC-025: Web Admin App Rendering
 
 **Layer**: Unit  
 **File**: `apps/web-admin/src/App.test.tsx`
@@ -557,7 +557,7 @@ cd apps/web-admin && pnpm test
 
 ---
 
-#### TC-023: Web Admin Sidebar Chinese Labels
+#### TC-026: Web Admin Sidebar Chinese Labels
 
 **Layer**: Unit  
 **File**: `apps/web-admin/src/components/Sidebar.test.tsx`
@@ -573,7 +573,7 @@ cd apps/web-admin && pnpm test
 
 ---
 
-#### TC-024: InstancesPage Table
+#### TC-027: InstancesPage Table
 
 **Layer**: Unit  
 **File**: `apps/web-admin/src/pages/InstancesPage.test.tsx`
@@ -613,7 +613,7 @@ cd apps/web-admin && pnpm test
 pnpm test
 ```
 
-**Expected**: ✅ 7 test suites pass (TC-018 through TC-024)
+**Expected**: ✅ 7 test suites pass (TC-021 through TC-027)
 
 ---
 
