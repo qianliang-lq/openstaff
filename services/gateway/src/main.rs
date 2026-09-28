@@ -1,18 +1,9 @@
 use axum::{routing::get, Json, Router};
-use serde::Serialize;
+use openstaff_protocol::HealthResponse;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
-#[derive(Serialize)]
-struct HealthResponse {
-    status: String,
-    service: String,
-}
-
 async fn health_check() -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "ok".to_string(),
-        service: "gateway".to_string(),
-    })
+    Json(HealthResponse::ok("gateway"))
 }
 
 async fn root() -> &'static str {
@@ -43,4 +34,47 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::util::ServiceExt;
+
+    #[tokio::test]
+    async fn test_health_endpoint_returns_ok() {
+        let app = Router::new().route("/health", get(health_check));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let health: HealthResponse = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(health.status, "ok");
+        assert_eq!(health.service, "gateway");
+    }
+
+    #[test]
+    fn test_health_response_json_contract() {
+        let health = HealthResponse::ok("gateway");
+        let json = serde_json::to_value(&health).unwrap();
+
+        assert_eq!(json["status"], "ok");
+        assert_eq!(json["service"], "gateway");
+        assert_eq!(json.as_object().unwrap().len(), 2);
+    }
 }

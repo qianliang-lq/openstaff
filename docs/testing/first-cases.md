@@ -10,6 +10,8 @@
 
 This document catalogs the first test cases implemented in the OpenStaff testing layer. Each case is documented with its ID, layer, location, command, offline status, and expected behavior.
 
+> **Scope**: Backend tests only (Rust). Frontend tests and smoke tests are managed separately by the code assistant team.
+
 ---
 
 ## Test Case Catalog
@@ -19,19 +21,28 @@ This document catalogs the first test cases implemented in the OpenStaff testing
 | TC-001 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | Message JSON roundtrip succeeds |
 | TC-002 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | Empty message roundtrip succeeds |
 | TC-003 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | Unicode message roundtrip succeeds |
-| TC-004 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | Special chars roundtrip succeeds |
-| TC-005 | Unit | `crates/protocol/src/lib.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | Message creation works |
-| TC-006 | Smoke | `scripts/smoke.sh` | `./scripts/smoke.sh` or `just smoke` | ❌ No (needs api:3000) | API health: `{"status":"ok","service":"api"}` |
-| TC-007 | Smoke | `scripts/smoke.sh` | `./scripts/smoke.sh` or `just smoke` | ❌ No (needs gateway:3001) | Gateway health: `{"status":"ok","service":"gateway"}` |
-| TC-008 | Smoke | `scripts/smoke.sh` | `./scripts/smoke.sh` or `just smoke` | ❌ No (needs scheduler:3002) | Scheduler health: `{"status":"ok","service":"scheduler"}` |
-| TC-009 | Unit | `apps/desktop/src/__tests__/App.test.tsx` | `pnpm --filter @openstaff/desktop test` | ✅ Yes | Desktop app is testable |
-| TC-010 | Unit | `apps/web-admin/src/__tests__/App.test.tsx` | `pnpm --filter @openstaff/web-admin test` | ✅ Yes | Web admin is testable |
+| TC-004 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | EventEnvelope with Message payload roundtrip |
+| TC-005 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | EventEnvelope with AgentStateChange roundtrip |
+| TC-006 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | EventEnvelope with ToolCall roundtrip |
+| TC-007 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | EventEnvelope with ApprovalRequest roundtrip |
+| TC-008 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | HealthResponse roundtrip succeeds |
+| TC-009 | Contract | `crates/protocol/tests/roundtrip.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | HealthResponse JSON format validation |
+| TC-010 | Unit | `crates/protocol/src/lib.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | Message creation works |
+| TC-011 | Unit | `crates/protocol/src/lib.rs` | `cargo test -p openstaff-protocol` | ✅ Yes | HealthResponse builder creates correct response |
+| TC-012 | Unit/Contract | `services/api/src/main.rs` | `cargo test -p openstaff-api` | ✅ Yes | API /health endpoint returns 200 with correct JSON |
+| TC-013 | Unit/Contract | `services/api/src/main.rs` | `cargo test -p openstaff-api` | ✅ Yes | API health JSON contract validation |
+| TC-014 | Unit/Contract | `services/gateway/src/main.rs` | `cargo test -p openstaff-gateway` | ✅ Yes | Gateway /health endpoint returns 200 with correct JSON |
+| TC-015 | Unit/Contract | `services/gateway/src/main.rs` | `cargo test -p openstaff-gateway` | ✅ Yes | Gateway health JSON contract validation |
+| TC-016 | Unit/Contract | `services/scheduler/src/main.rs` | `cargo test -p openstaff-scheduler` | ✅ Yes | Scheduler /health endpoint returns 200 with correct JSON |
+| TC-017 | Unit/Contract | `services/scheduler/src/main.rs` | `cargo test -p openstaff-scheduler` | ✅ Yes | Scheduler health JSON contract validation |
 
 ---
 
 ## Detailed Test Cases
 
-### TC-001: Message JSON Roundtrip
+### Protocol Roundtrip Tests
+
+#### TC-001: Message JSON Roundtrip
 
 **Layer**: Contract  
 **File**: `crates/protocol/tests/roundtrip.rs`  
@@ -39,13 +50,11 @@ This document catalogs the first test cases implemented in the OpenStaff testing
 
 **Purpose**: Verify that `Message` types can be serialized to JSON and deserialized back without data loss.
 
-**Setup**: None (pure unit test)
-
 **Steps**:
 1. Create a `Message` with content `"Hello, OpenStaff!"`
 2. Serialize to JSON string using `serde_json::to_string()`
 3. Deserialize back to `Message` using `serde_json::from_str()`
-4. Assert original content equals deserialized content
+4. Assert original equals deserialized
 
 **Expected Result**: ✅ Test passes
 
@@ -56,7 +65,7 @@ cargo test test_message_roundtrip -p openstaff-protocol
 
 ---
 
-### TC-002: Empty Message Roundtrip
+#### TC-002: Empty Message Roundtrip
 
 **Layer**: Contract  
 **File**: `crates/protocol/tests/roundtrip.rs`  
@@ -64,24 +73,11 @@ cargo test test_message_roundtrip -p openstaff-protocol
 
 **Purpose**: Verify edge case of empty message content.
 
-**Setup**: None
-
-**Steps**:
-1. Create a `Message` with empty content `""`
-2. Serialize to JSON
-3. Deserialize back
-4. Assert content is still empty
-
 **Expected Result**: ✅ Test passes
-
-**Command**:
-```bash
-cargo test test_message_roundtrip_empty -p openstaff-protocol
-```
 
 ---
 
-### TC-003: Unicode Message Roundtrip
+#### TC-003: Unicode Message Roundtrip
 
 **Layer**: Contract  
 **File**: `crates/protocol/tests/roundtrip.rs`  
@@ -89,131 +85,125 @@ cargo test test_message_roundtrip_empty -p openstaff-protocol
 
 **Purpose**: Verify Unicode and emoji handling in messages.
 
-**Setup**: None
-
-**Steps**:
-1. Create a `Message` with Unicode content `"你好，世界！🚀"`
-2. Serialize to JSON
-3. Deserialize back
-4. Assert content matches exactly
+**Test Data**: `"你好，世界！🚀"`
 
 **Expected Result**: ✅ Test passes
 
-**Command**:
-```bash
-cargo test test_message_roundtrip_unicode -p openstaff-protocol
-```
-
 ---
 
-### TC-004: Special Characters Roundtrip
+#### TC-004: EventEnvelope with Message Payload
 
 **Layer**: Contract  
 **File**: `crates/protocol/tests/roundtrip.rs`  
-**Function**: `test_message_roundtrip_special_chars()`
+**Function**: `test_event_envelope_roundtrip_message()`
 
-**Purpose**: Verify handling of special JSON characters (newlines, tabs, quotes).
+**Purpose**: Verify EventEnvelope with Message payload serializes correctly.
 
-**Setup**: None
-
-**Steps**:
-1. Create a `Message` with special chars: `"Line 1\nLine 2\t\"Quoted\""`
-2. Serialize to JSON
-3. Deserialize back
-4. Assert content is preserved exactly
-
-**Expected Result**: ✅ Test passes
-
-**Command**:
-```bash
-cargo test test_message_roundtrip_special_chars -p openstaff-protocol
-```
-
----
-
-### TC-005: Message Creation
-
-**Layer**: Unit  
-**File**: `crates/protocol/src/lib.rs`  
-**Function**: `test_message_creation()`
-
-**Purpose**: Verify basic message construction.
-
-**Setup**: None
-
-**Steps**:
-1. Create a `Message` with content `"test"`
-2. Assert content field equals `"test"`
-
-**Expected Result**: ✅ Test passes
-
-**Command**:
-```bash
-cargo test test_message_creation -p openstaff-protocol
-```
-
----
-
-### TC-006: API Health Check (Smoke)
-
-**Layer**: Smoke  
-**File**: `scripts/smoke.sh`  
-**Function**: `check_service("api", 3000)`
-
-**Purpose**: Verify API service is running and responds with correct health check format.
-
-**Setup**: 
-```bash
-just dev  # Start all services
-```
-
-**Steps**:
-1. Send `GET http://localhost:3000/health`
-2. Parse JSON response
-3. Assert `status == "ok"`
-4. Assert `service == "api"`
-5. Assert HTTP status code is 200
-
-**Expected Result**:
-```json
-{
-  "status": "ok",
-  "service": "api"
+**Test Data**:
+```rust
+EventEnvelope {
+    event_id: "evt_123",
+    event_type: "message",
+    timestamp: 1727510400000,
+    payload: EventPayload::Message(Message {
+        content: "Test message",
+    }),
 }
 ```
 
-**Command**:
-```bash
-./scripts/smoke.sh
-# or
-just smoke
-```
-
-**Online**: ❌ Requires running API service on port 3000
+**Expected Result**: ✅ Roundtrip succeeds, all fields match
 
 ---
 
-### TC-007: Gateway Health Check (Smoke)
+#### TC-005: EventEnvelope with AgentStateChange
 
-**Layer**: Smoke  
-**File**: `scripts/smoke.sh`  
-**Function**: `check_service("gateway", 3001)`
+**Layer**: Contract  
+**File**: `crates/protocol/tests/roundtrip.rs`  
+**Function**: `test_event_envelope_roundtrip_state_change()`
 
-**Purpose**: Verify Gateway service is running and responds with correct health check format.
+**Purpose**: Verify EventEnvelope with AgentStateChange payload.
 
-**Setup**: 
-```bash
-just dev  # Start all services
+**Test Data**:
+```rust
+EventPayload::AgentStateChange {
+    agent_id: "agent_001",
+    state: "active",
+}
 ```
 
-**Steps**:
-1. Send `GET http://localhost:3001/health`
-2. Parse JSON response
-3. Assert `status == "ok"`
-4. Assert `service == "gateway"`
-5. Assert HTTP status code is 200
+**Expected Result**: ✅ Roundtrip succeeds
 
-**Expected Result**:
+---
+
+#### TC-006: EventEnvelope with ToolCall
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/roundtrip.rs`  
+**Function**: `test_event_envelope_roundtrip_tool_call()`
+
+**Purpose**: Verify EventEnvelope with ToolCall payload (includes nested JSON).
+
+**Test Data**:
+```rust
+EventPayload::ToolCall {
+    tool_name: "write_file",
+    args: json!({"path": "/tmp/test.txt", "content": "Hello"}),
+}
+```
+
+**Expected Result**: ✅ Roundtrip succeeds, nested JSON preserved
+
+---
+
+#### TC-007: EventEnvelope with ApprovalRequest
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/roundtrip.rs`  
+**Function**: `test_event_envelope_roundtrip_approval_request()`
+
+**Purpose**: Verify EventEnvelope with ApprovalRequest payload.
+
+**Test Data**:
+```rust
+EventPayload::ApprovalRequest {
+    request_id: "req_001",
+    action: "execute_tool",
+}
+```
+
+**Expected Result**: ✅ Roundtrip succeeds
+
+---
+
+#### TC-008: HealthResponse Roundtrip
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/roundtrip.rs`  
+**Function**: `test_health_response_roundtrip()`
+
+**Purpose**: Verify HealthResponse serialization and builder.
+
+**Test Data**:
+```rust
+HealthResponse::ok("api")
+```
+
+**Expected Result**: 
+- ✅ Roundtrip succeeds
+- ✅ `status == "ok"`
+- ✅ `service == "api"`
+
+---
+
+#### TC-009: HealthResponse JSON Format
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/roundtrip.rs`  
+**Function**: `test_health_response_json_format()`
+
+**Purpose**: Validate exact JSON shape of health response.
+
+**Expected JSON**:
 ```json
 {
   "status": "ok",
@@ -221,202 +211,167 @@ just dev  # Start all services
 }
 ```
 
-**Command**:
-```bash
-./scripts/smoke.sh
-# or
-just smoke
-```
-
-**Online**: ❌ Requires running Gateway service on port 3001
+**Validation**:
+- ✅ Exactly 2 fields
+- ✅ No extra fields
+- ✅ Correct values
 
 ---
 
-### TC-008: Scheduler Health Check (Smoke)
+### Protocol Unit Tests
 
-**Layer**: Smoke  
-**File**: `scripts/smoke.sh`  
-**Function**: `check_service("scheduler", 3002)`
+#### TC-010: Message Creation
 
-**Purpose**: Verify Scheduler service is running and responds with correct health check format.
+**Layer**: Unit  
+**File**: `crates/protocol/src/lib.rs`  
+**Function**: `test_message_creation()`
 
-**Setup**: 
-```bash
-just dev  # Start all services
-```
+**Purpose**: Verify basic message construction.
 
-**Steps**:
-1. Send `GET http://localhost:3002/health`
-2. Parse JSON response
-3. Assert `status == "ok"`
-4. Assert `service == "scheduler"`
-5. Assert HTTP status code is 200
+**Expected Result**: ✅ Message object created successfully
+
+---
+
+#### TC-011: HealthResponse Builder
+
+**Layer**: Unit  
+**File**: `crates/protocol/src/lib.rs`  
+**Function**: `test_health_response_builder()`
+
+**Purpose**: Verify `HealthResponse::ok()` builder creates correct response.
 
 **Expected Result**:
-```json
-{
-  "status": "ok",
-  "service": "scheduler"
-}
-```
-
-**Command**:
-```bash
-./scripts/smoke.sh
-# or
-just smoke
-```
-
-**Online**: ❌ Requires running Scheduler service on port 3002
+- ✅ `status == "ok"`
+- ✅ `service` matches input
 
 ---
 
-### TC-009: Desktop App Unit Tests
+### Service Health Contract Tests
 
-**Layer**: Unit  
-**File**: `apps/desktop/src/__tests__/App.test.tsx`
+#### TC-012: API Health Endpoint
 
-**Purpose**: Verify frontend test infrastructure is working.
+**Layer**: Unit/Contract  
+**File**: `services/api/src/main.rs`  
+**Function**: `test_health_endpoint_returns_ok()`
 
-**Setup**: 
-```bash
-cd apps/desktop && pnpm install
-```
+**Purpose**: Verify API `/health` endpoint via Router unit test (no port binding).
 
 **Steps**:
-1. Run Vitest
-2. Execute placeholder tests
-3. Assert tests pass
+1. Create Router with `/health` route
+2. Send request to `/health` using `tower::ServiceExt::oneshot()`
+3. Assert HTTP 200 status code
+4. Parse response body as `HealthResponse`
+5. Assert `status == "ok"` and `service == "api"`
 
-**Expected Result**: ✅ All tests pass
+**Expected Result**: ✅ HTTP 200 with correct JSON shape
 
 **Command**:
 ```bash
-pnpm --filter @openstaff/desktop test
-# or
-cd apps/desktop && pnpm test
+cargo test test_health_endpoint_returns_ok -p openstaff-api
 ```
 
-**Online**: ✅ Offline (no network required)
+**Offline**: ✅ Yes (uses Router directly, no network)
 
 ---
 
-### TC-010: Web Admin Unit Tests
+#### TC-013: API Health JSON Contract
 
-**Layer**: Unit  
-**File**: `apps/web-admin/src/__tests__/App.test.tsx`
+**Layer**: Unit/Contract  
+**File**: `services/api/src/main.rs`  
+**Function**: `test_health_response_json_contract()`
 
-**Purpose**: Verify frontend test infrastructure is working.
+**Purpose**: Validate exact JSON shape without HTTP layer.
 
-**Setup**: 
-```bash
-cd apps/web-admin && pnpm install
-```
+**Expected Result**: 
+- ✅ Exactly 2 fields
+- ✅ Correct values
 
-**Steps**:
-1. Run Vitest
-2. Execute placeholder tests
-3. Assert tests pass
+---
 
-**Expected Result**: ✅ All tests pass
+#### TC-014: Gateway Health Endpoint
+
+**Layer**: Unit/Contract  
+**File**: `services/gateway/src/main.rs`  
+**Function**: `test_health_endpoint_returns_ok()`
+
+**Purpose**: Verify Gateway `/health` endpoint via Router unit test.
+
+**Expected Result**: ✅ HTTP 200 with `{"status":"ok","service":"gateway"}`
 
 **Command**:
 ```bash
-pnpm --filter @openstaff/web-admin test
-# or
-cd apps/web-admin && pnpm test
+cargo test test_health_endpoint_returns_ok -p openstaff-gateway
 ```
 
-**Online**: ✅ Offline (no network required)
+---
+
+#### TC-015: Gateway Health JSON Contract
+
+**Layer**: Unit/Contract  
+**File**: `services/gateway/src/main.rs`  
+**Function**: `test_health_response_json_contract()`
+
+**Purpose**: Validate exact JSON shape.
+
+**Expected Result**: ✅ Correct JSON format
+
+---
+
+#### TC-016: Scheduler Health Endpoint
+
+**Layer**: Unit/Contract  
+**File**: `services/scheduler/src/main.rs`  
+**Function**: `test_health_endpoint_returns_ok()`
+
+**Purpose**: Verify Scheduler `/health` endpoint via Router unit test.
+
+**Expected Result**: ✅ HTTP 200 with `{"status":"ok","service":"scheduler"}`
+
+**Command**:
+```bash
+cargo test test_health_endpoint_returns_ok -p openstaff-scheduler
+```
+
+---
+
+#### TC-017: Scheduler Health JSON Contract
+
+**Layer**: Unit/Contract  
+**File**: `services/scheduler/src/main.rs`  
+**Function**: `test_health_response_json_contract()`
+
+**Purpose**: Validate exact JSON shape.
+
+**Expected Result**: ✅ Correct JSON format
 
 ---
 
 ## Test Execution Summary
 
-### Offline Tests (CI Default Gate)
+### All Tests (Offline, CI Default Gate)
 
-Run all offline tests (must pass for PR merge):
+Run all backend tests:
 
 ```bash
-# Rust tests (unit + contract)
 cargo test --workspace
-
-# Frontend tests (unit)
-pnpm test
 ```
 
-**Expected**: ✅ All tests pass  
-**Time**: ~30 seconds
+**Expected**: ✅ All 18 tests pass  
+**Time**: ~5 seconds
 
 ---
 
-### Online Tests (Manual/Label Triggered)
-
-Run smoke tests (requires running services):
+### By Component
 
 ```bash
-# Terminal 1: Start services
-just dev
+# Protocol tests (12 tests)
+cargo test -p openstaff-protocol
 
-# Terminal 2: Run smoke tests
-just smoke
+# Service tests (6 tests total)
+cargo test -p openstaff-api          # 2 tests
+cargo test -p openstaff-gateway      # 2 tests
+cargo test -p openstaff-scheduler    # 2 tests
 ```
-
-**Expected**: ✅ All 3 services respond correctly  
-**Time**: ~10 seconds (after services start)
-
----
-
-## Pending Test Cases (Future Milestones)
-
-### Approval Ticket State Machine
-
-**Status**: 🔲 Not implemented (planned for T1)
-
-**Test Cases**:
-- TC-101: Create approval ticket
-- TC-102: Approve ticket → execute action
-- TC-103: Reject ticket → skip action
-- TC-104: Timeout ticket → default to reject
-- TC-105: Invalid state transition → error
-
-**Reason for Deferral**: Approval ticket system not yet implemented.
-
-**Implementation**:
-- Add `#[ignore]` attribute to tests
-- Implement tests alongside approval feature
-- Remove `#[ignore]` when feature is complete
-
-**Example**:
-```rust
-#[test]
-#[ignore] // Remove when approval system is implemented
-fn test_approval_ticket_workflow() {
-    // Test implementation
-}
-```
-
----
-
-### E2E Test Cases
-
-**Status**: 🔲 Not implemented (planned for T2)
-
-**Desktop E2E**:
-- TC-201: Launch desktop app
-- TC-202: Create new agent
-- TC-203: Send message to agent
-- TC-204: Approve tool execution
-- TC-205: View agent response
-
-**Web Admin E2E**:
-- TC-301: Login to web admin
-- TC-302: View agent list
-- TC-303: Create new agent
-- TC-304: Edit agent persona
-- TC-305: View audit logs
-
-**Reason for Deferral**: Tauri E2E testing is complex; web admin E2E deferred to focus on core functionality.
 
 ---
 
@@ -431,8 +386,8 @@ cargo test test_name -- --exact
 # Run with output
 cargo test test_name -- --nocapture
 
-# Run frontend test
-cd apps/desktop && pnpm test -- App.test.tsx
+# Run with backtrace
+RUST_BACKTRACE=1 cargo test test_name
 ```
 
 ### CI Reproduction
@@ -443,7 +398,6 @@ cargo check --workspace
 cargo test --workspace
 cargo clippy --workspace -- -D warnings
 cargo fmt --all -- --check
-pnpm install && pnpm test
 ```
 
 ---
@@ -456,4 +410,4 @@ pnpm install && pnpm test
 
 ---
 
-**Authoritative Status**: This document catalogs all implemented test cases. Keep it updated when adding new tests.
+**Authoritative Status**: This document catalogs all implemented backend test cases. Keep it updated when adding new tests.

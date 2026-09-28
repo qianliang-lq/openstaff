@@ -8,7 +8,9 @@
 
 ## Overview
 
-OpenStaff employs a multi-layered testing strategy to ensure code quality, reliability, and maintainability across the entire stack. This document defines the testing layers, directory conventions, and CI/CD integration.
+OpenStaff employs a multi-layered testing strategy to ensure code quality, reliability, and maintainability. This document defines the testing layers, directory conventions, and CI/CD integration for **backend services and protocol**.
+
+> **Note**: Frontend test infrastructure (vitest/playwright) and smoke tests (`just smoke`) are managed separately by the code assistant team. This document focuses on Rust backend testing.
 
 ---
 
@@ -19,8 +21,8 @@ OpenStaff employs a multi-layered testing strategy to ensure code quality, relia
 **Purpose**: Test individual functions, modules, and components in isolation.
 
 **Location**:
-- Rust: `src/` directories with inline `#[test]` modules or `tests/` subdirectories
-- Frontend: `src/__tests__/` directories alongside source code
+- Rust: `src/` directories with inline `#[test]` modules
+- Example: `services/api/src/main.rs` with `#[cfg(test)] mod tests`
 
 **Characteristics**:
 - ✅ **Offline**: No network, no external services
@@ -28,17 +30,17 @@ OpenStaff employs a multi-layered testing strategy to ensure code quality, relia
 - ✅ **Isolated**: No shared state between tests
 
 **Examples**:
-- Protocol type serialization/deserialization
-- Pure functions and business logic
-- React component rendering (shallow)
+- Protocol type creation and validation
+- Health response builder
+- Pure business logic functions
 
 **Commands**:
 ```bash
-# Rust unit tests
+# All unit tests
 cargo test --workspace
 
-# Frontend unit tests
-pnpm test
+# Specific service
+cargo test -p openstaff-api
 ```
 
 ---
@@ -48,8 +50,8 @@ pnpm test
 **Purpose**: Verify that data contracts and APIs conform to specifications.
 
 **Location**:
-- `crates/protocol/tests/` - Protocol roundtrip tests
-- Service integration tests that validate response schemas
+- `crates/protocol/tests/roundtrip.rs` - Protocol roundtrip tests
+- Service unit tests that validate response schemas
 
 **Characteristics**:
 - ✅ **Offline**: No running services required
@@ -57,9 +59,9 @@ pnpm test
 - ✅ **Deterministic**: Same input → same output
 
 **Examples**:
-- JSON serialization roundtrip tests
-- Health endpoint response validation (via axum Router tests)
-- Type system guarantees
+- JSON serialization roundtrip tests for all protocol types
+- Health endpoint JSON contract validation (Router unit tests)
+- EventEnvelope payload variants
 
 **Commands**:
 ```bash
@@ -69,7 +71,44 @@ cargo test --workspace
 
 ---
 
-### 3. Integration Tests
+### 3. Health Endpoint Contract Tests
+
+**Purpose**: Validate that health endpoints return the exact locked JSON contract without requiring running services.
+
+**Approach**: Use axum Router unit tests with `tower::ServiceExt::oneshot()`
+
+**Location**:
+- `services/api/src/main.rs` - `#[cfg(test)] mod tests`
+- `services/gateway/src/main.rs` - `#[cfg(test)] mod tests`
+- `services/scheduler/src/main.rs` - `#[cfg(test)] mod tests`
+
+**Contract**: `GET /health` → HTTP 200 + JSON `{"status":"ok","service":"<name>"}`
+
+**Characteristics**:
+- ✅ **Offline**: Tests Router without binding ports
+- ✅ **Fast**: No network I/O
+- ✅ **Contract enforcement**: Validates exact JSON shape
+
+**Example**:
+```rust
+#[tokio::test]
+async fn test_health_endpoint_returns_ok() {
+    let app = Router::new().route("/health", get(health_check));
+    
+    let response = app.oneshot(
+        Request::builder().uri("/health").body(Body::empty()).unwrap()
+    ).await.unwrap();
+    
+    assert_eq!(response.status(), StatusCode::OK);
+    let health: HealthResponse = /* parse body */;
+    assert_eq!(health.status, "ok");
+    assert_eq!(health.service, "api");
+}
+```
+
+---
+
+### 4. Integration Tests (Future - T1+)
 
 **Purpose**: Test interactions between components with minimal external dependencies.
 
@@ -77,85 +116,7 @@ cargo test --workspace
 - `tests/integration/` (planned)
 - Service-level tests with in-memory backends
 
-**Characteristics**:
-- ⚠️ **May require setup**: In-memory databases, mock services
-- ✅ **Mostly offline**: Uses test doubles, not real external services
-- ⚠️ **Medium speed**: Seconds to complete
-
-**Examples**:
-- API service with mock Gateway responses
-- Database migrations and queries (in-memory SQLite)
-- Agent workflow with stubbed LLM calls
-
-**Commands**:
-```bash
-cargo test --test integration_*
-```
-
-**Status**: T1+ milestone (planned)
-
----
-
-### 4. Smoke Tests
-
-**Purpose**: Verify that deployed services are running and reachable.
-
-**Location**:
-- `scripts/smoke.sh`
-- `pnpm test:smoke` / `just smoke`
-
-**Characteristics**:
-- ❌ **Online**: Requires running services
-- ✅ **Fast**: Basic health checks only
-- ⚠️ **Environment-dependent**: Must be run after `just dev`
-
-**Examples**:
-- Health endpoint checks (`GET /health` → `200 OK`)
-- Service reachability tests (api:3000, gateway:3001, scheduler:3002)
-
-**Commands**:
-```bash
-# Start services first
-just dev
-
-# Run smoke tests (in another terminal)
-just smoke
-# or
-pnpm test:smoke
-```
-
-**CI Integration**: Separate job, gated by `workflow_dispatch` or `test-online` label.
-
----
-
-### 5. End-to-End (E2E) Tests
-
-**Purpose**: Test complete user workflows from UI to backend.
-
-**Location**:
-- `apps/desktop/tests/e2e/` - Desktop app E2E (Playwright)
-- `apps/web-admin/tests/e2e/` - Web admin E2E (Playwright)
-
-**Characteristics**:
-- ❌ **Online**: Requires all services + frontend
-- ❌ **Slow**: Minutes to complete
-- ⚠️ **Fragile**: UI changes can break tests
-
-**Examples**:
-- Desktop: Create agent → send message → receive response
-- Web Admin: Login → view agent list → approve ticket
-
-**Commands**:
-```bash
-pnpm --filter @openstaff/desktop test:e2e
-pnpm --filter @openstaff/web-admin test:e2e
-```
-
-**Status**: 
-- Desktop: T2+ milestone (deferred due to Tauri complexity)
-- Web Admin: T1+ milestone (planned)
-
-**CI Integration**: Separate job, manual trigger or specific label.
+**Status**: Planned for T1 milestone
 
 ---
 
@@ -166,10 +127,7 @@ pnpm --filter @openstaff/web-admin test:e2e
 ```
 services/api/
 ├── src/
-│   ├── main.rs           # Unit tests inline: #[cfg(test)] mod tests
-│   └── lib.rs
-├── tests/                # Integration tests
-│   └── health_test.rs    # (planned)
+│   └── main.rs           # Unit tests inline: #[cfg(test)] mod tests
 └── Cargo.toml
 
 crates/protocol/
@@ -179,77 +137,74 @@ crates/protocol/
     └── roundtrip.rs      # Contract tests (JSON roundtrip)
 ```
 
-### Frontend (TypeScript)
+---
 
-```
-apps/desktop/
-├── src/
-│   ├── __tests__/        # Unit tests (Vitest)
-│   │   └── App.test.tsx
-│   └── components/
-│       └── __tests__/
-│           └── Button.test.tsx
-├── tests/
-│   └── e2e/              # E2E tests (Playwright)
-│       └── .gitkeep      # (placeholder)
-├── vitest.config.ts
-└── playwright.config.ts  # (planned)
-```
+## Protocol Types
 
-### Scripts
+The `openstaff-protocol` crate defines all shared types:
 
-```
-scripts/
-├── smoke.sh              # Smoke tests
-└── check-health.sh       # Health check utility
+### Core Types
+
+- **`Message`**: Basic chat message
+- **`EventEnvelope`**: Wrapper for all events with metadata
+- **`EventPayload`**: Enum of event types (Message, AgentStateChange, ToolCall, ApprovalRequest)
+- **`HealthResponse`**: Standardized health check response
+
+### Usage
+
+```rust
+use openstaff_protocol::{HealthResponse, EventEnvelope, EventPayload};
+
+// Health endpoint
+async fn health_check() -> Json<HealthResponse> {
+    Json(HealthResponse::ok("api"))
+}
+
+// Event creation
+let event = EventEnvelope {
+    event_id: "evt_123".to_string(),
+    event_type: "message".to_string(),
+    timestamp: 1727510400000,
+    payload: EventPayload::Message(Message {
+        content: "Hello".to_string(),
+    }),
+};
 ```
 
 ---
 
-## CI/CD Matrix
+## CI/CD Pipeline
 
 ### Default PR Gate (Required for Merge)
 
 **Runs on**: Every push, every PR  
 **Must Pass**: ✅ All jobs must succeed
 
-| Job             | Command                  | Offline? | Speed  |
-|-----------------|--------------------------|----------|--------|
-| Check           | `cargo check --workspace` | ✅ Yes    | Fast   |
-| Test (Rust)     | `cargo test --workspace`  | ✅ Yes    | Fast   |
-| Test (Frontend) | `pnpm test`               | ✅ Yes    | Fast   |
-| Format          | `cargo fmt --check`       | ✅ Yes    | Fast   |
-| Clippy          | `cargo clippy -- -D warnings` | ✅ Yes | Fast   |
+| Job    | Command                           | Offline? | Speed |
+|--------|-----------------------------------|----------|-------|
+| Check  | `cargo check --workspace`         | ✅ Yes    | Fast  |
+| Test   | `cargo test --workspace`          | ✅ Yes    | Fast  |
+| Format | `cargo fmt --check`               | ✅ Yes    | Fast  |
+| Clippy | `cargo clippy -- -D warnings`     | ✅ Yes    | Fast  |
 
-**Total Time**: ~5 minutes
+**Total Time**: ~3-5 minutes
 
----
-
-### Online Tests (Optional)
-
-**Runs on**: Manual trigger (`workflow_dispatch`) or label (`test-online`)  
-**Purpose**: Integration and smoke testing with running services
-
-| Job         | Command               | Offline? | Speed  |
-|-------------|-----------------------|----------|--------|
-| Smoke Tests | `./scripts/smoke.sh`  | ❌ No     | Medium |
-
-**Total Time**: ~10 minutes (includes service startup)
+**Key Point**: All tests are **offline** - no running services required!
 
 ---
 
-### E2E Tests (Optional)
+## Test Coverage Summary
 
-**Runs on**: Manual trigger or label (`test-e2e`)  
-**Purpose**: Full-stack UI testing
+### Current Coverage (T0)
 
-| Job         | Command                              | Offline? | Speed |
-|-------------|--------------------------------------|----------|-------|
-| E2E Desktop | `pnpm --filter @openstaff/desktop test:e2e` | ❌ No | Slow  |
-| E2E Admin   | `pnpm --filter @openstaff/web-admin test:e2e` | ❌ No | Slow  |
+| Component | Unit Tests | Contract Tests | Integration Tests |
+|-----------|------------|----------------|-------------------|
+| Protocol  | ✅ 2       | ✅ 10          | -                 |
+| API       | ✅ 2       | -              | -                 |
+| Gateway   | ✅ 2       | -              | -                 |
+| Scheduler | ✅ 2       | -              | -                 |
 
-**Total Time**: ~20 minutes  
-**Status**: T2+ milestone (deferred)
+**Total**: 18 tests, all offline, all passing ✅
 
 ---
 
@@ -261,8 +216,8 @@ scripts/
 # Terminal 1: Watch mode for tests
 cargo watch -x test
 
-# Terminal 2: Frontend watch mode
-cd apps/desktop && pnpm test:watch
+# Or run tests manually
+cargo test --workspace
 ```
 
 ### Full Pre-Commit Check
@@ -273,14 +228,19 @@ just lint      # Linters + Clippy
 just test      # All offline tests
 ```
 
-### Manual Smoke Test
+### Running Specific Tests
 
 ```bash
-# Terminal 1: Start services
-just dev
+# Protocol tests only
+cargo test -p openstaff-protocol
 
-# Terminal 2: Run smoke tests
-just smoke
+# Service tests only
+cargo test -p openstaff-api
+cargo test -p openstaff-gateway
+cargo test -p openstaff-scheduler
+
+# Single test
+cargo test test_health_endpoint_returns_ok
 ```
 
 ---
@@ -292,8 +252,6 @@ just smoke
 | Unit        | 80%+            | High     |
 | Contract    | 100%            | Critical |
 | Integration | 60%+            | Medium   |
-| Smoke       | 100% endpoints  | High     |
-| E2E         | Critical paths  | Low (T2+)|
 
 ---
 
@@ -313,18 +271,17 @@ just smoke
 - API schema changes
 - Breaking changes
 
-### When to Write Integration Tests
-
-⚠️ **Sometimes**:
-- Complex workflows (multi-service)
-- Database interactions
-- Auth flows
-
-### When to Write E2E Tests
-
-❌ **Rarely** (T2+):
-- Critical user journeys only
-- High-value, low-change workflows
+**Example**:
+```rust
+// In crates/protocol/tests/roundtrip.rs
+#[test]
+fn test_new_type_roundtrip() {
+    let original = NewType { /* ... */ };
+    let json = serde_json::to_string(&original).unwrap();
+    let deserialized: NewType = serde_json::from_str(&json).unwrap();
+    assert_eq!(original, deserialized);
+}
+```
 
 ---
 
@@ -334,24 +291,13 @@ just smoke
 
 ```bash
 # Run single test
-cargo test test_name
+cargo test test_name -- --exact
 
 # Show test output
 cargo test -- --nocapture
 
-# Frontend test debugging
-cd apps/desktop && pnpm test:watch
-```
-
-### Smoke Test Failures
-
-```bash
-# Check if services are running
-just health
-
-# Restart services
-pkill -f openstaff-  # Stop all services
-just dev             # Restart
+# Show backtraces
+RUST_BACKTRACE=1 cargo test
 ```
 
 ### CI Failures
@@ -365,19 +311,13 @@ just dev             # Restart
 ## Future Enhancements (Roadmap)
 
 ### T1 Milestone
-- ✅ Protocol roundtrip tests
-- ✅ Health check contract tests
-- ✅ Smoke tests
-- 🔲 Basic integration tests (in-memory)
+- ✅ Protocol roundtrip tests (done)
+- ✅ Health contract tests (done)
+- 🔲 Integration tests (in-memory services)
+- 🔲 API schema validation
 
 ### T2 Milestone
-- 🔲 Web Admin E2E tests (Playwright)
-- 🔲 API schema validation tests
 - 🔲 Load testing (K6 or similar)
-
-### T3 Milestone
-- 🔲 Desktop E2E tests (Tauri + Playwright)
-- 🔲 Multi-agent workflow tests
 - 🔲 Chaos engineering tests
 
 ---
@@ -390,4 +330,6 @@ just dev             # Restart
 
 ---
 
-**Authoritative Status**: This document defines the official testing strategy. All tests must align with these conventions.
+**Authoritative Status**: This document defines the official backend testing strategy. All backend tests must align with these conventions.
+
+**Frontend & Smoke Tests**: Managed separately - see code assistant's documentation when available.

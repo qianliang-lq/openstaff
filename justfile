@@ -91,8 +91,3 @@ health:
     @curl -s http://localhost:3000/health | jq . || echo "❌ API not running"
     @curl -s http://localhost:3001/health | jq . || echo "❌ Gateway not running"
     @curl -s http://localhost:3002/health | jq . || echo "❌ Scheduler not running"
-
-# Run smoke tests (requires running services)
-smoke:
-    @echo "🔥 Running smoke tests..."
-    ./scripts/smoke.sh
