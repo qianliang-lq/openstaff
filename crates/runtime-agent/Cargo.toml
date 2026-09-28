@@ -1,0 +1,11 @@
+[package]
+name = "openstaff-runtime-agent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+openstaff-protocol = { path = "../protocol" }
+anyhow.workspace = true
+tokio.workspace = true
