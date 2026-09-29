@@ -40,9 +40,13 @@ const tabs: Tab[] = [
 function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
   const [demoResponse, setDemoResponse] = useState<DemoResponse | null>(null);
   const [isRunningDemo, setIsRunningDemo] = useState(false);
+  const [demoError, setDemoError] = useState<string | null>(null);
 
   const runExternalInsightDemo = async () => {
     setIsRunningDemo(true);
+    setDemoError(null);
+    setDemoResponse(null);
+
     try {
       const schedulerUrl = 'http://localhost:3002';
       const response = await fetch(`${schedulerUrl}/demo/fire`, {
@@ -57,42 +61,64 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Fire response:', data);
+      if (!response.ok) {
+        throw new Error(`Scheduler 服务返回错误 (${response.status}): 请确保后端服务正在运行`);
+      }
 
-        // Poll runtime for job result
-        const runtimeUrl = 'http://localhost:3003';
-        let pollAttempts = 0;
-        const maxPolls = 10;
-        const pollInterval = 1000; // 1 second
+      const data = await response.json();
+      console.log('Fire response:', data);
 
-        while (pollAttempts < maxPolls) {
-          await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      // Poll runtime for job result
+      const runtimeUrl = 'http://localhost:3003';
+      let pollAttempts = 0;
+      const maxPolls = 10;
+      const pollInterval = 1000; // 1 second
+      let foundResult = false;
 
-          try {
-            const insightResponse = await fetch(`${runtimeUrl}/v1/insights/latest`);
-            if (insightResponse.ok) {
-              const insightData = await insightResponse.json();
-              setDemoResponse(insightData);
-              break;
-            }
-          } catch (error) {
-            console.log('Polling attempt', pollAttempts + 1, 'failed:', error);
+      while (pollAttempts < maxPolls) {
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+        try {
+          const insightResponse = await fetch(`${runtimeUrl}/v1/insights/latest`);
+          if (!insightResponse.ok) {
+            console.log('Polling attempt', pollAttempts + 1, 'failed: response not ok');
+            pollAttempts++;
+            continue;
           }
 
-          pollAttempts++;
+          const insightData = await insightResponse.json();
+
+          if (insightData.job_status === 'completed') {
+            if (
+              insightData.reconcile_status === 'PASS' &&
+              insightData.facts &&
+              insightData.facts.length > 0
+            ) {
+              setDemoResponse(insightData);
+              foundResult = true;
+              setIsRunningDemo(false);
+              return; // Success exit
+            } else {
+              throw new Error('任务完成但未通过审核 (reconcile_status: FAILED)');
+            }
+          }
+        } catch (error) {
+          console.log('Polling attempt', pollAttempts + 1, 'failed:', error);
         }
 
-        if (pollAttempts >= maxPolls) {
-          console.warn('Max polling attempts reached, no result found');
-        }
-      } else {
-        console.error('Fire failed:', await response.text());
-        setDemoResponse(null);
+        pollAttempts++;
+      }
+
+      if (!foundResult) {
+        throw new Error('⏱️ 任务超时: 已等待 10 秒仍未获取到结果');
       }
     } catch (error) {
       console.error('Failed to fire job:', error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : '运行失败，请检查后端服务 (Scheduler: 3002, Runtime: 3003)';
+      setDemoError(errorMessage);
       setDemoResponse(null);
     } finally {
       setIsRunningDemo(false);
@@ -135,6 +161,16 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
           等待审批 (1)
         </div>
       </div>
+
+      {demoError && (
+        <div className="demo-error-banner">
+          <span className="error-icon">❌</span>
+          <span className="error-text">{demoError}</span>
+          <button className="error-close" onClick={() => setDemoError(null)}>
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="stage">
         {activeTab === 'chat' && (
