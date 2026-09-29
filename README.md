@@ -58,7 +58,9 @@ openstaff/
 
 项目当前处于**早期 MVP 阶段（T0 完成）**。
 
-#### 前置要求
+#### 本地开发 (Development)
+
+前置要求:
 - Rust stable (通过 `rust-toolchain.toml` 自动管理)
 - Node.js >= 18
 - pnpm >= 8
@@ -124,6 +126,7 @@ cd apps/web-admin && pnpm dev     # port 5174
 #### 一键命令（需要 just）
 
 ```bash
+# 本地开发
 just install    # 安装所有依赖
 just dev-up     # 🚀 一键启动所有服务（后端 + Desktop）
 just check      # 检查 Rust 代码
@@ -132,6 +135,79 @@ just lint       # 代码检查
 just format     # 格式化代码
 just build      # 构建所有项目
 just dev-down   # 停止所有服务
+
+# 生产部署
+just prod-up      # 🚀 启动生产服务（Docker Compose）
+just prod-health  # 检查生产服务健康状态
+just prod-logs    # 查看生产服务日志
+just prod-down    # 停止生产服务
+```
+
+#### 生产部署 (Production)
+
+使用 Docker Compose 在云服务器（如阿里云 ECS）上一键部署。
+
+**前置要求**:
+- Docker + Docker Compose
+- 2C2G 云服务器（最小配置）
+- （可选）域名用于 HTTPS
+
+**部署步骤**:
+
+1. **克隆仓库并配置环境**:
+```bash
+git clone https://github.com/qianliang-lq/openstaff.git
+cd openstaff
+
+# 复制并编辑生产环境配置
+cp .env.prod.example .env.prod
+# 编辑 .env.prod:
+#   - RUNTIME_SERVICE_TOKEN: 生成安全令牌（使用 openssl rand -hex 32）
+#   - PUBLIC_API_BASE: 设置为服务器公网地址（如 https://openstaff.yourdomain.com）
+#   - CADDY_DOMAIN: 如果使用 HTTPS，设置域名
+
+# 创建数据目录
+mkdir -p data/artifacts
+```
+
+2. **启动服务**:
+```bash
+just prod-up
+# 或不使用 just:
+# cd deploy/compose && docker compose -f docker-compose.prod.yml --env-file ../../.env.prod up -d --build
+```
+
+3. **验证服务**:
+```bash
+just prod-health
+# 应显示所有 4 个服务（api, gateway, scheduler, runtime）健康
+```
+
+4. **配置本地 Desktop 客户端**:
+```bash
+# 在本地机器上启动 Desktop
+cd apps/desktop && pnpm install && pnpm dev
+
+# 在 Desktop 设置中，将 API Base URL 设置为你的 PUBLIC_API_BASE 值
+# 例如: https://openstaff.yourdomain.com 或 http://your-server-ip:3000
+```
+
+**注意**:
+- 默认使用 SQLite 数据库 (存储在 `./data/openstaff.db`)
+- Runtime artifacts 存储在 `./data/artifacts`
+- Caddy 提供自动 HTTPS（需要配置域名）
+- 生产环境默认使用 Live 模式（真实 API 调用）
+
+**查看日志**:
+```bash
+just prod-logs
+# 或查看特定服务:
+# docker logs openstaff-api -f
+```
+
+**停止服务**:
+```bash
+just prod-down
 ```
 
 ### 文档

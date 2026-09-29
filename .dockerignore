@@ -1,0 +1,51 @@
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+target/
+dist/
+build/
+
+# Node
+node_modules/
+.pnpm-store/
+apps/*/node_modules/
+packages/*/node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.cursor/
+
+# Logs
+*.log
+logs/
+/tmp/
+
+# Test artifacts
+artifacts/
+
+# Environment
+.env
+.env.local
+.env.prod
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed in runtime)
+docs/
+*.md
+!README.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Desktop app (not needed for backend services)
+apps/desktop/
+apps/web-admin/

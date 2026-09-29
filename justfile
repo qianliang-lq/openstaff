@@ -17,6 +17,57 @@ dev-down:
     @pkill -f "pnpm dev" || echo "  No pnpm dev processes found"
     @echo "✅ Services stopped"
 
+# =============================================================================
+# Production Deployment (Docker Compose)
+# =============================================================================
+
+# Start production services with Docker Compose
+prod-up:
+    @echo "🚀 Starting OpenStaff production services..."
+    @echo ""
+    @if [ ! -f .env.prod ]; then \
+        echo "⚠️  .env.prod not found. Copy .env.prod.example and configure it:"; \
+        echo "    cp .env.prod.example .env.prod"; \
+        echo "    # Edit .env.prod with your settings"; \
+        exit 1; \
+    fi
+    @mkdir -p data/artifacts
+    @cd deploy/compose && docker compose -f docker-compose.prod.yml --env-file ../../.env.prod up -d --build
+    @echo ""
+    @echo "✅ Services started!"
+    @echo ""
+    @echo "📡 Check health: just prod-health"
+    @echo "📝 View logs:    just prod-logs"
+    @echo "🛑 Stop:         just prod-down"
+
+# Stop production services
+prod-down:
+    @echo "🛑 Stopping OpenStaff production services..."
+    @cd deploy/compose && docker compose -f docker-compose.prod.yml down
+    @echo "✅ Services stopped"
+
+# View production service logs
+prod-logs:
+    @cd deploy/compose && docker compose -f docker-compose.prod.yml logs -f
+
+# Check health of production services
+prod-health:
+    @echo "🏥 Checking production service health..."
+    @echo ""
+    @docker exec openstaff-api curl -s http://localhost:3000/health | jq . && echo "✅ API healthy" || echo "❌ API unhealthy"
+    @docker exec openstaff-gateway curl -s http://localhost:3001/health | jq . && echo "✅ Gateway healthy" || echo "❌ Gateway unhealthy"
+    @docker exec openstaff-scheduler curl -s http://localhost:3002/health | jq . && echo "✅ Scheduler healthy" || echo "❌ Scheduler unhealthy"
+    @docker exec openstaff-runtime curl -s http://localhost:3003/health | jq . && echo "✅ Runtime healthy" || echo "❌ Runtime unhealthy"
+
+# Restart production services
+prod-restart:
+    @just prod-down
+    @just prod-up
+
+# =============================================================================
+# Development (Local)
+# =============================================================================
+
 # Run full development stack (backend services only, foreground)
 # Note: Consider using 'just dev-up' for background mode with desktop
 dev:

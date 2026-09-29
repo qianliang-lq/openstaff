@@ -1,0 +1,139 @@
+# OpenStaff Production Deployment
+# Single-node setup with API + Gateway + Runtime + Scheduler
+# Suitable for demo/small-traffic deployments on 2C2G cloud VMs
+
+services:
+  # Gateway - LLM egress gateway (internal network only)
+  gateway:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.gateway
+    container_name: openstaff-gateway
+    restart: unless-stopped
+    environment:
+      - PORT=3001
+      - OPENSTAFF_GATEWAY_EGRESS_MODE=${OPENSTAFF_GATEWAY_EGRESS_MODE:-live}
+      - RUNTIME_SERVICE_TOKEN=${RUNTIME_SERVICE_TOKEN}
+    networks:
+      - openstaff-network
+    volumes:
+      - gateway-audit:/app/artifacts/gateway-audit
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # API - Control plane (exposed to public via Caddy)
+  api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.api
+    container_name: openstaff-api
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL:-sqlite://data/openstaff.db}
+    networks:
+      - openstaff-network
+    volumes:
+      - api-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - gateway
+
+  # Runtime - Job execution engine (internal network only)
+  runtime:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.runtime
+    container_name: openstaff-runtime
+    restart: unless-stopped
+    environment:
+      - PORT=3003
+      - OPENSTAFF_INSIGHT_DEMO=${OPENSTAFF_INSIGHT_DEMO:-0}
+      - OPENSTAFF_GATEWAY_URL=http://gateway:3001
+      - RUNTIME_SERVICE_TOKEN=${RUNTIME_SERVICE_TOKEN}
+    networks:
+      - openstaff-network
+    volumes:
+      - runtime-artifacts:/app/artifacts
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - gateway
+
+  # Scheduler - Cron and fire-only triggers (internal network only)
+  scheduler:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.scheduler
+    container_name: openstaff-scheduler
+    restart: unless-stopped
+    environment:
+      - PORT=3002
+      - RUNTIME_URL=http://runtime:3003
+    networks:
+      - openstaff-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - runtime
+
+  # Caddy - Reverse proxy for HTTPS (optional but recommended)
+  caddy:
+    image: caddy:2-alpine
+    container_name: openstaff-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - openstaff-network
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+    # Optional: comment out if not using Caddy
+    profiles:
+      - with-caddy
+
+networks:
+  openstaff-network:
+    driver: bridge
+
+volumes:
+  api-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${OPENSTAFF_DATA_DIR:-./data}
+  runtime-artifacts:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${OPENSTAFF_ARTIFACTS_DIR:-./data/artifacts}
+  gateway-audit:
+    driver: local
+  caddy-data:
+    driver: local
+  caddy-config:
+    driver: local

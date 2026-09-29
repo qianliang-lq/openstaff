@@ -38,7 +38,11 @@
 
 ## 快速启动
 
-### 一键启动（推荐）
+本项目支持两种部署模式：
+
+### 模式 1: 本地开发 (Development) - 推荐用于开发测试
+
+**一键启动（推荐）**
 
 ```bash
 # 安装依赖（首次运行）
@@ -48,13 +52,62 @@ just install
 just dev-up
 ```
 
-服务将在后台启动，默认使用 Demo 模式配置。访问 http://localhost:5173 使用 Desktop 界面。
+服务将在后台启动，默认使用 Demo 模式配置（离线 fixtures）。访问 http://localhost:5173 使用 Desktop 界面。
 
 按 **Ctrl-C** 停止所有服务。
 
+**特点**:
+- ✅ 本地 Rust 源码直接运行（cargo run）
+- ✅ 默认离线模式（使用 golden fixtures）
+- ✅ 快速迭代，适合开发调试
+- ✅ 包含 Desktop 前端
+
 ---
 
-### 手动启动（高级用户）
+### 模式 2: 生产部署 (Production) - 推荐用于云服务器演示
+
+**Docker Compose 一键部署**
+
+```bash
+# 1. 配置环境变量
+cp .env.prod.example .env.prod
+# 编辑 .env.prod，设置 RUNTIME_SERVICE_TOKEN 和 PUBLIC_API_BASE
+
+# 2. 创建数据目录
+mkdir -p data/artifacts
+
+# 3. 启动服务
+just prod-up
+
+# 4. 检查健康状态
+just prod-health
+```
+
+服务将在 Docker 容器中运行。本地 Desktop 客户端通过配置 API Base URL 连接到云端服务器。
+
+**特点**:
+- ✅ Docker 容器化部署
+- ✅ 默认 Live 模式（真实 API 调用）
+- ✅ 适合云服务器（阿里云 ECS 等）
+- ✅ 包含可选的 Caddy HTTPS 反向代理
+- ✅ SQLite 数据持久化
+- ⚠️ **不包含** Desktop（Desktop 在本地机器运行并连接到云端 API）
+
+**云端架构**:
+```
+云服务器 (2C2G)
+├── API (3000)       → Caddy (443) → 公网
+├── Gateway (3001)   → 内网
+├── Scheduler (3002) → 内网
+└── Runtime (3003)   → 内网
+
+本地机器
+└── Desktop (5173)   → 连接云端 API
+```
+
+---
+
+### 手动启动（高级用户 - 仅开发模式）
 
 #### 1. 启动后端服务
 
