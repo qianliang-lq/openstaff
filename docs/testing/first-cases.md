@@ -2658,4 +2658,166 @@ cargo test -p openstaff-gateway -- --test-threads=1
 
 ---
 
+## App-Mode First-Boot Contract Tests (TC-076+)
+
+### Overview
+
+TC-076+ validates App-mode (Tauri Desktop) first-boot contracts that browser-only Connectors UI tests never covered. These tests encode fatal startup failures hit by product owner during manual testing:
+
+1. **TC-076**: `beforeDevCommand` / `beforeBuildCommand` script names exist in `package.json`
+2. **TC-077**: `devUrl` port aligns with Vite `strictPort: true` config (no fallback 5173→5174)
+3. **TC-078**: Single chrome contract (no double title bar: native + in-app)
+
+**Critical**: These tests are **EXPECTED to FAIL** on current tip until encoding fixes land. They document the contract that product code must satisfy.
+
+---
+
+### TC-076: beforeDev/beforeBuild Scripts Exist
+
+**Layer**: Contract  
+**File**: `apps/desktop/src/app-mode-contract.test.ts`  
+**Function**: Tests for beforeDevCommand and beforeBuildCommand script existence
+
+**Purpose**: Validate that `tauri.conf.json` `beforeDevCommand` and `beforeBuildCommand` reference script names that actually exist in `apps/desktop/package.json` scripts section.
+
+**Current Failure** (on tip ~22603ae):
+- `tauri.conf.json` has `beforeDevCommand: "pnpm dev:web"`
+- `package.json` only has `"dev": "vite"`, NOT `"dev:web"`
+- Same issue: `beforeBuildCommand: "pnpm build:web"` but only `"build": "tsc && vite build"`
+
+**Test Behavior**:
+1. Parse `apps/desktop/src-tauri/tauri.conf.json` → `build.beforeDevCommand` and `build.beforeBuildCommand`
+2. Extract script name after `pnpm ` (e.g. `dev:web`, `build:web`)
+3. Read `apps/desktop/package.json` → `scripts`
+4. Assert each script name exists as a key
+
+**Expected Result**: ❌ Test fails on current tip (scripts don't exist)
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test app-mode-contract
+```
+
+**Offline**: ✅ Yes (reads JSON files only)
+
+**Fix Required**: Either:
+- Option A: Rename scripts in `package.json` to match (add `dev:web` and `build:web`)
+- Option B: Update `tauri.conf.json` to use existing script names (`dev` and `build`)
+
+---
+
+### TC-077: devUrl Port Aligns with Vite Strict Port
+
+**Layer**: Contract  
+**File**: `apps/desktop/src/app-mode-contract.test.ts`  
+**Function**: Test for devUrl port alignment with Vite strictPort config
+
+**Purpose**: Validate that `tauri.conf.json` `devUrl` port matches Vite config port AND that `strictPort: true` is set to prevent fallback.
+
+**Current Issue**:
+- `tauri.conf.json` hardcodes `devUrl: "http://localhost:5173"`
+- `vite.config.ts` has `server.port: 5173` but NO `strictPort: true`
+- **Risk**: If port 5173 is in use, Vite falls back to 5174, but Tauri still tries 5173 → connection failure
+
+**Test Behavior**:
+1. Parse `tauri.conf.json` → extract port from `build.devUrl` (e.g. 5173)
+2. Read `vite.config.ts` (as text) → extract `server.port` value
+3. Assert ports match
+4. Assert `vite.config.ts` contains `strictPort: true` (or `strictPort:true`)
+
+**Expected Result**: ❌ Test fails on current tip (`strictPort: true` missing)
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test app-mode-contract
+```
+
+**Offline**: ✅ Yes (reads config files only)
+
+**Fix Required**: Add to `apps/desktop/vite.config.ts`:
+
+```typescript
+server: {
+  port: 5173,
+  strictPort: true,  // ← Add this line
+},
+```
+
+---
+
+### TC-078: Single Chrome (No Duplicate Title Bars)
+
+**Layer**: Contract  
+**File**: `apps/desktop/src/app-mode-contract.test.ts`  
+**Function**: Test for single chrome contract (no duplicate title bars)
+
+**Purpose**: Validate that App mode has single chrome: either (A) native decorations with NO in-app title duplication, OR (B) `decorations: false` + custom Titlebar only.
+
+**Current Issue** (per user screenshot):
+- `tauri.conf.json` windows have NO `decorations: false` (defaults to true = native chrome)
+- `Titlebar.tsx` renders `<div className="titlebar-title">OpenStaff</div>`
+- `App.tsx` mounts `<Titlebar />` at top of shell
+- **Result**: Double title bar chrome — native macOS title bar showing "OpenStaff" PLUS in-app Titlebar also showing "OpenStaff"
+
+**Test Behavior**:
+1. Read `tauri.conf.json` → check if any window has `decorations: false`
+2. Read `Titlebar.tsx` → check if it renders "OpenStaff" or has `titlebar-title` element
+3. Read `App.tsx` → check if it mounts `<Titlebar />`
+4. **Contract**: If Titlebar is mounted AND renders product name, THEN decorations MUST be false
+
+**Expected Result**: ❌ Test fails on current tip (decorations not disabled, Titlebar renders title)
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test app-mode-contract
+```
+
+**Offline**: ✅ Yes (reads source files only)
+
+**Fix Required**: Choose one approach:
+- **Option A** (custom chrome): Set `"decorations": false` in `tauri.conf.json` windows config
+- **Option B** (native chrome): Remove "OpenStaff" title text from `Titlebar.tsx` (keep traffic lights only, or remove Titlebar entirely)
+
+**Product Decision Required**: Encoding teammate owns this fix — tests only document the contract.
+
+---
+
+### Running App-Mode Contract Tests
+
+```bash
+# All three tests (TC-076, TC-077, TC-078)
+cd apps/desktop && pnpm test app-mode-contract
+
+# Run with details
+cd apps/desktop && pnpm test app-mode-contract -- --reporter=verbose
+```
+
+**Expected on Current Tip**: ❌ All 3 tests FAIL (intentional — encoding must fix)
+
+**Time**: ~1 second  
+**Offline**: ✅ Yes (no services required)
+
+---
+
+### Test Coverage Summary (TC-076+)
+
+**Added Coverage**:
+1. **Script Name Contract**: TC-076 catches mismatch between Tauri commands and package.json scripts
+2. **Port Stability Contract**: TC-077 catches missing `strictPort: true` (prevents silent port fallback failures)
+3. **UI Chrome Contract**: TC-078 catches double title bar (UX bug from user screenshot)
+
+**Delivery Bar**: App-mode smoke (`pnpm tauri:dev` cold start) is part of MVP delivery. Browser-only Connectors green is insufficient. These tests gate App-mode readiness.
+
+**Honesty Note**: Tests are RED on current tip by design. Do NOT:
+- Add escape hatches (SECURITY TODO soft-pass)
+- Delete tests to make CI green
+- Fix by removing features (encoding owns product code)
+
+Correct path: Encoding fixes product code → tests turn green → App mode is validated.
+
+---
+
 **Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.
