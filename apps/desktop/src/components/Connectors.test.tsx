@@ -409,7 +409,7 @@ describe('Connectors - TC-063+ Tests', () => {
   });
 
   describe('TC-066+: Test Connection Visible Feedback', () => {
-    let fetchSpy: any;
+    let fetchSpy: ReturnType<typeof vi.spyOn<typeof global.fetch>>;
 
     beforeEach(() => {
       // Mock global fetch
