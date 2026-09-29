@@ -202,7 +202,9 @@ function Connectors() {
 
           <div className="form-group">
             <label>默认模型</label>
-            <div className="model-hint">{defaultModel} (可在对话时指定)</div>
+            <div className="model-hint">
+              {config.provider === 'qwen' ? 'Qwen3.8 系列（API：qwen-plus）' : defaultModel} (可在对话时指定)
+            </div>
           </div>
 
           {config.error && <div className="error-message">{config.error}</div>}
@@ -321,7 +323,7 @@ function Connectors() {
       <div className="section">
         <h2 className="section-title">模型 API Key (BYOK)</h2>
         <p className="section-desc">
-          本地存储 + Gateway 无日志转发。支持通义千问 (DashScope OpenAI 兼容) 与智谱 AI (GLM API)。
+          本地存储 + Gateway 无日志转发。支持通义千问 (百炼 OpenAI 兼容) 与智谱 AI (GLM API)。
         </p>
 
         <div className="providers-grid">
