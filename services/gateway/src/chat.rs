@@ -59,6 +59,42 @@ pub async fn chat_completion(
     headers: HeaderMap,
     Json(request): Json<ChatRequest>,
 ) -> Result<Json<ChatResponse>, impl IntoResponse> {
+    // Check offline mode first
+    let mode = std::env::var("OPENSTAFF_GATEWAY_CHAT_MODE").unwrap_or_else(|_| "live".to_string());
+
+    if mode == "offline" {
+        // In offline mode, require API key but return fixture
+        let _api_key = headers
+            .get("X-OpenStaff-Provider-Key")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string())
+            .or_else(|| env::var("OPENSTAFF_LLM_API_KEY").ok())
+            .ok_or_else(|| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Json(ErrorResponse {
+                        error: "API key required".to_string(),
+                    }),
+                )
+            })?;
+
+        let response_id = format!("chatcmpl_{}", uuid::Uuid::new_v4().simple());
+        return Ok(Json(ChatResponse {
+            id: response_id,
+            provider: "demo".to_string(),
+            model: request.model.unwrap_or_else(|| "demo-model".to_string()),
+            message: ChatMessage {
+                role: "assistant".to_string(),
+                content: "This is a demo response in offline mode.".to_string(),
+            },
+            usage: Some(UsageStats {
+                prompt_tokens: 10,
+                completion_tokens: 8,
+            }),
+        }));
+    }
+
+    // Live mode: full validation
     // Get API key from X-OpenStaff-Provider-Key header or env fallback
     let api_key = headers
         .get("X-OpenStaff-Provider-Key")

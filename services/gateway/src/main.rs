@@ -317,4 +317,124 @@ mod tests {
         assert!(response_json["truncated"].as_bool().is_some());
         assert!(response_json["bytes"].as_u64().is_some());
     }
+
+    #[tokio::test]
+    async fn tc_055_chat_completion_missing_api_key_returns_401() {
+        let original_llm_key = std::env::var("OPENSTAFF_LLM_API_KEY").ok();
+        let original_qwen_key = std::env::var("QWEN_API_KEY").ok();
+        let original_glm_key = std::env::var("GLM_API_KEY").ok();
+        let original_chat_mode = std::env::var("OPENSTAFF_GATEWAY_CHAT_MODE").ok();
+
+        std::env::remove_var("OPENSTAFF_LLM_API_KEY");
+        std::env::remove_var("QWEN_API_KEY");
+        std::env::remove_var("GLM_API_KEY");
+        std::env::set_var("OPENSTAFF_GATEWAY_CHAT_MODE", "offline");
+
+        let app = Router::new().route("/v1/chat", post(chat::chat_completion));
+
+        let request_payload = serde_json::json!({
+            "provider": "demo",
+            "model": "demo-model",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Hello"
+                }
+            ]
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/chat")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&request_payload).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let error_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert!(error_json["error"].as_str().is_some());
+
+        if let Some(key) = original_llm_key {
+            std::env::set_var("OPENSTAFF_LLM_API_KEY", key);
+        }
+        if let Some(key) = original_qwen_key {
+            std::env::set_var("QWEN_API_KEY", key);
+        }
+        if let Some(key) = original_glm_key {
+            std::env::set_var("GLM_API_KEY", key);
+        }
+        if let Some(mode) = original_chat_mode {
+            std::env::set_var("OPENSTAFF_GATEWAY_CHAT_MODE", mode);
+        } else {
+            std::env::remove_var("OPENSTAFF_GATEWAY_CHAT_MODE");
+        }
+    }
+
+    #[tokio::test]
+    async fn tc_056_chat_completion_offline_mode_returns_fixture() {
+        let original_chat_mode = std::env::var("OPENSTAFF_GATEWAY_CHAT_MODE").ok();
+        std::env::set_var("OPENSTAFF_GATEWAY_CHAT_MODE", "offline");
+
+        let app = Router::new().route("/v1/chat", post(chat::chat_completion));
+
+        let request_payload = serde_json::json!({
+            "provider": "demo",
+            "model": "demo-model",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Hello"
+                }
+            ]
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/chat")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .header("x-openstaff-provider-key", "test-key-123")
+                    .body(Body::from(serde_json::to_string(&request_payload).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let response_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert!(response_json["id"]
+            .as_str()
+            .unwrap()
+            .starts_with("chatcmpl_"));
+        assert_eq!(response_json["provider"], "demo");
+        assert_eq!(response_json["model"], "demo-model");
+        assert_eq!(response_json["message"]["role"], "assistant");
+        assert!(response_json["message"]["content"].as_str().is_some());
+        assert!(response_json["usage"]["prompt_tokens"].as_u64().is_some());
+        assert!(response_json["usage"]["completion_tokens"]
+            .as_u64()
+            .is_some());
+
+        if let Some(mode) = original_chat_mode {
+            std::env::set_var("OPENSTAFF_GATEWAY_CHAT_MODE", mode);
+        } else {
+            std::env::remove_var("OPENSTAFF_GATEWAY_CHAT_MODE");
+        }
+    }
 }
