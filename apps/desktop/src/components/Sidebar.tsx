@@ -254,10 +254,7 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
 
 function Sidebar({ activeAgent, onAgentChange }: SidebarProps) {
   const [agents, setAgents] = useState<Agent[]>(mockAgents);
-  // In test environment, show modal by default for TC-084 visibility
-  const [showCreateModal, setShowCreateModal] = useState(
-    process.env.NODE_ENV === 'test' || import.meta.env?.MODE === 'test'
-  );
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const handleSaveAgent = (newAgent: Agent) => {
     console.log('Agent created (demo):', newAgent);
