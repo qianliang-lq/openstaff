@@ -20,31 +20,39 @@ describe('ValidationGateWidget', () => {
     expect(rejectButton).toBeInTheDocument();
   });
 
-  it('should call onDecision and hide when approve button is clicked', () => {
+  it('should call onDecision and show bubble when approve button is clicked', () => {
     const onDecision = vi.fn();
     const { container } = render(<ValidationGateWidget onDecision={onDecision} />);
 
     const approveButton = screen.getByText('通过');
     fireEvent.click(approveButton);
 
-    // Widget should be hidden after click
+    // Widget should be replaced by bubble after click
     const widget = container.querySelector('.validation-gate-widget');
     expect(widget).not.toBeInTheDocument();
+
+    const bubble = container.querySelector('.gate-result-bubble');
+    expect(bubble).toBeInTheDocument();
+    expect(bubble?.textContent).toContain('已通过验证');
 
     // onDecision callback should be called with 'approved'
     expect(onDecision).toHaveBeenCalledWith('approved');
   });
 
-  it('should call onDecision and hide when reject button is clicked', () => {
+  it('should call onDecision and show bubble when reject button is clicked', () => {
     const onDecision = vi.fn();
     const { container } = render(<ValidationGateWidget onDecision={onDecision} />);
 
     const rejectButton = screen.getByText('驳回');
     fireEvent.click(rejectButton);
 
-    // Widget should be hidden after click
+    // Widget should be replaced by bubble after click
     const widget = container.querySelector('.validation-gate-widget');
     expect(widget).not.toBeInTheDocument();
+
+    const bubble = container.querySelector('.gate-result-bubble');
+    expect(bubble).toBeInTheDocument();
+    expect(bubble?.textContent).toContain('已驳回操作');
 
     // onDecision callback should be called with 'rejected'
     expect(onDecision).toHaveBeenCalledWith('rejected');

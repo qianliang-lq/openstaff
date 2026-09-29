@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
 import MainStage from './MainStage';
@@ -261,7 +261,7 @@ describe('TC-083: Validation gate card', () => {
     // ❌ EXPECTED RED: Gate action flow not yet implemented
     const user = userEvent.setup();
 
-    render(<App />);
+    const { container } = render(<App />);
 
     // TIGHTENED CONTRACT: Must click Pass/Reject/Revise button
     // Find one of the gate action buttons (通过/拒绝/改意见)
@@ -279,7 +279,7 @@ describe('TC-083: Validation gate card', () => {
 
     if (actionButton) {
       // Click the gate action button
-      await user.click(actionButton);
+      fireEvent.click(actionButton);
 
       // Wait for gate result bubble to appear after state update
       await waitFor(

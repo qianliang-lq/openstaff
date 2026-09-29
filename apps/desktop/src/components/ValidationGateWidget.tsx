@@ -6,29 +6,37 @@ interface ValidationGateWidgetProps {
 }
 
 function ValidationGateWidget({ onDecision }: ValidationGateWidgetProps) {
-  const [decided, setDecided] = useState(false);
+  const [decision, setDecision] = useState<'approved' | 'rejected' | 'revised' | null>(null);
 
   const handleApprove = () => {
-    console.log('Approved');
-    setDecided(true);
+    setDecision('approved');
     onDecision?.('approved');
   };
 
   const handleReject = () => {
-    console.log('Rejected');
-    setDecided(true);
+    setDecision('rejected');
     onDecision?.('rejected');
   };
 
   const handleRevise = () => {
-    console.log('Revise requested');
-    setDecided(true);
+    setDecision('revised');
     onDecision?.('revised');
   };
 
-  // After decision, hide the widget (parent will show bubble in message flow)
-  if (decided) {
-    return null;
+  // After decision, show result bubble instead of gate card
+  if (decision) {
+    return (
+      <div className="gate-result-bubble" data-testid="gate-result-bubble">
+        <span className="result-icon">
+          {decision === 'approved' ? '✅' : decision === 'rejected' ? '❌' : '✏️'}
+        </span>
+        <span className="result-text">
+          {decision === 'approved' && '已通过验证'}
+          {decision === 'rejected' && '已驳回操作'}
+          {decision === 'revised' && '请修改意见后重新提交'}
+        </span>
+      </div>
+    );
   }
 
   return (
