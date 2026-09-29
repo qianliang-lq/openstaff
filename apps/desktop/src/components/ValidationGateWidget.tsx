@@ -18,8 +18,13 @@ function ValidationGateWidget() {
     setDismissed(true);
   };
 
+  const handleRevise = () => {
+    console.log('Revise requested');
+    // Keep card visible for revision
+  };
+
   return (
-    <div className="validation-gate-widget">
+    <div className="validation-gate-widget validation-gate-card">
       <div className="widget-header">
         <div className="widget-icon">⚠️</div>
         <div className="widget-title">验证闸门 Widget</div>
@@ -39,13 +44,15 @@ function ValidationGateWidget() {
       </div>
 
       <div className="widget-actions">
-        <button className="btn-reject" onClick={handleReject}>
-          丢弃
+        <button className="btn-reject" onClick={handleReject} role="button" aria-label="Reject">
+          驳回
         </button>
-        <button className="btn-approve" onClick={handleApprove}>
+        <button className="btn-approve" onClick={handleApprove} role="button" aria-label="Pass">
           通过
         </button>
-        <button className="btn-secondary">查看详情审批历史</button>
+        <button className="btn-secondary" onClick={handleRevise} role="button" aria-label="Revise">
+          改意见
+        </button>
       </div>
     </div>
   );

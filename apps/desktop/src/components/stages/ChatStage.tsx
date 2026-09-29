@@ -72,7 +72,9 @@ function ChatStage({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current?.scrollIntoView) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   useEffect(() => {
@@ -390,6 +392,16 @@ function ChatStage({
 
   return (
     <div className="chat-stage">
+      {reconcileStatus === 'FAILED' && (
+        <div className="demo-error-banner">
+          <span className="error-icon">❌</span>
+          <span className="error-text">任务完成但未通过审核 (reconcile_status: FAILED)</span>
+          <button className="error-close" onClick={() => setReconcileStatus('PASS')}>
+            ✕
+          </button>
+        </div>
+      )}
+
       <div className="chat-toolbar">
         <button className="fire-job-btn" onClick={handleFireJob} disabled={isRunning}>
           {isRunning ? '运行中...' : '立即跑一次 (Demo)'}

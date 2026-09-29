@@ -98,8 +98,11 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
               foundResult = true;
               setIsRunningDemo(false);
               return;
-            } else {
-              throw new Error('任务完成但未通过审核 (reconcile_status: FAILED)');
+            } else if (insightData.reconcile_status === 'FAILED') {
+              // FAILED: show error immediately
+              setDemoError('❌ 任务完成但未通过审核 (reconcile_status: FAILED)');
+              setIsRunningDemo(false);
+              return;
             }
           }
         } catch (error) {
