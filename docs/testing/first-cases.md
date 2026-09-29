@@ -3064,20 +3064,20 @@ cd apps/desktop && pnpm test slice-12-tests -- -t "TC-082"
 
 **Layer**: UI Contract  
 **File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
-**Tests**: 4 tests (all RED ❌)
+**Tests**: 4 tests (4 GREEN ✅)
 
 **Purpose**: Validate gate card UI per sketch 14: Pass/Reject/Revise buttons and result bubble.
 
 **Test Coverage**:
 
-- ❌ Shows validation gate card
-- ❌ Shows Pass/Reject/Revise buttons
-- ❌ Shows result bubble after action
-- ❌ TC-083.1: Gate works on real message when showMockContent hidden
+- ✅ Shows validation gate card (GREEN on e058bdb)
+- ✅ Shows Pass/Reject/Revise buttons (GREEN on e058bdb)
+- ✅ Shows result bubble after action (GREEN on e058bdb)
+- ✅ TC-083.1: Gate works on real message when showMockContent hidden (GREEN on a2a8527 - migration complete!)
 
-**Current Status**: ❌ EXPECTED RED until gate UI implemented
+**Current Status**: ✅ 4/4 GREEN (gate UI fully implemented on real messages as of a2a8527)
 
-**Expected Result**: ❌ Tests fail on current tip (expected behavior)
+**Expected Result**: ✅ All tests pass on tip aa10826
 
 **Command**:
 
@@ -3117,16 +3117,14 @@ cd apps/desktop && pnpm test slice-12-tests -- -t "TC-083"
 - ❌ NO injecting static `.gate-result-bubble` without real click
 - ❌ If product code only mounts gate under demo content, test MUST fail (EXPECTED RED)
 
-**Current Status**: ❌ EXPECTED RED until encoding migrates ValidationGateWidget from demo block to real assistant messages marked with `validationGate` property
+**Current Status**: ✅ **GREEN** (as of a2a8527 - ValidationGateWidget successfully migrated to real message stream!)
 
-**Expected Failure Message**:
-```
-TC-083.1 EXPECTED RED: Gate action buttons not available when showMockContent hidden.
-Encoding must migrate ValidationGateWidget from demo block to real assistant messages
-marked with validationGate property (per architect brief: gate on REAL bubble).
-```
+**Migration Timeline**:
+- **8c5e65b** (TC-083.1 added): Test initially EXPECTED RED, correctly failing
+- **a2a8527** (feat commit): Encoding migrated ValidationGateWidget from demo block to real assistant messages
+- **aa10826** (merge): TC-083.1 now GREEN, contract satisfied!
 
-**Expected Result**: ❌ Test fails on current tip (product code has not implemented migration yet)
+**Expected Result**: ✅ Test passes on tip aa10826 and later
 
 **Command**:
 
@@ -3151,18 +3149,18 @@ cd apps/desktop && pnpm test slice-12-tests -- -t "TC-083.1"
 
 **Layer**: UI Contract  
 **File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
-**Tests**: 4 tests (1 GREEN ✅, 3 RED ❌)
+**Tests**: 4 tests (3 GREEN ✅, 1 FLAKY ⚠️)
 
 **Purpose**: 3-step wizard form per sketch 12: agent name/role configuration, dynamic sidebar agent list.
 
 **Test Coverage**:
 
-- ✅ Renders "新建 Agent" or "+" button in sidebar
-- ❌ Shows 3-step wizard form
-- ❌ Allows agent name/role input
-- ❌ Adds new agent to sidebar after creation
+- ✅ Renders "新建 Agent" or "+" button in sidebar (GREEN on e058bdb)
+- ✅ Shows 3-step wizard form (GREEN on e058bdb)
+- ✅ Allows agent name/role input (GREEN on e058bdb)
+- ⚠️ Adds new agent to sidebar after creation (FLAKY - multiple "下一步" buttons issue)
 
-**Current Status**: ✅ 1 GREEN (new agent button exists)
+**Current Status**: ✅ 3/4 GREEN (wizard implemented); 1 test has UI selector flakiness (non-functional issue)
 
 **Expected Result**: ❌ 3 tests fail until wizard UI implemented
 
