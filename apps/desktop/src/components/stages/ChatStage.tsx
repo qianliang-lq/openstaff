@@ -96,7 +96,7 @@ function ChatStage({ demoResponse }: ChatStageProps) {
 
         {reconcileStatus === 'PASS' && (
           <div className="message assistant">
-            <div className="message-avatar">研</div>
+            <div className="message-avatar">产</div>
             <div className="message-content">
               <ExternalInsightReportCard
                 date={displayDate}

@@ -31,8 +31,8 @@
 | --- | --- | --- | --- |
 | Gateway | 3001 | `GET /health` | `POST /v1/egress/fetch` (需 Bearer token) |
 | Scheduler | 3002 | `GET /health` | `POST /demo/fire` |
-| Runtime | 3003 | `GET /health` | `POST /v1/jobs/fire` (返回 202 Accepted) |
-| Desktop | 5173 | (Vite dev) | UI 按钮「跑一次外搜洞察（演示）」 |
+| Runtime | 3003 | `GET /health` | `POST /v1/jobs/fire` (返回 202 Accepted), `GET /v1/insights/latest` (获取最新结果) |
+| Desktop | 5173 | (Vite dev) | UI 按钮「立即跑一次」 |
 
 ---
 
@@ -54,10 +54,30 @@ cargo run -p openstaff-runtime &
 ```
 
 **环境变量（可选）**:
-- `OPENSTAFF_GATEWAY_EGRESS_MODE=offline` (默认): Gateway 返回 fixture
-- `OPENSTAFF_INSIGHT_DEMO=1` (默认): Runtime 使用 golden fixture
-- `RUNTIME_URL=http://localhost:3003`: Scheduler 调用的 Runtime 地址
-- `RUNTIME_SERVICE_TOKEN=dev-runtime-token` (默认): Gateway 验证 Runtime 的 Bearer token
+
+**Demo vs Live 模式**:
+
+- **Demo 模式（默认）**: Runtime 使用 golden fixture，Gateway 返回 fixture HTML
+  - `OPENSTAFF_INSIGHT_DEMO=1` (默认): Runtime 使用 golden fixture
+  - `OPENSTAFF_GATEWAY_EGRESS_MODE=offline` (默认): Gateway 返回 fixture
+
+- **Live 模式**: Runtime 调用 Gateway 真实 fetch，Gateway 访问真实公网 URL
+  - `OPENSTAFF_INSIGHT_DEMO=0`: Runtime 执行真实 Gateway fetch
+  - `OPENSTAFF_GATEWAY_EGRESS_MODE=live`: Gateway 执行真实 HTTP 请求
+  - `OPENSTAFF_GATEWAY_URL=http://localhost:3001`: Gateway 地址
+  - `RUNTIME_SERVICE_TOKEN=dev-runtime-token`: Gateway 验证 Runtime 的 Bearer token
+
+**启动 Live 模式示例**:
+```bash
+# Gateway (live mode)
+OPENSTAFF_GATEWAY_EGRESS_MODE=live cargo run -p openstaff-gateway &
+
+# Scheduler
+cargo run -p openstaff-scheduler &
+
+# Runtime (live mode)
+OPENSTAFF_INSIGHT_DEMO=0 OPENSTAFF_GATEWAY_URL=http://localhost:3001 cargo run -p openstaff-runtime &
+```
 
 ### 2. 启动 Desktop
 
@@ -71,13 +91,16 @@ pnpm dev
 
 ### 3. 运行演示
 
-1. 在 Desktop 界面顶部栏，点击按钮：**「跑一次外搜洞察（演示）」**
-2. 按钮显示「运行中...」，后台调用 Runtime demo 端点
-3. 若 reconcile PASS：
-   - Chat 区域出现「研」头像的报告卡片
+1. 在 Desktop 界面顶部栏，点击按钮：**「立即跑一次」**
+2. 按钮显示「运行中...」，后台调用 Scheduler `/demo/fire` → Runtime `/v1/jobs/fire`
+3. Runtime 异步执行 Skill，Desktop 轮询 Runtime `/v1/insights/latest` 获取结果
+4. 若 reconcile PASS：
+   - Chat 区域出现「产」头像（产品经理数字员工）的报告卡片
    - 卡片展示 3 条摘要 + 完整 facts（分栏目）
    - 显示徽章「reconcile PASS」和「已审计」
-4. 若 reconcile FAILED：卡片不渲染（用户无感知）
+5. 若 reconcile FAILED：卡片不渲染（用户无感知）
+
+**注意**: 报告卡片显示在「产」头像下（产品经理数字员工 agent），而非「研」头像。
 
 ---
 

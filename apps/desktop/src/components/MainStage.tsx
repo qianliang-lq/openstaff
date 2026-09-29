@@ -55,19 +55,31 @@ function MainStage({ activeTab, onTabChange }: MainStageProps) {
         const data = await response.json();
         console.log('Fire response:', data);
         
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        
-        const goldenFixture = await fetch('/tests/fixtures/external-insight-golden-facts.json');
-        if (goldenFixture.ok) {
-          const facts = await goldenFixture.json();
-          const mockResponse = {
-            reconcile_status: 'PASS',
-            facts: facts,
-            summary: facts.slice(0, 3).map((f: { title: string }) => f.title),
-            artifacts_path: 'artifacts/external-insight/2026-09-28-public-facts.json',
-            timestamp: new Date().toISOString().split('T')[0],
-          };
-          setDemoResponse(mockResponse);
+        // Poll runtime for job result
+        const runtimeUrl = 'http://localhost:3003';
+        let pollAttempts = 0;
+        const maxPolls = 10;
+        const pollInterval = 1000; // 1 second
+
+        while (pollAttempts < maxPolls) {
+          await new Promise((resolve) => setTimeout(resolve, pollInterval));
+          
+          try {
+            const insightResponse = await fetch(`${runtimeUrl}/v1/insights/latest`);
+            if (insightResponse.ok) {
+              const insightData = await insightResponse.json();
+              setDemoResponse(insightData);
+              break;
+            }
+          } catch (error) {
+            console.log('Polling attempt', pollAttempts + 1, 'failed:', error);
+          }
+          
+          pollAttempts++;
+        }
+
+        if (pollAttempts >= maxPolls) {
+          console.warn('Max polling attempts reached, no result found');
         }
       } else {
         console.error('Fire failed:', await response.text());
@@ -110,7 +122,7 @@ function MainStage({ activeTab, onTabChange }: MainStageProps) {
             marginRight: '8px',
           }}
         >
-          {isRunningDemo ? '运行中...' : '跑一次外搜洞察（演示）'}
+          {isRunningDemo ? '运行中...' : '立即跑一次'}
         </button>
         <div className="status-pill wait">
           <span className="pulse"></span>

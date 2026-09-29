@@ -24,6 +24,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(root))
         .route("/health", get(health_check))
         .route("/v1/jobs/fire", post(demo::jobs_fire))
+        .route("/v1/insights/latest", get(demo::get_latest_insight))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
 
