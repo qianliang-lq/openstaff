@@ -317,19 +317,32 @@ describe('TC-084: New agent wizard', () => {
     ).toBeInTheDocument();
   });
 
-  it('should show 3-step wizard form when creating new agent', () => {
-    // ❌ EXPECTED TO FAIL: Wizard UI not yet implemented
+  it('should show 3-step wizard form when creating new agent', async () => {
+    const user = userEvent.setup();
+
     render(<App />);
 
-    // Look for wizard steps (基本信息, 技能配置, 人设调优, etc.)
-    const wizardStep1 = screen.queryByText(/基本信息|步骤 1|Step 1/i);
-    const wizardStep2 = screen.queryByText(/技能配置|步骤 2|Step 2/i);
-    const wizardStep3 = screen.queryByText(/人设调优|步骤 3|Step 3/i);
+    // Click "新建" or "+" button to open wizard
+    const newAgentButton = screen.queryByRole('button', { name: /新建|创建|\+/i });
 
     expect(
-      wizardStep1 || wizardStep2 || wizardStep3,
-      'TC-084 EXPECTED RED: Agent wizard steps not yet implemented'
-    ).toBeTruthy();
+      newAgentButton,
+      'TC-084 EXPECTED RED: New agent button not yet implemented'
+    ).toBeInTheDocument();
+
+    if (newAgentButton) {
+      await user.click(newAgentButton);
+
+      // Look for wizard steps (基本信息, 角色模板, 确认信息)
+      const wizardStep1 = screen.queryByText(/基本信息/i);
+      const wizardStep2 = screen.queryByText(/角色模板/i);
+      const wizardStep3 = screen.queryByText(/确认信息/i);
+
+      expect(
+        wizardStep1 && wizardStep2 && wizardStep3,
+        'TC-084 EXPECTED RED: Agent wizard 3-step form not yet implemented'
+      ).toBeTruthy();
+    }
   });
 
   it('should add new agent to sidebar after wizard completion', async () => {
@@ -412,17 +425,31 @@ describe('TC-084: New agent wizard', () => {
     }
   });
 
-  it('should support agent name and role configuration in wizard', () => {
-    // ❌ EXPECTED TO FAIL: Wizard form fields not yet implemented
+  it('should support agent name and role configuration in wizard', async () => {
+    const user = userEvent.setup();
+
     render(<App />);
 
-    const nameInput = screen.queryByLabelText(/Agent 名称|名字|Name/i);
-    const roleInput = screen.queryByLabelText(/角色|Role/i);
+    // Click "新建" or "+" button to open wizard
+    const newAgentButton = screen.queryByRole('button', { name: /新建|创建|\+/i });
 
     expect(
-      nameInput || roleInput,
-      'TC-084 EXPECTED RED: Agent name/role inputs not yet implemented'
-    ).toBeTruthy();
+      newAgentButton,
+      'TC-084 EXPECTED RED: New agent button not yet implemented'
+    ).toBeInTheDocument();
+
+    if (newAgentButton) {
+      await user.click(newAgentButton);
+
+      // Look for name and role input fields in wizard
+      const nameInput = screen.queryByLabelText(/Agent 名称|名字|Name/i);
+      const roleInput = screen.queryByLabelText(/角色|Role/i);
+
+      expect(
+        nameInput || roleInput,
+        'TC-084 EXPECTED RED: Agent name/role inputs not yet implemented'
+      ).toBeTruthy();
+    }
   });
 });
 
