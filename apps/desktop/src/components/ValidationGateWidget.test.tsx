@@ -14,29 +14,41 @@ describe('ValidationGateWidget', () => {
     render(<ValidationGateWidget />);
 
     const approveButton = screen.getByText('通过');
-    const rejectButton = screen.getByText('丢弃');
+    const rejectButton = screen.getByText('驳回');
 
     expect(approveButton).toBeInTheDocument();
     expect(rejectButton).toBeInTheDocument();
   });
 
-  it('should hide widget when approve button is clicked', () => {
+  it('should show result bubble when approve button is clicked', () => {
     const { container } = render(<ValidationGateWidget />);
 
     const approveButton = screen.getByText('通过');
     fireEvent.click(approveButton);
 
+    // Widget should be replaced by result bubble
     const widget = container.querySelector('.validation-gate-widget');
     expect(widget).not.toBeInTheDocument();
+
+    // Result bubble should appear
+    const bubble = container.querySelector('.gate-result-bubble');
+    expect(bubble).toBeInTheDocument();
+    expect(bubble?.textContent).toContain('已通过验证');
   });
 
-  it('should hide widget when reject button is clicked', () => {
+  it('should show result bubble when reject button is clicked', () => {
     const { container } = render(<ValidationGateWidget />);
 
-    const rejectButton = screen.getByText('丢弃');
+    const rejectButton = screen.getByText('驳回');
     fireEvent.click(rejectButton);
 
+    // Widget should be replaced by result bubble
     const widget = container.querySelector('.validation-gate-widget');
     expect(widget).not.toBeInTheDocument();
+
+    // Result bubble should appear
+    const bubble = container.querySelector('.gate-result-bubble');
+    expect(bubble).toBeInTheDocument();
+    expect(bubble?.textContent).toContain('已驳回操作');
   });
 });
