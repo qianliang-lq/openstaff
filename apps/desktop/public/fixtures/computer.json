@@ -1,0 +1,120 @@
+{
+  "agent-1": {
+    "agentId": "agent-1",
+    "sandboxLabel": "云端沙箱 · 只读观察",
+    "nodeId": "sandbox-pm-01",
+    "status": "running",
+    "tree": {
+      "name": "workspace",
+      "path": "/workspace",
+      "kind": "dir",
+      "children": [
+        {
+          "name": "docs",
+          "path": "/workspace/docs",
+          "kind": "dir",
+          "children": [
+            {
+              "name": "PRD_2026Q3.md",
+              "path": "/workspace/docs/PRD_2026Q3.md",
+              "kind": "file"
+            },
+            {
+              "name": "meeting_notes.txt",
+              "path": "/workspace/docs/meeting_notes.txt",
+              "kind": "file"
+            }
+          ]
+        },
+        {
+          "name": "reports",
+          "path": "/workspace/reports",
+          "kind": "dir",
+          "children": [
+            {
+              "name": "competitor_analysis.xlsx",
+              "path": "/workspace/reports/competitor_analysis.xlsx",
+              "kind": "file"
+            }
+          ]
+        },
+        {
+          "name": "README.md",
+          "path": "/workspace/README.md",
+          "kind": "file"
+        }
+      ]
+    },
+    "selectedPath": null,
+    "terminalLines": [
+      "agent@sandbox-pm-01:~/workspace$ ls -la",
+      "total 24",
+      "drwxr-xr-x 4 agent agent 4096 Sep 28 15:30 .",
+      "drwxr-xr-x 3 agent agent 4096 Sep 28 14:00 ..",
+      "drwxr-xr-x 2 agent agent 4096 Sep 28 15:30 docs",
+      "drwxr-xr-x 2 agent agent 4096 Sep 28 14:22 reports",
+      "-rw-r--r-- 1 agent agent 1234 Sep 28 10:15 README.md",
+      "",
+      "agent@sandbox-pm-01:~/workspace$ cat README.md",
+      "# Product Manager Workspace",
+      "这是产品经理数字员工的工作区。",
+      "",
+      "agent@sandbox-pm-01:~/workspace$ "
+    ],
+    "metrics": {
+      "cpuPct": 12.5,
+      "memMb": 256,
+      "diskUsedGb": 1.2,
+      "diskTotalGb": 10.0
+    }
+  },
+  "agent-2": {
+    "agentId": "agent-2",
+    "sandboxLabel": "云端沙箱 · 只读观察",
+    "nodeId": "sandbox-eng-02",
+    "status": "idle",
+    "tree": {
+      "name": "workspace",
+      "path": "/workspace",
+      "kind": "dir",
+      "children": [
+        {
+          "name": "src",
+          "path": "/workspace/src",
+          "kind": "dir",
+          "children": [
+            {
+              "name": "main.rs",
+              "path": "/workspace/src/main.rs",
+              "kind": "file"
+            },
+            {
+              "name": "lib.rs",
+              "path": "/workspace/src/lib.rs",
+              "kind": "file"
+            }
+          ]
+        },
+        {
+          "name": "Cargo.toml",
+          "path": "/workspace/Cargo.toml",
+          "kind": "file"
+        }
+      ]
+    },
+    "selectedPath": null,
+    "terminalLines": [
+      "agent@sandbox-eng-02:~/workspace$ cargo build",
+      "   Compiling project v0.1.0",
+      "    Finished dev [unoptimized + debuginfo] target(s) in 2.34s",
+      "",
+      "agent@sandbox-eng-02:~/workspace$ "
+    ],
+    "metrics": {
+      "cpuPct": 5.2,
+      "memMb": 128,
+      "diskUsedGb": 0.8,
+      "diskTotalGb": 10.0
+    }
+  }
+}
