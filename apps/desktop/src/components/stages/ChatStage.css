@@ -13,6 +13,7 @@
   flex-shrink: 0;
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .fire-job-btn,
@@ -40,6 +41,34 @@
 .fire-job-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.status-pill {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-pill.no-key {
+  background: #fee;
+  color: #c33;
+}
+
+.status-pill.configured {
+  background: #d1f4dd;
+  color: #0d7a3f;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .chat-messages {
@@ -167,13 +196,150 @@
   cursor: not-allowed;
 }
 
-.error-banner {
+.chat-empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.empty-card {
+  max-width: 500px;
+  text-align: center;
+  padding: 3rem 2rem;
+  background: white;
+  border: 1px solid var(--g4);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+}
+
+.empty-card h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--g10);
+  margin: 0 0 1rem 0;
+}
+
+.empty-card p {
+  font-size: 0.95rem;
+  color: var(--g7);
+  line-height: 1.6;
+  margin: 0 0 2rem 0;
+}
+
+.btn-primary {
+  padding: 0.75rem 2rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.empty-hint {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--g3);
+  font-size: 0.85rem;
+  color: var(--g7);
+}
+
+.error-card {
+  margin: 1rem 1.5rem;
+  background: white;
+  border: 2px solid #dc3545;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.error-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
   background: #f8d7da;
+  border-bottom: 1px solid #dc3545;
+}
+
+.error-icon {
+  font-size: 1.25rem;
+}
+
+.error-title {
+  flex: 1;
+  font-weight: 600;
   color: #721c24;
-  padding: 12px 24px;
-  border-left: 4px solid #dc3545;
-  margin: 0 24px 16px;
+}
+
+.error-code {
+  padding: 0.25rem 0.5rem;
+  background: #dc3545;
+  color: white;
   border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.error-body {
+  padding: 1.25rem;
+}
+
+.error-body p {
+  margin: 0 0 1.25rem 0;
+  color: #721c24;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.error-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-goto-config,
+.btn-retry {
+  padding: 0.6rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-goto-config {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-goto-config:hover {
+  opacity: 0.9;
+}
+
+.btn-retry {
+  background: white;
+  color: var(--g8);
+  border: 1px solid var(--g4);
+}
+
+.btn-retry:hover {
+  background: var(--g2);
 }
 
 .welcome-message {

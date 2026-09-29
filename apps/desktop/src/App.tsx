@@ -4,8 +4,7 @@ import Sidebar from './components/Sidebar';
 import MainStage from './components/MainStage';
 import './App.css';
 
-export type TabType =
-  'chat' | 'computer' | 'routines' | 'skills' | 'connectors' | 'memory' | 'settings';
+export type TabType = 'chat' | 'computer' | 'routines' | 'skills' | 'connectors' | 'memory';
 
 function App() {
   const [activeAgent, setActiveAgent] = useState('产品经理数字员工');

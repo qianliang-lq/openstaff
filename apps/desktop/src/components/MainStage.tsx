@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TabType } from '../App';
 import ChatStage from './stages/ChatStage';
-import Settings from './Settings';
+import Connectors from './Connectors';
 import { ExternalInsightFact } from './ExternalInsightReportCard';
 import './MainStage.css';
 
@@ -31,7 +31,6 @@ const tabs: Tab[] = [
   { id: 'skills', label: 'Skills' },
   { id: 'connectors', label: 'Connectors' },
   { id: 'memory', label: 'Memory' },
-  { id: 'settings', label: 'Settings' },
 ];
 
 function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
@@ -134,13 +133,18 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
       </div>
 
       <div className="stage">
-        {activeTab === 'chat' && <ChatStage demoResponse={demoResponse} agentName={activeAgent} />}
+        {activeTab === 'chat' && (
+          <ChatStage
+            demoResponse={demoResponse}
+            agentName={activeAgent}
+            onNavigateToConnectors={() => onTabChange('connectors')}
+          />
+        )}
         {activeTab === 'computer' && <div className="stub-page">Computer 沙箱 (开发中)</div>}
         {activeTab === 'routines' && <div className="stub-page">Routines 任务编排 (开发中)</div>}
         {activeTab === 'skills' && <div className="stub-page">Skills 技能库 (开发中)</div>}
-        {activeTab === 'connectors' && <div className="stub-page">Connectors 连接器 (开发中)</div>}
+        {activeTab === 'connectors' && <Connectors />}
         {activeTab === 'memory' && <div className="stub-page">Memory 记忆与人设 (开发中)</div>}
-        {activeTab === 'settings' && <Settings />}
       </div>
     </div>
   );

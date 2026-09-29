@@ -7,6 +7,8 @@ import './ChatStage.css';
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  error?: boolean;
+  errorType?: '401' | '403' | 'network' | 'unknown';
 }
 
 interface DemoResponse {
@@ -20,6 +22,7 @@ interface DemoResponse {
 interface ChatStageProps {
   demoResponse?: DemoResponse | null;
   agentName?: string;
+  onNavigateToConnectors?: () => void;
 }
 
 const mockFacts: ExternalInsightFact[] = [
@@ -51,7 +54,11 @@ const mockFacts: ExternalInsightFact[] = [
   },
 ];
 
-function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: ChatStageProps) {
+function ChatStage({
+  demoResponse,
+  agentName = '产品经理数字员工',
+  onNavigateToConnectors,
+}: ChatStageProps) {
   const [displayedFacts, setDisplayedFacts] = useState<ExternalInsightFact[]>(mockFacts);
   const [reconcileStatus, setReconcileStatus] = useState<'PASS' | 'FAILED'>('PASS');
   const [displayDate, setDisplayDate] = useState('2026-09-27');
@@ -60,8 +67,21 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showMockContent, setShowMockContent] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [hasAnyKey, setHasAnyKey] = useState<boolean | null>(null);
+  const [lastError, setLastError] = useState<ChatMessage | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    checkKeys();
+  }, []);
 
   useEffect(() => {
     if (demoResponse && demoResponse.reconcile_status === 'PASS' && demoResponse.facts) {
@@ -75,16 +95,24 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
     }
   }, [demoResponse]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const checkKeys = async () => {
+    try {
+      const qwenKey = (await invoke('get_provider_key', {
+        provider: 'qwen',
+      })) as string | null;
+      const glmKey = (await invoke('get_provider_key', {
+        provider: 'glm',
+      })) as string | null;
+
+      setHasAnyKey(!!(qwenKey || glmKey));
+    } catch (err) {
+      console.error('Failed to check keys:', err);
+      setHasAnyKey(false);
+    }
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+    if (!inputValue.trim() || isLoading || !hasAnyKey) return;
 
     const userMessage: ChatMessage = {
       role: 'user',
@@ -94,21 +122,18 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
-    setErrorMessage(null);
+    setLastError(null);
 
     try {
-      // Get API key from Tauri secure store
       let providerKey: string | null = null;
-      let provider = 'qwen'; // Default
+      let provider = 'qwen';
 
       try {
-        // Try qwen first
         providerKey = (await invoke('get_provider_key', {
           provider: 'qwen',
         })) as string | null;
 
         if (!providerKey) {
-          // Try glm
           providerKey = (await invoke('get_provider_key', {
             provider: 'glm',
           })) as string | null;
@@ -121,9 +146,7 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
       }
 
       if (!providerKey) {
-        setErrorMessage('请先在 Settings 中配置 API Key');
-        setMessages((prev) => prev.slice(0, -1)); // Remove user message
-        return;
+        throw new Error('401:未配置 Key');
       }
 
       const systemPrompt: ChatMessage = {
@@ -131,7 +154,6 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
         content: `你是${agentName}，请帮助用户完成工作任务。`,
       };
 
-      // Call API service (not gateway directly)
       const response = await fetch('http://localhost:3000/v1/chat', {
         method: 'POST',
         headers: {
@@ -140,14 +162,15 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
         },
         body: JSON.stringify({
           provider,
-          messages: [systemPrompt, ...messages, userMessage],
+          messages: [systemPrompt, ...messages.filter((m) => !m.error), userMessage],
           stream: false,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        const statusCode = response.status;
+        throw new Error(`${statusCode}:${errorData.error || 'Unknown error'}`);
       }
 
       const data = await response.json();
@@ -159,16 +182,49 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Chat error:', error);
-      setErrorMessage(error instanceof Error ? error.message : '发送消息失败');
-      // Remove the user message on error
-      setMessages((prev) => prev.slice(0, -1));
+
+      const errorMsg = error instanceof Error ? error.message : '发送消息失败';
+      let errorType: '401' | '403' | 'network' | 'unknown' = 'unknown';
+
+      if (errorMsg.includes('401')) {
+        errorType = '401';
+      } else if (errorMsg.includes('403')) {
+        errorType = '403';
+      } else if (errorMsg.includes('fetch') || errorMsg.includes('network')) {
+        errorType = 'network';
+      }
+
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: errorMsg,
+        error: true,
+        errorType,
+      };
+
+      setLastError(errorMessage);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleRetry = () => {
+    if (lastError) {
+      // Remove error message and retry
+      setMessages((prev) => prev.filter((m) => m !== lastError));
+      setLastError(null);
+
+      // Retry last user message
+      const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user' && !m.error);
+      if (lastUserMessage) {
+        setInputValue(lastUserMessage.content);
+        // User can click send again
+      }
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !isLoading && hasAnyKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -176,7 +232,7 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
 
   const handleFireJob = async () => {
     setIsRunning(true);
-    setErrorMessage(null);
+    setLastError(null);
     try {
       const response = await fetch('http://localhost:3002/demo/fire', {
         method: 'POST',
@@ -197,7 +253,13 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
       pollInsights();
     } catch (error) {
       console.error('Error firing job:', error);
-      setErrorMessage(error instanceof Error ? error.message : '运行失败');
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: error instanceof Error ? error.message : '运行失败',
+        error: true,
+        errorType: 'network',
+      };
+      setLastError(errorMessage);
       setIsRunning(false);
     }
   };
@@ -236,6 +298,49 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
     setIsRunning(false);
   };
 
+  // Empty state: no keys configured
+  if (hasAnyKey === false && messages.length === 0) {
+    return (
+      <div className="chat-stage">
+        <div className="chat-toolbar">
+          <div className="status-pill no-key">
+            <span className="status-dot"></span>
+            未配置 Key
+          </div>
+        </div>
+
+        <div className="chat-empty-state">
+          <div className="empty-card">
+            <div className="empty-icon">🔑</div>
+            <h2>先配置模型 Key，才能开始对话</h2>
+            <p>
+              支持通义千问 (Qwen) 或智谱 AI (GLM)。
+              <br />
+              Key 本机安全存储，经由 Gateway 出站不留日志。
+            </p>
+            <button className="btn-primary" onClick={onNavigateToConnectors}>
+              去 Connectors 配置
+            </button>
+            <div className="empty-hint">
+              <span>💡 通义千问 / Qwen</span>
+              <span>🔷 智谱 AI (GLM)</span>
+              <span>👉 本地安全存储</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="chat-input-area">
+          <div className="input-wrapper">
+            <input type="text" className="chat-input" placeholder="请先配置 Key..." disabled />
+            <button className="send-btn" disabled>
+              发送
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="chat-stage">
       <div className="chat-toolbar">
@@ -245,26 +350,58 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
         <button className="toggle-demo-btn" onClick={() => setShowMockContent(!showMockContent)}>
           {showMockContent ? '隐藏演示内容' : '显示演示内容'}
         </button>
+        {hasAnyKey && (
+          <div className="status-pill configured">
+            <span className="status-dot"></span>
+            Key 已配置
+          </div>
+        )}
       </div>
 
-      {errorMessage && <div className="error-banner">⚠️ {errorMessage}</div>}
-
       <div className="chat-messages">
-        {messages.length === 0 && !showMockContent && (
+        {messages.length === 0 && !showMockContent && hasAnyKey && (
           <div className="welcome-message">
             <h3>欢迎使用 {agentName}</h3>
-            <p>开始对话前，请确保已在设置中配置 API Key</p>
+            <p>开始对话，我会帮助您完成工作任务</p>
           </div>
         )}
 
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`message ${msg.role}`}>
-            {msg.role === 'assistant' && <div className="message-avatar">产</div>}
-            <div className="message-content">
-              <div className="message-bubble">{msg.content}</div>
+        {messages.map((msg, idx) => {
+          if (msg.error) {
+            return (
+              <div key={idx} className="error-card">
+                <div className="error-header">
+                  <span className="error-icon">⚠️</span>
+                  <span className="error-title">未配置模型 Key</span>
+                  <span className="error-code">401</span>
+                </div>
+                <div className="error-body">
+                  <p>
+                    发送失败：Gateway 无法认证。请前往 Connectors 填写通义千问 (Qwen) 或智谱 AI
+                    (GLM) 的 API Key，或检查 Gateway / API 服务状态 (just health)。
+                  </p>
+                  <div className="error-actions">
+                    <button className="btn-goto-config" onClick={onNavigateToConnectors}>
+                      去配置
+                    </button>
+                    <button className="btn-retry" onClick={handleRetry}>
+                      重试
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={idx} className={`message ${msg.role}`}>
+              {msg.role === 'assistant' && <div className="message-avatar">产</div>}
+              <div className="message-content">
+                <div className="message-bubble">{msg.content}</div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {isLoading && (
           <div className="message assistant">
@@ -333,16 +470,16 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
           <input
             type="text"
             className="chat-input"
-            placeholder="输入消息..."
+            placeholder={hasAnyKey ? '输入消息...' : '请先配置 Key...'}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={isLoading}
+            disabled={isLoading || !hasAnyKey}
           />
           <button
             className="send-btn"
             onClick={handleSendMessage}
-            disabled={isLoading || !inputValue.trim()}
+            disabled={isLoading || !inputValue.trim() || !hasAnyKey}
           >
             {isLoading ? '发送中...' : '发送'}
           </button>
