@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import App from './App';
 
 describe('App - Desktop Shell UI', () => {
+  beforeEach(() => {
+    // Mock scrollIntoView (not available in jsdom)
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
   it('should render the application', () => {
     const { container } = render(<App />);
     const app = container.querySelector('.app');

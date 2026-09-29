@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import MainStage from './MainStage';
 
 describe('MainStage', () => {
+  beforeEach(() => {
+    // Mock scrollIntoView (not available in jsdom)
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
   it('should render all tabs', () => {
     const onTabChange = () => {};
     render(<MainStage activeTab="chat" onTabChange={onTabChange} activeAgent="测试员工" />);
