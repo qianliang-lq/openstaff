@@ -2827,4 +2827,273 @@ Correct path: Encoding fixes product code → tests turn green → App mode is v
 
 ---
 
+## §12 Next Slice Tests (TC-081+)
+
+### Overview
+
+TC-081+ validates the §12 next slice requirements. These are **TEST ONLY** cases - implementation is expected to land separately. Some tests are **EXPECTED RED** until encoding fixes land.
+
+**Critical**: These tests document contracts that must be satisfied. Do NOT:
+- Add escape hatches or SECURITY TODO soft-pass
+- Delete tests to make CI green
+- Invent product UI labels
+
+**Test Location**: `apps/desktop/src/components/slice-12-tests.test.tsx`
+
+---
+
+### TC-081: Ban-word Scan (Zero Stub Copy)
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Function**: Multiple tests for each route/component
+
+**Purpose**: Scan rendered desktop routes for forbidden placeholder content.
+
+**Forbidden Phrases** (as main placeholder content):
+- `开发中`
+- `敬请期待`
+- `Coming soon`
+- `暂未开放`
+
+**Allowed**: Honest empty states like 「还没有 Routine」
+
+**Routes Tested**:
+- Chat stage
+- Computer stage
+- Routines stage
+- Skills stage
+- Memory stage
+- Connectors stage
+- Sidebar
+- Full App
+
+**Current Status**: ❌ **EXPECTED RED** - Multiple stages currently show "开发中"
+
+**Expected Result**: ✅ All routes should have zero forbidden placeholder text
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests
+```
+
+**Offline**: ✅ Yes (UI rendering tests)
+
+**Honesty Note**: Tests currently fail because stub pages show "开发中". This is intentional - tests document the target state.
+
+---
+
+### TC-082: Reconcile FAILED Immediate Red Card
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Function**: `should show error banner immediately when reconcile status is FAILED`
+
+**Purpose**: Validate that when insights return `job_status: completed` + `reconcile_status: FAILED`, the UI MUST show `.demo-error-banner` immediately without waiting for 10s timeout.
+
+**Contract**:
+- Response: `{job_status: "completed", reconcile_status: "FAILED", ...}`
+- UI MUST: Show `.demo-error-banner` with reconcile/审核/FAILED text
+- UI MUST NOT: Swallow error into timeout (current bug)
+
+**Current Issue**: 
+- Current tip swallows FAILED status into timeout
+- Error banner not shown until 10s timeout expires
+- User sees no feedback
+
+**Test Behavior**:
+1. Render ChatStage with FAILED reconcile response
+2. Assert `.demo-error-banner` element exists
+3. Assert banner contains error text (FAILED/失败/审核)
+
+**Current Status**: ❌ **EXPECTED RED** - Error swallowed into timeout
+
+**Expected Result**: ✅ Banner appears immediately when FAILED
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -t "TC-082"
+```
+
+**Offline**: ✅ Yes (UI rendering tests)
+
+**Honesty Note**: This test fails on current tip. Correct fix is updating ChatStage to check reconcile_status and show banner immediately.
+
+---
+
+### TC-083: Validation Gate (Sketch 14)
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Function**: Multiple tests for gate card UI
+
+**Purpose**: Validate validation gate card UI per sketch 14.
+
+**Acceptance Criteria**:
+- ✅ Gate card renders when present
+- ✅ Shows Pass/Reject/Revise buttons
+- ✅ Shows chat bubble with result after action
+- ✅ Visible state transitions
+
+**UI Elements Expected**:
+- `.validation-gate-card` container
+- Buttons: 通过 (Pass), 拒绝 (Reject), 修改 (Revise)
+- `.gate-result-bubble` for result feedback
+
+**Current Status**: ❌ **EXPECTED RED** - Gate UI not yet implemented
+
+**Expected Result**: ✅ Gate card with actions renders correctly
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -t "TC-083"
+```
+
+**Offline**: ✅ Yes (UI rendering tests)
+
+**Honesty Note**: Tests document sketch 14 requirements. Implementation to follow in next encoding slice.
+
+---
+
+### TC-084: New Agent Wizard (Sketch 12)
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Function**: Multiple tests for wizard flow
+
+**Purpose**: Validate new agent creation wizard per sketch 12.
+
+**Acceptance Criteria**:
+- ✅ "新建 Agent" or "+" button in sidebar
+- ✅ 3-step wizard form (基本信息, 技能配置, 人设调优)
+- ✅ Agent name and role inputs
+- ✅ New agent added to sidebar after completion
+- ✅ Uses local fixture (no backend required)
+
+**UI Elements Expected**:
+- Sidebar: New agent button
+- Wizard: Step 1, 2, 3 indicators
+- Form fields: Agent name, role
+- Sidebar: Dynamic agent list (>3 items after creation)
+
+**Current Status**: ❌ **EXPECTED RED** - Wizard UI not yet implemented
+
+**Expected Result**: ✅ Wizard flow creates new agent in sidebar
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -t "TC-084"
+```
+
+**Offline**: ✅ Yes (UI rendering tests with fixtures)
+
+**Honesty Note**: Tests document sketch 12 requirements. Sidebar currently shows 3 hardcoded agents; wizard will enable dynamic creation.
+
+---
+
+### TC-085: GitHub SaaS Connector Smoke
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Function**: Multiple tests for GitHub connector
+
+**Purpose**: Validate GitHub connector basic UI and state transitions.
+
+**Acceptance Criteria**:
+- ✅ GitHub connector card visible
+- ✅ Connect/Disconnect button
+- ✅ Test button
+- ✅ Status badge: connected/disconnected/error
+- ✅ Error state UI when test fails
+- ✅ NO "敬请期待" stub text
+- ✅ Uses mock tokens (no real OAuth required)
+
+**UI Elements Expected**:
+- GitHub connector card (not stub)
+- Buttons: 连接 GitHub (Connect), 测试 (Test)
+- Status badge: 已连接/未连接/错误
+- Error message area for failed connections
+
+**Current Status**: ❌ **EXPECTED RED** - GitHub connector is stub with "敬请期待"
+
+**Expected Result**: ✅ GitHub connector with Connect/Test/Status UI
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -t "TC-085"
+```
+
+**Offline**: ✅ Yes (UI rendering tests with mock)
+
+**Honesty Note**: Tests document the expected UI. Current implementation shows stub. No real OAuth secrets required - tests should use mock tokens.
+
+---
+
+## Running §12 Slice Tests
+
+### All Slice 12 Tests
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests
+```
+
+**Expected**: ❌ Most tests RED (intentional - features not yet implemented)  
+**Time**: ~2-3 seconds  
+**Offline**: ✅ Yes (all UI rendering tests)
+
+### Individual Test Suites
+
+```bash
+# TC-081: Ban-word scan
+cd apps/desktop && pnpm test slice-12-tests -t "TC-081"
+
+# TC-082: FAILED reconcile error banner
+cd apps/desktop && pnpm test slice-12-tests -t "TC-082"
+
+# TC-083: Validation gate
+cd apps/desktop && pnpm test slice-12-tests -t "TC-083"
+
+# TC-084: Agent wizard
+cd apps/desktop && pnpm test slice-12-tests -t "TC-084"
+
+# TC-085: GitHub connector
+cd apps/desktop && pnpm test slice-12-tests -t "TC-085"
+```
+
+---
+
+## Test Coverage Summary (TC-081+)
+
+**Added Coverage**:
+1. **Ban-word Scan**: TC-081 validates no forbidden placeholder text across all routes
+2. **FAILED Reconcile UI**: TC-082 validates immediate error banner (not timeout)
+3. **Validation Gate**: TC-083 validates gate card UI per sketch 14
+4. **Agent Wizard**: TC-084 validates 3-step creation wizard per sketch 12
+5. **GitHub Connector**: TC-085 validates Connect/Test/Status UI (no real OAuth)
+
+**Delivery Bar**: These tests are TEST ONLY - expected red until implementation lands. Tests document contracts that encoding must satisfy.
+
+**Expected Red Tests**:
+- TC-081: Multiple routes show "开发中" (4-5 tests failing)
+- TC-082: Error swallowed into timeout (1 test failing)
+- TC-083: Gate UI not implemented (3 tests failing)
+- TC-084: Wizard UI not implemented (4 tests failing)
+- TC-085: GitHub connector is stub (6 tests failing)
+
+**Total**: ~18-20 tests failing (expected)
+
+**Honesty Note**: These tests are designed to fail until features land. Do NOT:
+- Add escape hatches (SECURITY TODO)
+- Delete tests to green CI
+- Soft-pass with comments
+
+Correct path: Implement features → tests turn green.
+
+---
+
 **Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.
