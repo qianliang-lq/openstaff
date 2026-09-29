@@ -292,6 +292,95 @@ describe('TC-083: Validation gate card', () => {
       );
     }
   });
+
+  /**
+   * TC-083.1: Validation gate on real assistant message (showMockContent hidden)
+   *
+   * This test validates the migration contract: ValidationGateWidget must work
+   * on a REAL assistant message, not just in the showMockContent demo block.
+   *
+   * Contract:
+   * - Render ChatStage with showMockContent HIDDEN (false)
+   * - Still have a real assistant message carrying the validation gate
+   * - Click gate button (通过/驳回/改意见)
+   * - Assert .gate-result-bubble appears
+   *
+   * Honesty rules:
+   * - NO soft assertions (expect(true), existence-only)
+   * - NO re-enabling showMockContent inside test
+   * - NO injecting static .gate-result-bubble without real click
+   * - If product code only mounts gate under demo content, test MUST fail (EXPECTED RED)
+   *
+   * Current Status: ❌ EXPECTED RED until encoding migrates gate to real messages
+   */
+  it('should show gate result bubble when showMockContent is hidden and gate on real message', async () => {
+    // ❌ EXPECTED TO FAIL: Gate not yet migrated to real messages
+    // This test documents the contract that encoding must satisfy
+
+    // Step 1: Render ChatStage with initial showMockContent (demo block visible)
+    render(<ChatStage />);
+
+    // Step 2: Hide demo content by clicking the toggle button
+    // This simulates the intended product state where demo block is hidden
+    const toggleButton = screen.getByText(/隐藏演示内容/i);
+    fireEvent.click(toggleButton);
+
+    // Step 3: Verify demo content is hidden
+    await waitFor(() => {
+      expect(screen.queryByText(/请帮我准备产品经理数字员工周报/)).not.toBeInTheDocument();
+    });
+
+    // Step 4: Now we need a REAL assistant message with validation gate
+    // Current product code does NOT implement this yet (gate only in demo block)
+    // The test MUST fail here if gate is not on real message
+
+    // Look for gate buttons on a real (non-demo) message
+    // Expected: Gate should be on a real assistant message (e.g. marked with validationGate: true)
+    const passButton = screen.queryByRole('button', { name: /通过|Pass/i });
+    const rejectButton = screen.queryByRole('button', { name: /拒绝|驳回|Reject/i });
+    const reviseButton = screen.queryByRole('button', { name: /改意见|修改|Revise/i });
+
+    const actionButton = passButton || rejectButton || reviseButton;
+
+    // HONEST ASSERTION: If gate not migrated to real messages, this WILL fail
+    expect(
+      actionButton,
+      'TC-083.1 EXPECTED RED: Gate action buttons not available when showMockContent hidden. ' +
+        'Encoding must migrate ValidationGateWidget from demo block to real assistant messages ' +
+        'marked with validationGate property (per architect brief: gate on REAL bubble).'
+    ).toBeInTheDocument();
+
+    if (actionButton) {
+      // Step 5: Click the gate action button
+      fireEvent.click(actionButton);
+
+      // Step 6: Assert .gate-result-bubble appears after click
+      await waitFor(
+        () => {
+          const gateResultBubble = document.querySelector('.gate-result-bubble');
+          expect(
+            gateResultBubble,
+            'TC-083.1: Gate result bubble should appear after clicking gate button on real message'
+          ).toBeInTheDocument();
+
+          // Additional honesty check: bubble should contain result text
+          if (gateResultBubble) {
+            const bubbleText = gateResultBubble.textContent || '';
+            const hasValidResult =
+              bubbleText.includes('已通过验证') ||
+              bubbleText.includes('已驳回操作') ||
+              bubbleText.includes('请修改意见');
+
+            expect(
+              hasValidResult,
+              'Gate result bubble must contain valid decision text (not empty or static placeholder)'
+            ).toBe(true);
+          }
+        },
+        { timeout: 3000 }
+      );
+    }
+  });
 });
 
 /**
