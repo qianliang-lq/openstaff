@@ -12,6 +12,7 @@ interface ChatMessage {
 }
 
 interface DemoResponse {
+  job_status?: string;
   reconcile_status: string;
   facts?: ExternalInsightFact[];
   summary?: string[];
@@ -66,7 +67,7 @@ function ChatStage({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showMockContent, setShowMockContent] = useState(false);
+  const [showMockContent, setShowMockContent] = useState(true);
   const [hasAnyKey, setHasAnyKey] = useState<boolean | null>(null);
   const [lastError, setLastError] = useState<ChatMessage | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -91,7 +92,12 @@ function ChatStage({
       setReconcileStatus('PASS');
       setDisplayDate(demoResponse.timestamp || '2026-09-27');
       setIsRunning(false);
-    } else if (demoResponse && demoResponse.reconcile_status === 'FAILED') {
+    } else if (
+      demoResponse &&
+      (demoResponse.reconcile_status === 'FAILED' ||
+        demoResponse.job_status === 'error' ||
+        demoResponse.job_status === 'not_found')
+    ) {
       setReconcileStatus('FAILED');
       setIsRunning(false);
     }

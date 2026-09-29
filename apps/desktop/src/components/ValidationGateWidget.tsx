@@ -2,26 +2,37 @@ import { useState } from 'react';
 import './ValidationGateWidget.css';
 
 function ValidationGateWidget() {
-  const [dismissed, setDismissed] = useState(false);
-
-  if (dismissed) {
-    return null;
-  }
+  const [decision, setDecision] = useState<'approved' | 'rejected' | 'revised' | null>(null);
 
   const handleApprove = () => {
     console.log('Approved');
-    setDismissed(true);
+    setDecision('approved');
   };
 
   const handleReject = () => {
     console.log('Rejected');
-    setDismissed(true);
+    setDecision('rejected');
   };
 
   const handleRevise = () => {
     console.log('Revise requested');
-    // Keep card visible for revision
+    setDecision('revised');
   };
+
+  if (decision) {
+    return (
+      <div className="gate-result-bubble">
+        <span className="result-icon">
+          {decision === 'approved' ? '✅' : decision === 'rejected' ? '❌' : '✏️'}
+        </span>
+        <span className="result-text">
+          {decision === 'approved' && '已通过验证'}
+          {decision === 'rejected' && '已驳回操作'}
+          {decision === 'revised' && '请修改意见后重新提交'}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="validation-gate-widget validation-gate-card">

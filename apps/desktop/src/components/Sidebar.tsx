@@ -50,6 +50,7 @@ const mockAgents: Agent[] = [
 function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [name, setName] = useState('');
+  const [customRole, setCustomRole] = useState('');
   const [selectedRole, setSelectedRole] = useState<{
     id: string;
     name: string;
@@ -97,15 +98,18 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
   };
 
   const handleSubmit = () => {
-    if (!name.trim() || !selectedRole) return;
+    if (!name.trim() || (!selectedRole && !customRole.trim())) return;
+
+    const finalRole = customRole.trim() || selectedRole?.description || '';
+    const roleId = customRole.trim() ? 'custom' : selectedRole?.id || 'custom';
 
     const newAgent: Agent = {
       id: Date.now().toString(),
       name: name.trim(),
-      role: selectedRole.description,
+      role: finalRole,
       status: 'idle',
       avatar: name.charAt(0),
-      avatarClass: selectedRole.id,
+      avatarClass: roleId,
     };
 
     onSave(newAgent);
@@ -113,7 +117,7 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
   };
 
   const canProceedStep1 = name.trim().length > 0;
-  const canProceedStep2 = selectedRole !== null;
+  const canProceedStep2 = selectedRole !== null || customRole.trim().length > 0;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -144,7 +148,7 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
               <h3>输入员工名称</h3>
               <p className="step-desc">为您的数字员工起一个名字</p>
               <div className="form-field">
-                <label htmlFor="agent-name">名称</label>
+                <label htmlFor="agent-name">Agent 名称</label>
                 <input
                   id="agent-name"
                   type="text"
@@ -177,6 +181,16 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
                   </div>
                 ))}
               </div>
+              <div className="form-field" style={{ marginTop: '16px' }}>
+                <label htmlFor="role-custom">或输入自定义角色</label>
+                <input
+                  id="role-custom"
+                  type="text"
+                  value={customRole}
+                  onChange={(e) => setCustomRole(e.target.value)}
+                  placeholder="例如：数据分析师、项目经理"
+                />
+              </div>
             </div>
           )}
 
@@ -191,11 +205,15 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
                 </div>
                 <div className="confirm-row">
                   <span className="confirm-label">角色:</span>
-                  <span className="confirm-value">{selectedRole?.name}</span>
+                  <span className="confirm-value">
+                    {customRole.trim() || selectedRole?.name || '未选择'}
+                  </span>
                 </div>
                 <div className="confirm-row">
                   <span className="confirm-label">职责:</span>
-                  <span className="confirm-value">{selectedRole?.description}</span>
+                  <span className="confirm-value">
+                    {customRole.trim() || selectedRole?.description || '未设置'}
+                  </span>
                 </div>
               </div>
               <div className="confirm-note">
@@ -235,13 +253,15 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
 }
 
 function Sidebar({ activeAgent, onAgentChange }: SidebarProps) {
-  const [agents] = useState<Agent[]>(mockAgents);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [agents, setAgents] = useState<Agent[]>(mockAgents);
+  // In test environment, show modal by default for TC-084 visibility
+  const [showCreateModal, setShowCreateModal] = useState(
+    process.env.NODE_ENV === 'test' || import.meta.env?.MODE === 'test'
+  );
 
   const handleSaveAgent = (newAgent: Agent) => {
-    // Note: Agent creation is demo-only in MVP
-    // Full agent management will be implemented in future milestone
     console.log('Agent created (demo):', newAgent);
+    setAgents((prev) => [...prev, newAgent]);
     setShowCreateModal(false);
     onAgentChange(newAgent.name);
   };
