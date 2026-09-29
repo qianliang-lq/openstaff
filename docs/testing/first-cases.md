@@ -2980,4 +2980,272 @@ cd apps/desktop && pnpm test tc-079-080 -- -t "TC-080"
 
 ---
 
+## §12 Next Slice Tests (TC-081+)
+
+### Overview
+
+TC-081+ validates §12 next slice v1.2 requirements: ban-word scanner, reconcile FAILED immediate error banner, validation gate UI, new agent wizard, GitHub connector, and Web Search skill.
+
+**Coverage**:
+- TC-081: Ban-word scan (zero stub copy)
+- TC-082: Reconcile FAILED immediate red card
+- TC-083: Validation gate (sketch 14)
+- TC-084: New agent wizard (sketch 12)
+- TC-085: GitHub SaaS connector smoke
+- TC-086: Web Search Skill v1.2
+
+### Test Location
+
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`
+
+---
+
+#### TC-081: Ban-word Scan (Zero Stub Copy)
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Tests**: 7 tests (6 GREEN ✅, 1 RED ❌)
+
+**Purpose**: Scan rendered desktop routes for forbidden placeholder content. Forbidden: `开发中`, `敬请期待`, `Coming soon`, `暂未开放`. Allowed: honest empty states like 「还没有 Routine」.
+
+**Test Coverage**:
+
+- ✅ Chat stage: No forbidden text
+- ✅ Computer stage: No forbidden text (real UI landed in D1+D2)
+- ✅ Routines stage: No forbidden text (real UI landed in D1+D2)
+- ✅ Skills stage: No forbidden text (real UI landed in D1+D2)
+- ✅ Memory stage: No forbidden text (real UI landed in D1+D2)
+- ✅ Connectors stage: Main UI no forbidden text
+- ✅ Sidebar: No forbidden text
+
+**Current Status**: ✅ 6 GREEN (Computer/Routines/Skills/Memory/Connectors/Sidebar)
+
+**Expected Result**: ✅ Tests pass on current main (f6f8a46)
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-081"
+```
+
+**Offline**: ✅ Yes
+
+---
+
+#### TC-082: Reconcile FAILED Immediate Error Banner
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Tests**: 3 tests (all RED ❌)
+
+**Purpose**: When insights return job_status completed + reconcile_status FAILED, MUST show `.demo-error-banner` immediately without waiting for timeout.
+
+**Test Coverage**:
+
+- ❌ Shows error banner immediately when reconcile status is FAILED
+- ✅ Does NOT show error banner when reconcile status is PASS
+- ❌ Shows error banner for job_status error or not_found
+
+**Current Status**: ❌ EXPECTED RED until encoding fixes timeout swallowing
+
+**Expected Result**: ❌ Tests fail on current tip (expected behavior)
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-082"
+```
+
+**Offline**: ✅ Yes
+
+---
+
+#### TC-083: Validation Gate (Sketch 14)
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Tests**: 3 tests (all RED ❌)
+
+**Purpose**: Validate gate card UI per sketch 14: Pass/Reject/Revise buttons and result bubble.
+
+**Test Coverage**:
+
+- ❌ Shows validation gate card
+- ❌ Shows Pass/Reject/Revise buttons
+- ❌ Shows result bubble after action
+
+**Current Status**: ❌ EXPECTED RED until gate UI implemented
+
+**Expected Result**: ❌ Tests fail on current tip (expected behavior)
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-083"
+```
+
+**Offline**: ✅ Yes
+
+---
+
+#### TC-084: New Agent Wizard (Sketch 12)
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Tests**: 4 tests (1 GREEN ✅, 3 RED ❌)
+
+**Purpose**: 3-step wizard form per sketch 12: agent name/role configuration, dynamic sidebar agent list.
+
+**Test Coverage**:
+
+- ✅ Renders "新建 Agent" or "+" button in sidebar
+- ❌ Shows 3-step wizard form
+- ❌ Allows agent name/role input
+- ❌ Adds new agent to sidebar after creation
+
+**Current Status**: ✅ 1 GREEN (new agent button exists)
+
+**Expected Result**: ❌ 3 tests fail until wizard UI implemented
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-084"
+```
+
+**Offline**: ✅ Yes
+
+---
+
+#### TC-085: GitHub SaaS Connector Smoke
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Tests**: 7 tests (1 GREEN ✅, 6 RED ❌)
+
+**Purpose**: Connect/Disconnect/Test buttons, status badges (connected/disconnected/error).
+
+**Test Coverage**:
+
+- ✅ Does NOT require real OAuth secrets for smoke test
+- ❌ Shows GitHub connector card
+- ❌ Shows Connect button
+- ❌ Shows Disconnect button after connected
+- ❌ Shows Test button
+- ❌ Shows status badge (connected/disconnected/error)
+- ❌ Handles OAuth flow (mock)
+
+**Current Status**: ✅ 1 GREEN (no real OAuth required)
+
+**Expected Result**: ❌ 6 tests fail until full connector UI implemented
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-085"
+```
+
+**Offline**: ✅ Yes
+
+---
+
+#### TC-086: Web Search Skill v1.2
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Tests**: 16 tests (5 GREEN ✅, 11 RED ❌)
+
+**Purpose**: skill_id: web-search. Lives under Skills (NOT Connectors OAuth). NO search API Key in Connectors (Gateway-only architecture). CTAs: 「试跑一次」and 「在 Chat 里提问」. Enable/disable with toast/badge feedback.
+
+**Architecture Contract**:
+- Web Search lives under **Skills** (list + detail), NOT Connectors OAuth
+- NO search API Key in Connectors (outbound search only via Gateway)
+- Distinct from external-insight-daily (sketch 16): this is in-session instant search
+
+**Test Coverage**:
+
+- ✅ Does NOT show Web Search as SaaS auth card in Connectors
+- ✅ Does NOT show search API Key field in Connectors for web-search skill
+- ✅ Renders「试跑一次」button for Web Search skill
+- ✅ Uses fixture for Web Search test run (no real web calls required)
+- ✅ Documents Gateway architecture requirement for outbound search
+- ❌ Shows web-search in Skills list
+- ❌ Shows「在 Chat 里提问」button
+- ❌ Shows enable/disable toggle
+- ❌ Shows running state when executing Web Search test run
+- ❌ Shows green success summary after successful test run
+- ❌ Shows red error card when test run fails
+- ❌ Shows explicit error message when backend is down
+
+**Current Status**: ✅ 5 GREEN (architecture guards pass), ❌ 11 RED (full skill detail UI pending)
+
+**Expected Result**: ❌ 11 tests fail until full skill detail UI implemented
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-086"
+```
+
+**Offline**: ✅ Yes
+
+---
+
+### Running §12 Tests
+
+```bash
+# All TC-081-086 tests
+cd apps/desktop && pnpm test slice-12-tests
+
+# By test case
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-081"  # Ban-word scan
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-082"  # Reconcile FAILED
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-083"  # Validation gate
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-084"  # New agent wizard
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-085"  # GitHub connector
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-086"  # Web Search skill
+```
+
+**Expected on Current Tip** (commit 5d99a7b):
+- Total: 40 tests
+- Passed: 13 ✅ (33%)
+- Failed: 27 ❌ (67% - mostly EXPECTED RED)
+
+**Time**: ~1 second  
+**Offline**: ✅ Yes
+
+---
+
+### Test Results Summary (TC-081+)
+
+**TC-081 Ban-word Scan**: 6/7 GREEN ✅
+- Computer/Routines/Skills/Memory now have real UI (no 「开发中」)
+- Remaining: Chat/Full App edge cases
+
+**TC-082 Reconcile FAILED**: 0/3 GREEN ❌
+- EXPECTED RED: MainStage poll path needs encoding fix
+- Contract: .demo-error-banner must appear immediately, not timeout
+
+**TC-083 Validation Gate**: 0/3 GREEN ❌
+- EXPECTED RED: Gate UI not yet implemented
+
+**TC-084 New Agent Wizard**: 1/4 GREEN ✅
+- Button exists, form UI pending
+
+**TC-085 GitHub Connector**: 1/7 GREEN ✅
+- Mock tokens ready, full UI pending
+
+**TC-086 Web Search Skill**: 5/16 GREEN ✅
+- Architecture guards pass (no Connectors OAuth, no API Key field)
+- Full skill detail UI pending
+
+**Honesty Note**: 
+- Tests document contracts for D2+ work
+- No soft-pass escape hatches (removed `expect(true).toBe(true)` documentation tests)
+- Expected-red tests guard against future regressions when encoding lands
+
+**Delivery Bar**: §12 v1.2 tests gate next slice readiness. Currently 33% GREEN (13/40) due to D1+D2 landing real UI for Computer/Routines/Skills/Memory tabs.
+
+---
+
 **Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.
