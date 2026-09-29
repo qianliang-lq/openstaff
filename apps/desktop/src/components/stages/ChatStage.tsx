@@ -9,6 +9,7 @@ interface ChatMessage {
   content: string;
   error?: boolean;
   errorType?: '401' | '403' | 'network' | 'unknown';
+  gateDecision?: 'approved' | 'rejected' | 'revised';
 }
 
 interface DemoResponse {
@@ -458,6 +459,30 @@ function ChatStage({
             );
           }
 
+          if (msg.gateDecision) {
+            return (
+              <div key={idx} className={`message ${msg.role}`}>
+                <div className="message-avatar">产</div>
+                <div className="message-content">
+                  <div className="gate-result-bubble">
+                    <span className="result-icon">
+                      {msg.gateDecision === 'approved'
+                        ? '✅'
+                        : msg.gateDecision === 'rejected'
+                          ? '❌'
+                          : '✏️'}
+                    </span>
+                    <span className="result-text">
+                      {msg.gateDecision === 'approved' && '已通过验证'}
+                      {msg.gateDecision === 'rejected' && '已驳回操作'}
+                      {msg.gateDecision === 'revised' && '请修改意见后重新提交'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div key={idx} className={`message ${msg.role}`}>
               {msg.role === 'assistant' && <div className="message-avatar">产</div>}
@@ -507,7 +532,16 @@ function ChatStage({
                   需要我执行数据库查询来获取更详细的指标数据吗？
                 </div>
 
-                <ValidationGateWidget />
+                <ValidationGateWidget
+                  onDecision={(decision) => {
+                    const decisionMessage: ChatMessage = {
+                      role: 'assistant',
+                      content: '',
+                      gateDecision: decision,
+                    };
+                    setMessages((prev) => [...prev, decisionMessage]);
+                  }}
+                />
               </div>
             </div>
 

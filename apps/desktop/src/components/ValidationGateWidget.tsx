@@ -1,22 +1,29 @@
 import { useState } from 'react';
 import './ValidationGateWidget.css';
 
-function ValidationGateWidget() {
+interface ValidationGateWidgetProps {
+  onDecision?: (decision: 'approved' | 'rejected' | 'revised') => void;
+}
+
+function ValidationGateWidget({ onDecision }: ValidationGateWidgetProps) {
   const [decision, setDecision] = useState<'approved' | 'rejected' | 'revised' | null>(null);
 
   const handleApprove = () => {
     console.log('Approved');
     setDecision('approved');
+    onDecision?.('approved');
   };
 
   const handleReject = () => {
     console.log('Rejected');
     setDecision('rejected');
+    onDecision?.('rejected');
   };
 
   const handleRevise = () => {
     console.log('Revise requested');
     setDecision('revised');
+    onDecision?.('revised');
   };
 
   if (decision) {
