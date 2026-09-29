@@ -2658,4 +2658,204 @@ cargo test -p openstaff-gateway -- --test-threads=1
 
 ---
 
+## Connectors Tauri Guard Tests (TC-063+)
+
+### Overview
+
+TC-063+ validates that Connectors/Settings components properly guard Tauri API availability before calling `invoke()`, preventing crashes when running in Vite preview mode (localhost:5173) without Tauri. Per §4 from 10-byok-chat-cut.md architecture brief: without Tauri, save operations must NOT crash; instead, disable save and guide users to set `OPENSTAFF_LLM_API_KEY` environment variable or run `pnpm tauri:dev`.
+
+**Critical**: These tests enforce offline-first development safety. Users frequently preview the UI via `pnpm dev` (Vite-only at localhost:5173) without launching the full Tauri wrapper. Bare `invoke()` calls crash with "Cannot read properties of undefined (reading 'invoke')".
+
+**Coverage**:
+- TC-063: Tauri availability guard enforcement (source check)
+- TC-064: Non-Tauri UI guidance and disabled save
+- TC-065: No localStorage for keys (maintains TC-059 hard gate)
+
+### Test Location
+
+**File**: `apps/desktop/src/components/Connectors.test.tsx`
+
+All tests are desktop vitest unit tests. They may initially FAIL until the encoding team implements the Tauri guards and UI guidance (§4 requirements).
+
+---
+
+#### TC-063: Connectors Save Must Guard Tauri Availability
+
+**Layer**: Unit / Contract  
+**File**: `apps/desktop/src/components/Connectors.test.tsx`  
+**Function**: `should have Tauri availability check in source code`
+
+**Purpose**: Validate that Connectors component guards Tauri availability before calling `invoke()` on save paths.
+
+**Security Requirement**: Bare `invoke()` calls MUST be guarded with:
+- `typeof window.__TAURI__ !== 'undefined'` check, OR
+- `isTauri()` helper function, OR  
+- `try { await invoke(...) } catch (err) { /* handle gracefully */ }` pattern
+
+**Current Status**: ❌ **EXPECTED FAIL** until encoding team adds guard
+
+**Violation**: `apps/desktop/src/components/Connectors.tsx` currently calls:
+```typescript
+// Line 37, 40, 77, 101 - Direct invoke() without guard
+await invoke('get_provider_key', { provider: 'qwen' });
+await invoke('save_provider_key', { provider, key: config.apiKey });
+await invoke('delete_provider_key', { provider });
+```
+
+**Required Fix Pattern**:
+```typescript
+// Check Tauri availability before invoke
+if (typeof window.__TAURI__ === 'undefined') {
+  setConfig(prev => ({ 
+    ...prev, 
+    error: '请在 Tauri 环境中使用，或设置 OPENSTAFF_LLM_API_KEY 环境变量',
+    status: 'error' 
+  }));
+  return;
+}
+
+await invoke('save_provider_key', { provider, key: config.apiKey });
+```
+
+**Test Coverage**:
+- ✅ Source code pattern check for Tauri guards
+- ✅ Simulated non-Tauri environment handling
+- ✅ Graceful error message when Tauri unavailable
+
+**Expected Result**: ❌ Test fails until guards are added to source
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test Connectors
+```
+
+**Offline**: ✅ Yes (vitest unit test)
+
+**Honesty Note**: This test is EXPECTED TO FAIL until the encoding team adds Tauri availability guards. The test documents the required contract: save operations must check `window.__TAURI__` before calling `invoke()`. Current implementation crashes in Vite-only preview mode (localhost:5173).
+
+---
+
+#### TC-064: Non-Tauri UI Shows Guidance
+
+**Layer**: Unit / Contract  
+**File**: `apps/desktop/src/components/Connectors.test.tsx`  
+**Function**: Multiple tests for guidance and disabled state
+
+**Purpose**: Validate that UI shows clear guidance when running without Tauri, explaining environment variable fallback and `tauri:dev` option.
+
+**Acceptance Criteria**:
+- ✅ Guidance text mentions `OPENSTAFF_LLM_API_KEY` env var as fallback
+- ✅ Guidance text mentions `pnpm tauri:dev` command for full Tauri mode
+- ✅ Save buttons **disabled** when `window.__TAURI__` undefined
+- ✅ Clear visual indicator (banner, tooltip, or inline message)
+
+**UI Sketch Reference**: Sketch 21 (incoming per task context)
+
+**Current Status**: ⏭️ **EXPECTED FAIL or SOFT-SCAN** until encoding team lands UI
+
+**Test Behavior**:
+- 🔍 Checks for guidance text patterns: `OPENSTAFF_LLM_API_KEY`, `tauri:dev`, `Tauri 环境`
+- 🔍 Validates save buttons are disabled in non-Tauri mode
+- ⚠️ Logs warning if guidance not yet implemented (honest red or documented gap)
+
+**Expected Result**: 
+- ❌ FAIL with honest warning until UI guidance lands
+- ✅ PASS once encoding team implements §4 non-Tauri guidance
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test Connectors -- -t "TC-064"
+```
+
+**Offline**: ✅ Yes (vitest unit test)
+
+**Honesty Note**: This test may FAIL with documented warnings until encoding team implements the UI guidance from §4. Once Sketch 21 is implemented (disable save + show guide copy), this test should pass green. The test validates EXPECTED behavior, not current implementation.
+
+---
+
+#### TC-065: No localStorage for Keys (TC-059 Maintained)
+
+**Layer**: Unit / Security Contract  
+**File**: `apps/desktop/src/components/Connectors.test.tsx`  
+**Function**: Multiple tests for localStorage prohibition
+
+**Purpose**: Maintain TC-059 hard gate: API keys MUST NEVER be stored in localStorage. This test enforces the same security contract for Connectors component.
+
+**Security Requirements** (inherited from TC-059):
+- ❌ **MUST NOT** use `localStorage.setItem` for keys, tokens, secrets
+- ❌ **MUST NOT** use `localStorage.getItem` for key retrieval
+- ✅ **MUST** use Tauri `invoke('save_provider_key')` for storage
+- ✅ **MUST** use Tauri `invoke('get_provider_key')` for retrieval
+
+**Why localStorage is Prohibited**:
+- Plain text storage (no OS-level encryption)
+- Accessible to all JavaScript code (XSS risk)
+- No secure deletion guarantees
+- Persists across sessions without protection
+
+**Test Coverage**:
+- ✅ Monitors `localStorage.setItem` calls during save flow
+- ✅ Monitors `localStorage.getItem` calls during load flow  
+- ✅ Validates keys stored via Tauri invoke, not localStorage
+- ✅ Pattern matching for key-related strings: `key`, `token`, `secret`, `api`, `qwen`, `glm`
+
+**Expected Result**: 
+- ✅ **PASS** if Connectors uses Tauri invoke exclusively
+- ❌ **IMMEDIATE FAIL** if any key-related localStorage call detected
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test Connectors -- -t "TC-065"
+```
+
+**Offline**: ✅ Yes (vitest unit test)
+
+**Honesty Note**: Current Connectors.tsx implementation already uses Tauri invoke for key storage (lines 37-80), so TC-065 should PASS. This test maintains the security contract: no localStorage fallback, even when Tauri is unavailable. The correct behavior is to disable save and guide users to environment variables, never to fall back to localStorage.
+
+---
+
+### Running Connectors Guard Tests
+
+#### All Connectors Tests (TC-063+)
+
+```bash
+cd apps/desktop && pnpm test Connectors
+```
+
+**Expected**: 
+- ❌ TC-063: FAIL until Tauri guards added (expected red)
+- ⏭️ TC-064: FAIL with warning until UI guidance lands (honest red)  
+- ✅ TC-065: PASS (no localStorage usage in current implementation)
+
+**Time**: ~2-3 seconds  
+**Offline**: ✅ Yes (all vitest unit tests)
+
+---
+
+### Test Coverage Summary (TC-063+)
+
+**Added Coverage**:
+
+1. **Tauri Guard Contract**: TC-063 enforces availability check before `invoke()` (source scan)
+2. **Non-Tauri Guidance**: TC-064 validates UI shows environment variable fallback and `tauri:dev` option
+3. **localStorage Prohibition**: TC-065 maintains TC-059 security gate (no localStorage for keys)
+
+**Architecture Gates Enforced**:
+- Vite preview mode (localhost:5173) must not crash (§4 from 10-byok-chat-cut.md)
+- Save disabled + guidance when Tauri unavailable (§4)  
+- No localStorage fallback for keys (§1 from 10-byok-chat-cut.md, TC-059 maintained)
+
+**Encoding Team Deliverables** (for tests to pass green):
+1. Add Tauri availability check in `handleSave`, `loadKeys`, `handleClear` functions
+2. Implement UI guidance banner/message for non-Tauri mode (Sketch 21)
+3. Disable save buttons when `window.__TAURI__` undefined
+4. Ensure no localStorage fallback path
+
+**Honesty Note**: TC-063 and TC-064 are EXPECTED TO FAIL until encoding team implements the Tauri guards and UI guidance. These tests document the required contracts from §4 architecture brief. TC-065 should PASS immediately (current code already uses Tauri invoke). Tests honestly encode product requirements: localhost:5173 preview must not crash, and must guide users to OPENSTAFF_LLM_API_KEY or tauri:dev.
+
+---
+
 **Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.
