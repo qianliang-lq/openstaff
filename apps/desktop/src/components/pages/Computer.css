@@ -1,48 +1,19 @@
 .computer-container {
   padding: 24px;
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
-}
-
-.computer-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.computer-header h2 {
-  margin: 0 0 4px 0;
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.subtitle {
-  margin: 0;
+.loading {
+  padding: 40px;
+  text-align: center;
   color: #6b7280;
-  font-size: 14px;
 }
 
-.btn-refresh {
-  padding: 8px 16px;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.btn-refresh:hover {
-  background: #e5e7eb;
-}
-
-.btn-refresh:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.computer-status-bar {
+.computer-header-badge {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -50,116 +21,160 @@
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  margin-bottom: 24px;
 }
 
-.status-badge {
+.sandbox-label {
   padding: 4px 12px;
+  background: #dbeafe;
+  color: #1e40af;
   border-radius: 12px;
   font-size: 13px;
   font-weight: 500;
 }
 
-.status-badge.running {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.status-badge.idle {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.status-badge.stopped {
-  background: #e5e7eb;
-  color: #374151;
-}
-
-.status-badge.error {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.workspace-path {
+.node-id {
   font-family:
     'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
   font-size: 13px;
   color: #6b7280;
 }
 
-.computer-section {
-  margin-bottom: 24px;
+.computer-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-height: 400px;
 }
 
-.computer-section h3 {
-  margin: 0 0 12px 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.files-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
+.workspace-panel,
+.terminal-panel {
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
-}
-
-.file-icon {
-  font-size: 24px;
-}
-
-.file-info {
-  flex: 1;
-}
-
-.file-path {
-  font-weight: 500;
-  font-size: 14px;
-  margin-bottom: 2px;
-}
-
-.file-updated {
-  font-size: 12px;
-  color: #9ca3af;
-}
-
-.empty-state {
-  padding: 40px;
-  text-align: center;
-  color: #9ca3af;
-  font-size: 14px;
-  background: #f9fafb;
-  border: 1px dashed #d1d5db;
   border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
 }
 
-.terminal-preview {
-  padding: 16px;
+.workspace-panel h3,
+.terminal-panel h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.workspace-tree {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tree-node {
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 14px;
+}
+
+.tree-item:hover {
+  background: #f3f4f6;
+}
+
+.tree-item.selected {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.tree-item.root {
+  font-weight: 600;
+  color: #374151;
+}
+
+.tree-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.tree-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-content {
+  flex: 1;
   background: #1f2937;
-  color: #d1d5db;
   border-radius: 6px;
+  padding: 12px;
   font-family:
     'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.5;
+  color: #d1d5db;
+  overflow-y: auto;
   overflow-x: auto;
+  white-space: pre;
+}
+
+.terminal-line {
+  min-height: 19px;
+}
+
+.metrics-bar {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-family:
+    'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
 }
 
 .computer-actions {
-  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
 }
 
 .btn-primary {
-  padding: 10px 20px;
+  padding: 10px 24px;
   background: #e11d48;
   color: white;
   border: none;
@@ -167,8 +182,34 @@
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
+  transition: background 0.15s;
 }
 
 .btn-primary:hover {
   background: #be123c;
+}
+
+.toast-message {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 20px;
+  background: #374151;
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
