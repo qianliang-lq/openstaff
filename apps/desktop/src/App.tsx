@@ -4,7 +4,8 @@ import Sidebar from './components/Sidebar';
 import MainStage from './components/MainStage';
 import './App.css';
 
-export type TabType = 'chat' | 'computer' | 'routines' | 'skills' | 'connectors' | 'memory';
+export type TabType =
+  'chat' | 'computer' | 'routines' | 'skills' | 'connectors' | 'memory' | 'settings';
 
 function App() {
   const [activeAgent, setActiveAgent] = useState('产品经理数字员工');
@@ -15,7 +16,7 @@ function App() {
       <Titlebar />
       <div className="body">
         <Sidebar activeAgent={activeAgent} onAgentChange={setActiveAgent} />
-        <MainStage activeTab={activeTab} onTabChange={setActiveTab} />
+        <MainStage activeTab={activeTab} onTabChange={setActiveTab} activeAgent={activeAgent} />
       </div>
     </div>
   );

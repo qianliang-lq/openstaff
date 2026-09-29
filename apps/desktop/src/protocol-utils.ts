@@ -1,9 +1,11 @@
-import { Message } from '@openstaff/protocol';
-
 /**
  * Protocol utilities for desktop app
- * Uses @openstaff/protocol for type-safe message handling
+ * Local message type definitions
  */
+
+export interface Message {
+  content: string;
+}
 
 export function createMessage(content: string): Message {
   return { content };

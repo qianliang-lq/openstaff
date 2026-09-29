@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { TabType } from '../App';
 import ChatStage from './stages/ChatStage';
+import Settings from './Settings';
 import { ExternalInsightFact } from './ExternalInsightReportCard';
 import './MainStage.css';
 
 interface MainStageProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
+  activeAgent: string;
 }
 
 interface Tab {
@@ -29,9 +31,10 @@ const tabs: Tab[] = [
   { id: 'skills', label: 'Skills' },
   { id: 'connectors', label: 'Connectors' },
   { id: 'memory', label: 'Memory' },
+  { id: 'settings', label: 'Settings' },
 ];
 
-function MainStage({ activeTab, onTabChange }: MainStageProps) {
+function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
   const [demoResponse, setDemoResponse] = useState<DemoResponse | null>(null);
   const [isRunningDemo, setIsRunningDemo] = useState(false);
 
@@ -54,7 +57,7 @@ function MainStage({ activeTab, onTabChange }: MainStageProps) {
       if (response.ok) {
         const data = await response.json();
         console.log('Fire response:', data);
-        
+
         // Poll runtime for job result
         const runtimeUrl = 'http://localhost:3003';
         let pollAttempts = 0;
@@ -63,7 +66,7 @@ function MainStage({ activeTab, onTabChange }: MainStageProps) {
 
         while (pollAttempts < maxPolls) {
           await new Promise((resolve) => setTimeout(resolve, pollInterval));
-          
+
           try {
             const insightResponse = await fetch(`${runtimeUrl}/v1/insights/latest`);
             if (insightResponse.ok) {
@@ -74,7 +77,7 @@ function MainStage({ activeTab, onTabChange }: MainStageProps) {
           } catch (error) {
             console.log('Polling attempt', pollAttempts + 1, 'failed:', error);
           }
-          
+
           pollAttempts++;
         }
 
@@ -131,12 +134,13 @@ function MainStage({ activeTab, onTabChange }: MainStageProps) {
       </div>
 
       <div className="stage">
-        {activeTab === 'chat' && <ChatStage demoResponse={demoResponse} />}
+        {activeTab === 'chat' && <ChatStage demoResponse={demoResponse} agentName={activeAgent} />}
         {activeTab === 'computer' && <div className="stub-page">Computer 沙箱 (开发中)</div>}
         {activeTab === 'routines' && <div className="stub-page">Routines 任务编排 (开发中)</div>}
         {activeTab === 'skills' && <div className="stub-page">Skills 技能库 (开发中)</div>}
         {activeTab === 'connectors' && <div className="stub-page">Connectors 连接器 (开发中)</div>}
         {activeTab === 'memory' && <div className="stub-page">Memory 记忆与人设 (开发中)</div>}
+        {activeTab === 'settings' && <Settings />}
       </div>
     </div>
   );

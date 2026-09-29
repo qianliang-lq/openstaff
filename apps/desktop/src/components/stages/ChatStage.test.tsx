@@ -15,7 +15,7 @@ describe('ChatStage', () => {
       reconcile_status: 'PASS',
       facts: [
         {
-          bucket: '竞对',
+          bucket: '竞对' as const,
           title: 'Test Fact',
           summary_zh: 'Test summary',
           url: 'https://example.com',
@@ -70,7 +70,7 @@ describe('ChatStage', () => {
       reconcile_status: 'PASS',
       facts: [
         {
-          bucket: '竞对',
+          bucket: '竞对' as const,
           title: 'Test Fact',
           summary_zh: 'Test summary',
           url: 'https://example.com',

@@ -104,6 +104,66 @@ just test
 # 或 cargo test --workspace
 ```
 
+### 配置 LLM (必需)
+
+OpenStaff 使用您自己的 LLM API 密钥（BYOK - Bring Your Own Key）。目前支持：
+
+1. **通义千问 (Qwen)** - 阿里云 DashScope
+2. **智谱 AI (GLM)** - ChatGLM
+
+#### 方式一：通过 Desktop 应用配置（推荐）
+
+1. 启动服务：`just dev-up`
+2. 在 Desktop 应用中点击 "Settings" 标签
+3. 选择 Provider (Qwen 或 GLM)
+4. 输入 API Key
+5. （可选）自定义 Base URL 和 Model
+6. 点击"保存配置"
+
+获取 API Key：
+- **Qwen**: https://dashscope.console.aliyun.com/
+- **GLM**: https://open.bigmodel.cn/
+
+#### 方式二：通过环境变量配置
+
+```bash
+# 设置 API Key
+export OPENSTAFF_LLM_API_KEY="your-api-key-here"
+
+# 启动服务
+just dev-up
+```
+
+**安全提示：**
+- API Key 仅存储在本地浏览器中，不会上传到服务器
+- 环境变量配置也仅在本地使用
+- 请勿在公共电脑上保存 API Key
+- 建议定期更换 API Key
+
+### 快速开始
+
+```bash
+# 1. 安装依赖
+just install
+
+# 2. 启动所有服务（后端 + 前端）
+just dev-up
+
+# 3. 在浏览器中打开 Desktop 应用
+# 地址会在启动日志中显示（通常是 http://localhost:5173）
+
+# 4. 在 Settings 标签中配置 API Key
+
+# 5. 返回 Chat 标签，开始与 Agent 对话
+```
+
+服务端口：
+- API Service: http://localhost:3000
+- Gateway Service: http://localhost:3001
+- Scheduler Service: http://localhost:3002
+- Runtime Service: http://localhost:3003
+- Desktop App: http://localhost:5173
+
 ### 常见问题
 
 #### Q: `cargo check --workspace` 失败，提示找不到 `gdk-3.0`

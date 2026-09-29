@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import './Sidebar.css';
 
 interface Agent {
@@ -12,6 +13,11 @@ interface Agent {
 interface SidebarProps {
   activeAgent: string;
   onAgentChange: (agentName: string) => void;
+}
+
+interface CreateAgentModalProps {
+  onClose: () => void;
+  onSave: (agent: Agent) => void;
 }
 
 const mockAgents: Agent[] = [
@@ -41,7 +47,80 @@ const mockAgents: Agent[] = [
   },
 ];
 
+function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !role.trim()) return;
+
+    const newAgent: Agent = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      role: role.trim(),
+      status: 'idle',
+      avatar: name.charAt(0),
+      avatarClass: 'custom',
+    };
+
+    onSave(newAgent);
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <h2>创建 Agent</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="form-field">
+            <label htmlFor="agent-name">Agent 名称</label>
+            <input
+              id="agent-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="例如：技术顾问"
+              autoFocus
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="agent-role">角色描述</label>
+            <input
+              id="agent-role"
+              type="text"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              placeholder="例如：技术支持 · API 集成"
+            />
+          </div>
+          <div className="modal-actions">
+            <button type="button" onClick={onClose} className="cancel-btn">
+              取消
+            </button>
+            <button type="submit" className="submit-btn" disabled={!name.trim() || !role.trim()}>
+              创建
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function Sidebar({ activeAgent, onAgentChange }: SidebarProps) {
+  const [agents, setAgents] = useState<Agent[]>(() => {
+    const saved = localStorage.getItem('agents');
+    return saved ? JSON.parse(saved) : mockAgents;
+  });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const handleSaveAgent = (newAgent: Agent) => {
+    const updatedAgents = [...agents, newAgent];
+    setAgents(updatedAgents);
+    localStorage.setItem('agents', JSON.stringify(updatedAgents));
+    onAgentChange(newAgent.name);
+  };
   return (
     <div className="sidebar">
       <div className="brand">
@@ -54,13 +133,13 @@ function Sidebar({ activeAgent, onAgentChange }: SidebarProps) {
 
       <div className="section-label">
         Agents
-        <button className="add" title="创建 Agent">
+        <button className="add" title="创建 Agent" onClick={() => setShowCreateModal(true)}>
           +
         </button>
       </div>
 
       <div className="agent-list">
-        {mockAgents.map((agent) => (
+        {agents.map((agent) => (
           <div
             key={agent.id}
             className={`agent-item ${activeAgent === agent.name ? 'active' : ''}`}
@@ -79,6 +158,10 @@ function Sidebar({ activeAgent, onAgentChange }: SidebarProps) {
       </div>
 
       <div className="sidebar-foot">v0.1 讨论稿</div>
+
+      {showCreateModal && (
+        <CreateAgentModal onClose={() => setShowCreateModal(false)} onSave={handleSaveAgent} />
+      )}
     </div>
   );
 }

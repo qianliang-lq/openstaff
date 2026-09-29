@@ -1,5 +1,6 @@
 mod audit;
 mod bypass;
+mod chat;
 
 use axum::{routing::get, routing::post, Json, Router};
 use openstaff_protocol::HealthResponse;
@@ -26,6 +27,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(root))
         .route("/health", get(health_check))
         .route("/v1/egress/fetch", post(bypass::egress_fetch))
+        .route("/v1/chat", post(chat::chat_completion))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
 
@@ -36,6 +38,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("📡 Listening on http://{}", addr);
     tracing::info!("🏥 Health check: http://{}/health", addr);
     tracing::info!("🌐 Public egress: POST /v1/egress/fetch");
+    tracing::info!("💬 Chat completion: POST /v1/chat");
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;

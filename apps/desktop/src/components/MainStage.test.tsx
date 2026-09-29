@@ -5,7 +5,7 @@ import MainStage from './MainStage';
 describe('MainStage', () => {
   it('should render all tabs', () => {
     const onTabChange = () => {};
-    render(<MainStage activeTab="chat" onTabChange={onTabChange} />);
+    render(<MainStage activeTab="chat" onTabChange={onTabChange} activeAgent="测试员工" />);
 
     expect(screen.getByText('Chat')).toBeInTheDocument();
     expect(screen.getByText('Computer')).toBeInTheDocument();
@@ -17,7 +17,7 @@ describe('MainStage', () => {
 
   it('should display ChatStage when chat tab is active', () => {
     const onTabChange = () => {};
-    render(<MainStage activeTab="chat" onTabChange={onTabChange} />);
+    render(<MainStage activeTab="chat" onTabChange={onTabChange} activeAgent="测试员工" />);
 
     const chatStage = document.querySelector('.chat-stage');
     expect(chatStage).toBeInTheDocument();
@@ -25,7 +25,7 @@ describe('MainStage', () => {
 
   it('should highlight active tab', () => {
     const onTabChange = () => {};
-    render(<MainStage activeTab="chat" onTabChange={onTabChange} />);
+    render(<MainStage activeTab="chat" onTabChange={onTabChange} activeAgent="测试员工" />);
 
     const activeTab = document.querySelector('.tab.active');
     expect(activeTab).toBeInTheDocument();
