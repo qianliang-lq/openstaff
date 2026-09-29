@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { TabType } from '../App';
 import ChatStage from './stages/ChatStage';
+import Computer from './pages/Computer';
+import Routines from './pages/Routines';
+import Skills from './pages/Skills';
 import Connectors from './Connectors';
+import Memory from './pages/Memory';
 import { ExternalInsightFact } from './ExternalInsightReportCard';
 import './MainStage.css';
 
@@ -140,11 +144,11 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
             onNavigateToConnectors={() => onTabChange('connectors')}
           />
         )}
-        {activeTab === 'computer' && <div className="stub-page">Computer 沙箱 (开发中)</div>}
-        {activeTab === 'routines' && <div className="stub-page">Routines 任务编排 (开发中)</div>}
-        {activeTab === 'skills' && <div className="stub-page">Skills 技能库 (开发中)</div>}
+        {activeTab === 'computer' && <Computer />}
+        {activeTab === 'routines' && <Routines />}
+        {activeTab === 'skills' && <Skills />}
         {activeTab === 'connectors' && <Connectors />}
-        {activeTab === 'memory' && <div className="stub-page">Memory 记忆与人设 (开发中)</div>}
+        {activeTab === 'memory' && <Memory />}
       </div>
     </div>
   );
