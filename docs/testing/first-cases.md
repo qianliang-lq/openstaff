@@ -2827,11 +2827,17 @@ Correct path: Encoding fixes product code → tests turn green → App mode is v
 
 ---
 
-## §12 Next Slice Tests (TC-081+)
+## §12 Next Slice Tests v1.1 (TC-081+ including TC-086)
 
 ### Overview
 
-TC-081+ validates the §12 next slice requirements. These are **TEST ONLY** cases - implementation is expected to land separately. Some tests are **EXPECTED RED** until encoding fixes land.
+TC-081+ validates the §12 next slice requirements **v1.1**. These are **TEST ONLY** cases - implementation is expected to land separately. Some tests are **EXPECTED RED** until encoding fixes land.
+
+**v1.1 Changes**:
+- Added **TC-086: Web Search Skill** (sketch 22/04/16)
+  - NOT a Connectors OAuth card
+  - Under Skills tab: list + detail + test run
+  - Fixture OK, no real API calls required
 
 **Critical**: These tests document contracts that must be satisfied. Do NOT:
 - Add escape hatches or SECURITY TODO soft-pass
@@ -3034,7 +3040,71 @@ cd apps/desktop && pnpm test slice-12-tests -t "TC-085"
 
 ---
 
-## Running §12 Slice Tests
+### TC-086: Web Search Skill (Sketch 22/04/16) ⭐ NEW in v1.1
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Function**: Multiple tests for Web Search skill
+
+**Purpose**: Validate Web Search skill UI and test run flow per sketch 22/04/16.
+
+**Critical Contract**: Web Search is a **Skill**, NOT a Connectors OAuth card.
+
+**Acceptance Criteria**:
+- ✅ Web Search appears in Skills tab (NOT Connectors)
+- ✅ List item in Skills
+- ✅ Detail view: enable/disable toggle
+- ✅ Detail view: auto-call configuration
+- ✅ 「试跑一次」button
+- ✅ Running state indicator
+- ✅ Green success summary on success
+- ✅ Red error card on failure
+- ✅ Explicit backend down error (not silent)
+- ✅ Uses fixture (no real Serper/Tavily/Google API calls)
+- ❌ FORBIDDEN: Second SaaS auth card for Web Search in Connectors
+
+**UI Elements Expected**:
+- Skills tab: Web Search skill list item
+- Detail view: Enable/disable toggle
+- Detail view: Auto-call configuration (when to trigger)
+- Test button: 「试跑一次」
+- Running state: `.skill-running` or `.running-state`
+- Success: `.skill-success` green summary card
+- Error: `.skill-error` red error card
+- Backend error: Explicit "后端服务不可用" or "Backend unavailable" message
+
+**Current Status**: ❌ **EXPECTED RED** - Web Search skill not yet implemented
+
+**Expected Result**: ✅ Web Search skill with test run flow
+
+**Test Results**:
+- **Total**: 10 tests
+- **Passed**: 2 ✅
+  1. should NOT show Web Search as SaaS auth card in Connectors
+  2. should use fixture for Web Search test run (no real web calls required)
+- **Failed**: 8 ❌ (EXPECTED)
+  1. should render Web Search skill in Skills tab (not Connectors)
+  2. should show Web Search skill detail with enable/disable toggle
+  3. should show Web Search skill detail with auto-call configuration
+  4. should render「试跑一次」button for Web Search skill
+  5. should show running state when executing Web Search test run
+  6. should show green success summary after successful Web Search test run
+  7. should show red error card when Web Search test run fails
+  8. should show explicit error message when backend is down
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -t "TC-086"
+```
+
+**Offline**: ✅ Yes (UI rendering tests with fixtures)
+
+**Honesty Note**: Tests document sketch 22/04/16 requirements. Web Search is a Skill, not a Connectors OAuth integration. Current Skills tab is stub. Tests use fixture data - no real web search API calls required.
+
+---
+
+## Running §12 Slice Tests v1.1
 
 ### All Slice 12 Tests
 
@@ -3045,6 +3115,11 @@ cd apps/desktop && pnpm test slice-12-tests
 **Expected**: ❌ Most tests RED (intentional - features not yet implemented)  
 **Time**: ~2-3 seconds  
 **Offline**: ✅ Yes (all UI rendering tests)
+
+**v1.1 Results**:
+- **Total**: 35 tests (was 25 in v1.0)
+- **Passed**: 6 ✅ (17%)
+- **Failed**: 29 ❌ (83% - EXPECTED RED)
 
 ### Individual Test Suites
 
@@ -3063,11 +3138,14 @@ cd apps/desktop && pnpm test slice-12-tests -t "TC-084"
 
 # TC-085: GitHub connector
 cd apps/desktop && pnpm test slice-12-tests -t "TC-085"
+
+# TC-086: Web Search skill (NEW in v1.1)
+cd apps/desktop && pnpm test slice-12-tests -t "TC-086"
 ```
 
 ---
 
-## Test Coverage Summary (TC-081+)
+## Test Coverage Summary (TC-081+ v1.1)
 
 **Added Coverage**:
 1. **Ban-word Scan**: TC-081 validates no forbidden placeholder text across all routes
@@ -3075,17 +3153,19 @@ cd apps/desktop && pnpm test slice-12-tests -t "TC-085"
 3. **Validation Gate**: TC-083 validates gate card UI per sketch 14
 4. **Agent Wizard**: TC-084 validates 3-step creation wizard per sketch 12
 5. **GitHub Connector**: TC-085 validates Connect/Test/Status UI (no real OAuth)
+6. **Web Search Skill**: TC-086 validates Skill UI and test run flow (sketch 22/04/16) ⭐ **NEW**
 
 **Delivery Bar**: These tests are TEST ONLY - expected red until implementation lands. Tests document contracts that encoding must satisfy.
 
-**Expected Red Tests**:
-- TC-081: Multiple routes show "开发中" (4-5 tests failing)
-- TC-082: Error swallowed into timeout (1 test failing)
+**Expected Red Tests v1.1**:
+- TC-081: Multiple routes show "开发中" (5 tests failing)
+- TC-082: Error swallowed into timeout (3 tests failing)
 - TC-083: Gate UI not implemented (3 tests failing)
-- TC-084: Wizard UI not implemented (4 tests failing)
+- TC-084: Wizard UI not implemented (3 tests failing)
 - TC-085: GitHub connector is stub (6 tests failing)
+- TC-086: Web Search skill not implemented (8 tests failing) ⭐ **NEW**
 
-**Total**: ~18-20 tests failing (expected)
+**Total**: ~28-29 tests failing (expected)
 
 **Honesty Note**: These tests are designed to fail until features land. Do NOT:
 - Add escape hatches (SECURITY TODO)

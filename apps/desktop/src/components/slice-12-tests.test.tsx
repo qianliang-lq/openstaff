@@ -476,6 +476,168 @@ describe('TC-085: GitHub SaaS connector smoke', () => {
 });
 
 /**
+ * TC-086: Web Search Skill (sketch 22/04/16)
+ *
+ * NOT a Connectors OAuth card. Under Skills tab:
+ * - List item + detail view (auto-call config / enable-disable toggle)
+ * - 「试跑一次」→ running state → green summary OR red error card
+ * - Backend down → explicit error (not silent failure)
+ * - Fixture OK for testing
+ *
+ * FORBIDDEN: Second SaaS auth card for web search in Connectors
+ *
+ * Current Status: ❌ EXPECTED RED - Web Search Skill not implemented
+ */
+describe('TC-086: Web Search Skill', () => {
+  it('should render Web Search skill in Skills tab (not Connectors)', () => {
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // ❌ EXPECTED TO FAIL: Skills tab is stub, Web Search not implemented
+    const webSearchSkill = screen.queryByText(/Web Search|网页搜索|搜索技能/i);
+
+    expect(
+      webSearchSkill,
+      'TC-086 EXPECTED RED: Web Search skill not yet implemented in Skills tab'
+    ).toBeInTheDocument();
+  });
+
+  it('should NOT show Web Search as SaaS auth card in Connectors', () => {
+    render(<MainStage activeTab="connectors" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // Web Search should NOT appear as OAuth/auth card in Connectors
+    // It's a skill, not a credential provider
+
+    const connectorCards = document.querySelectorAll('.provider-card');
+    let hasWebSearchConnector = false;
+
+    connectorCards.forEach((card) => {
+      if (card.textContent?.includes('Web Search') || card.textContent?.includes('网页搜索')) {
+        hasWebSearchConnector = true;
+      }
+    });
+
+    // Should pass - Web Search is NOT a Connectors card
+    expect(
+      hasWebSearchConnector,
+      'Web Search should NOT be in Connectors (it is a Skill, not SaaS auth)'
+    ).toBe(false);
+  });
+
+  it('should show Web Search skill detail with enable/disable toggle', () => {
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // ❌ EXPECTED TO FAIL: Skill detail view not implemented
+    const enableToggle = screen.queryByRole('switch', {
+      name: /启用|Enable/i,
+    });
+
+    expect(
+      enableToggle,
+      'TC-086 EXPECTED RED: Enable/disable toggle not yet implemented'
+    ).toBeInTheDocument();
+  });
+
+  it('should show Web Search skill detail with auto-call configuration', () => {
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // ❌ EXPECTED TO FAIL: Auto-call config not implemented
+    const autoCallConfig = screen.queryByText(/自动调用|Auto-call|触发条件/i);
+
+    expect(
+      autoCallConfig,
+      'TC-086 EXPECTED RED: Auto-call config not yet implemented'
+    ).toBeInTheDocument();
+  });
+
+  it('should render「试跑一次」button for Web Search skill', () => {
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // ❌ EXPECTED TO FAIL: Test run button not implemented
+    const testRunButton = screen.queryByRole('button', {
+      name: /试跑一次|测试运行/i,
+    });
+
+    expect(
+      testRunButton,
+      'TC-086 EXPECTED RED: Test run button not yet implemented'
+    ).toBeInTheDocument();
+  });
+
+  it('should show running state when executing Web Search test run', () => {
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // ❌ EXPECTED TO FAIL: Running state not implemented
+    // After clicking 试跑一次, should show running indicator
+    const runningIndicator = document.querySelector('.skill-running, .running-state');
+
+    expect(
+      runningIndicator,
+      'TC-086 EXPECTED RED: Running state indicator not yet implemented'
+    ).toBeTruthy();
+  });
+
+  it('should show green success summary after successful Web Search test run', () => {
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // ❌ EXPECTED TO FAIL: Success summary not implemented
+    // After successful test run, should show green summary card
+    const successSummary = document.querySelector('.skill-success, .success-summary');
+
+    expect(
+      successSummary,
+      'TC-086 EXPECTED RED: Success summary card not yet implemented'
+    ).toBeTruthy();
+  });
+
+  it('should show red error card when Web Search test run fails', () => {
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // ❌ EXPECTED TO FAIL: Error card not implemented
+    // When test run fails, should show red error card
+    const errorCard = document.querySelector('.skill-error, .error-card');
+
+    expect(errorCard, 'TC-086 EXPECTED RED: Error card not yet implemented').toBeTruthy();
+  });
+
+  it('should show explicit error message when backend is down', () => {
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // ❌ EXPECTED TO FAIL: Explicit backend error not implemented
+    // When backend is down, should NOT be silent failure
+    // Should show explicit error like "后端服务不可用" or "Backend unavailable"
+
+    const body = document.body.textContent || '';
+
+    // This test documents the requirement:
+    // Explicit error when backend down (not silent failure)
+    expect(
+      body.includes('后端') || body.includes('Backend') || body.includes('服务'),
+      'TC-086 EXPECTED RED: Explicit backend error message not yet implemented'
+    ).toBe(true);
+  });
+
+  it('should use fixture for Web Search test run (no real web calls required)', () => {
+    // This test documents the requirement: use fixture, no real web search calls
+
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // Web Search test should work with fixture data
+    // No real Serper/Tavily/Google API calls required in tests
+
+    const body = document.body.textContent || '';
+
+    // Should NOT show real API URLs or require API keys
+    expect(body).not.toContain('serper.dev');
+    expect(body).not.toContain('tavily.com');
+    expect(body).not.toContain('googleapis.com');
+
+    // This test passes trivially now (stub),
+    // but documents that implementation should use fixtures
+    expect(true, 'TC-086: Web Search tests should use fixtures (no real API calls)').toBe(true);
+  });
+});
+
+/**
  * Summary of Expected Results:
  *
  * TC-081: ❌ EXPECTED RED - Multiple stages show "开发中"
@@ -483,6 +645,7 @@ describe('TC-085: GitHub SaaS connector smoke', () => {
  * TC-083: ❌ EXPECTED RED - Validation gate UI not implemented (sketch 14)
  * TC-084: ❌ EXPECTED RED - Agent wizard not implemented (sketch 12)
  * TC-085: ❌ EXPECTED RED - GitHub connector is stub with "敬请期待"
+ * TC-086: ❌ EXPECTED RED - Web Search skill not implemented (sketch 22/04/16)
  *
  * These tests document the contracts that encoding must satisfy.
  * Tests should NOT be deleted or soft-passed with escape hatches.

@@ -1,20 +1,24 @@
-# TC-081 through TC-085 Test Results
+# TC-081 through TC-086 Test Results (v1.1)
 
 **Branch**: `cursor/tc-081-085-tests-434e`  
-**Commit**: `3bb4b24`  
+**Version**: v1.1  
 **Date**: 2026-09-29  
-**Status**: Tests implemented, awaiting implementation
+**Status**: Tests implemented (v1.1 with TC-086), awaiting implementation
 
 ---
 
 ## Summary
 
-Implemented 25 test cases for §12 next slice requirements (TC-081 through TC-085).
+Implemented **35 test cases** for §12 next slice requirements v1.1 (TC-081 through TC-086).
 
-**Test Results**:
-- ✅ **4 passed** (16%)
-- ❌ **21 failed** (84% - **EXPECTED RED**)
-- **Total**: 25 tests
+**v1.1 Changes**:
+- Added **TC-086: Web Search Skill** (10 new tests)
+- Total tests increased from 25 to 35
+
+**Test Results v1.1**:
+- ✅ **6 passed** (17%)
+- ❌ **29 failed** (83% - **EXPECTED RED**)
+- **Total**: 35 tests
 
 These tests are **TEST ONLY** - implementation is expected to land separately. The failing tests document contracts that encoding must satisfy.
 
@@ -144,17 +148,58 @@ These tests are **TEST ONLY** - implementation is expected to land separately. T
 
 ---
 
+### TC-086: Web Search Skill (Sketch 22/04/16) ⭐ NEW in v1.1
+
+**Purpose**: Validate Web Search skill UI and test run flow per sketch 22/04/16
+
+**Total**: 10 tests  
+**Passed**: 2 ✅  
+**Failed**: 8 ❌ (EXPECTED)
+
+**Critical Contract**: Web Search is a **Skill**, NOT a Connectors OAuth card.
+
+**Passing Tests**:
+1. ✅ should NOT show Web Search as SaaS auth card in Connectors - Validates Web Search is NOT in Connectors
+2. ✅ should use fixture for Web Search test run (no real web calls required) - Documentation test
+
+**Failing Tests** (Expected):
+1. ❌ should render Web Search skill in Skills tab (not Connectors)
+2. ❌ should show Web Search skill detail with enable/disable toggle
+3. ❌ should show Web Search skill detail with auto-call configuration
+4. ❌ should render「试跑一次」button for Web Search skill
+5. ❌ should show running state when executing Web Search test run
+6. ❌ should show green success summary after successful Web Search test run
+7. ❌ should show red error card when Web Search test run fails
+8. ❌ should show explicit error message when backend is down
+
+**Current Issue**: Skills tab is stub. Web Search skill not implemented.
+
+**Fix Required**: Implement Web Search skill in Skills tab with:
+- List item in Skills
+- Detail view with enable/disable toggle
+- Auto-call configuration (when to trigger)
+- 「试跑一次」button
+- Running state indicator
+- Green success summary on success
+- Red error card on failure
+- Explicit backend down error message
+- Use fixture (no real Serper/Tavily/Google API calls)
+
+**FORBIDDEN**: Do NOT add Web Search as a second SaaS auth card in Connectors. It is a Skill, not a credential provider.
+
+---
+
 ## Test File Locations
 
 - **Test File**: `apps/desktop/src/components/slice-12-tests.test.tsx`
-- **Documentation**: `docs/testing/first-cases.md` (updated with TC-081+ section)
+- **Documentation**: `docs/testing/first-cases.md` (updated with TC-086 in v1.1)
 
 ---
 
 ## Running Tests
 
 ```bash
-# All slice 12 tests
+# All slice 12 tests (v1.1)
 cd apps/desktop && pnpm test slice-12-tests
 
 # Individual test suites
@@ -163,11 +208,12 @@ cd apps/desktop && pnpm test slice-12-tests -t "TC-082"
 cd apps/desktop && pnpm test slice-12-tests -t "TC-083"
 cd apps/desktop && pnpm test slice-12-tests -t "TC-084"
 cd apps/desktop && pnpm test slice-12-tests -t "TC-085"
+cd apps/desktop && pnpm test slice-12-tests -t "TC-086"  # NEW in v1.1
 ```
 
 ---
 
-## Expected Red Tests
+## Expected Red Tests v1.1
 
 The following tests are **INTENTIONALLY FAILING** until implementation lands:
 
@@ -189,7 +235,14 @@ The following tests are **INTENTIONALLY FAILING** until implementation lands:
 - GitHub connector is stub
 - No Connect/Test/Status UI
 
-**Total Expected Red**: 20 tests
+### TC-086 (8 failures) ⭐ NEW
+- Web Search skill not implemented
+- Skills tab is stub
+- No enable/disable toggle
+- No auto-call config
+- No test run flow
+
+**Total Expected Red**: 28 tests (was 20 in v1.0)
 
 ---
 
@@ -200,12 +253,19 @@ The following tests are **INTENTIONALLY FAILING** until implementation lands:
    - Delete tests to make CI green
    - Soft-pass with comments
    - Invent product UI labels
+   - Add Web Search as SaaS auth card in Connectors (FORBIDDEN)
 
 2. **Correct Path**:
    - Implement features → tests turn green
    - Tests document contracts that encoding must satisfy
 
 3. **No Soft-Pass SECURITY TODOs**: These are contract tests, not security gates
+
+4. **Web Search Skill Contract** (TC-086):
+   - Web Search is a **Skill**, NOT a Connectors OAuth card
+   - Should appear in Skills tab, NOT Connectors tab
+   - Uses fixture data (no real API calls in tests)
+   - Sketches: 22, 04, 16
 
 ---
 
@@ -219,11 +279,29 @@ The following tests are **INTENTIONALLY FAILING** until implementation lands:
 ## Documentation Updates
 
 Updated `docs/testing/first-cases.md` with:
-- TC-081 through TC-085 detailed documentation
+- v1.1 header and version info
+- TC-086 Web Search Skill detailed documentation
+- Updated test statistics (35 total, 6 passed, 29 failed)
 - Test purpose and acceptance criteria
 - Current status and expected results
 - Commands for running tests
 - Test coverage summary
+
+---
+
+## Version History
+
+### v1.1 (2026-09-29)
+- Added TC-086: Web Search Skill (10 tests)
+- Total tests: 25 → 35
+- Passed: 4 → 6
+- Failed: 21 → 29 (expected)
+
+### v1.0 (2026-09-29)
+- Initial implementation: TC-081 through TC-085
+- Total tests: 25
+- Passed: 4
+- Failed: 21 (expected)
 
 ---
 
@@ -235,6 +313,7 @@ Updated `docs/testing/first-cases.md` with:
    - Implement validation gate UI (TC-083)
    - Implement agent wizard (TC-084)
    - Implement GitHub connector UI (TC-085)
+   - **Implement Web Search skill in Skills tab (TC-086)** ⭐ **NEW**
 
 2. **Test Evolution**:
    - As features land, tests will turn green
@@ -243,11 +322,14 @@ Updated `docs/testing/first-cases.md` with:
 
 ---
 
-**Status**: ✅ Tests implemented and documented  
+**Status**: ✅ Tests implemented and documented (v1.1)  
 **Baseline**: `f10893a`  
-**Test Commit**: `3bb4b24`  
+**v1.0 Commit**: `3bb4b24`  
+**v1.1 Commit**: TBD (in progress)  
 **Branch**: `cursor/tc-081-085-tests-434e`
 
 ---
 
 **Honesty Note**: These tests are designed to fail until features land. This is intentional and documents the contracts that must be satisfied. The failing tests serve as a specification for the implementation work.
+
+**v1.1 Specific Note**: TC-086 documents the Web Search Skill contract. Web Search is a Skill (Skills tab), NOT a Connectors OAuth integration. Do not add it to Connectors as a second SaaS auth card.
