@@ -35,10 +35,8 @@ describe('App Mode Contract Tests', () => {
       const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
       
       // Assert script exists
-      expect(packageJson.scripts).toHaveProperty(scriptName, 
-        `beforeDevCommand references "${scriptName}" but it doesn't exist in package.json scripts. ` +
-        `Available scripts: ${Object.keys(packageJson.scripts).join(', ')}`
-      );
+      expect(packageJson.scripts).toHaveProperty(scriptName);
+      expect(packageJson.scripts[scriptName]).toBeDefined();
     });
 
     it('should have beforeBuildCommand script in package.json', () => {
@@ -60,10 +58,8 @@ describe('App Mode Contract Tests', () => {
       const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
       
       // Assert script exists
-      expect(packageJson.scripts).toHaveProperty(scriptName,
-        `beforeBuildCommand references "${scriptName}" but it doesn't exist in package.json scripts. ` +
-        `Available scripts: ${Object.keys(packageJson.scripts).join(', ')}`
-      );
+      expect(packageJson.scripts).toHaveProperty(scriptName);
+      expect(packageJson.scripts[scriptName]).toBeDefined();
     });
   });
 
@@ -116,37 +112,40 @@ describe('App Mode Contract Tests', () => {
       const windows = tauriConf.app?.windows || [];
       const hasDecorationsDisabled = windows.some((w: any) => w.decorations === false);
       
-      // Read Titlebar.tsx to check if it renders a title
+      // Check if Titlebar.tsx exists
       const titlebarPath = resolve(__dirname, 'components/Titlebar.tsx');
-      const titlebarContent = readFileSync(titlebarPath, 'utf-8');
+      let titlebarExists = false;
+      let rendersTitleText = false;
       
-      // Check if Titlebar renders the product name "OpenStaff"
-      const rendersTitleText = titlebarContent.includes('OpenStaff') ||
-                              titlebarContent.includes('titlebar-title');
-      
-      // Read App.tsx to check if Titlebar is mounted
-      const appPath = resolve(__dirname, 'App.tsx');
-      const appContent = readFileSync(appPath, 'utf-8');
-      const mountsTitlebar = appContent.includes('<Titlebar');
-      
-      // Contract: If Titlebar is mounted and renders product name, decorations MUST be false
-      if (mountsTitlebar && rendersTitleText) {
-        expect(hasDecorationsDisabled).toBe(true,
-          'App mounts Titlebar component that renders "OpenStaff", but tauri.conf.json window ' +
-          'does not set "decorations: false". This creates double title bar chrome: ' +
-          'native macOS title bar showing "OpenStaff" PLUS in-app Titlebar also showing "OpenStaff". ' +
-          'Fix: Either (A) set "decorations: false" in tauri.conf.json windows config, ' +
-          'OR (B) remove product title from Titlebar.tsx to avoid duplication.'
-        );
+      try {
+        const titlebarContent = readFileSync(titlebarPath, 'utf-8');
+        titlebarExists = true;
+        
+        // Check if Titlebar renders the product name "OpenStaff"
+        rendersTitleText = titlebarContent.includes('OpenStaff') ||
+                          titlebarContent.includes('titlebar-title');
+      } catch (e: any) {
+        if (e.code !== 'ENOENT') throw e;
+        // File doesn't exist - this is acceptable (one way to fix double title bar)
       }
       
-      // Alternative contract: If decorations are true, Titlebar should not render duplicate title
-      if (!hasDecorationsDisabled && mountsTitlebar && rendersTitleText) {
-        // This will fail with the message above
-        expect.fail(
-          'Double title bar detected: native decorations are enabled (default) AND ' +
-          'Titlebar.tsx renders product name. Choose one approach.'
-        );
+      // Check if App.tsx mounts Titlebar (only if Titlebar exists)
+      let mountsTitlebar = false;
+      if (titlebarExists) {
+        const appPath = resolve(__dirname, 'App.tsx');
+        const appContent = readFileSync(appPath, 'utf-8');
+        mountsTitlebar = appContent.includes('<Titlebar');
+      }
+      
+      // Contract: If Titlebar is mounted and renders product name, decorations MUST be false
+      // OR: If Titlebar doesn't exist, that's a valid fix (no duplicate title)
+      if (mountsTitlebar && rendersTitleText) {
+        expect(hasDecorationsDisabled).toBe(true);
+      }
+      // If Titlebar doesn't exist or doesn't render title, test passes (issue is resolved)
+      else {
+        // No double title bar issue - pass
+        expect(true).toBe(true);
       }
     });
   });
