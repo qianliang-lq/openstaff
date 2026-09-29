@@ -1604,6 +1604,69 @@ OPENSTAFF_SMOKE=1 cargo test -p openstaff-protocol --test one_click_contract -- 
 
 ---
 
+---
+
+## BYOK Chat Contract Tests (TC-059)
+
+### Overview
+
+TC-059 validates that `Settings.tsx` does NOT use `localStorage` for sensitive data like API keys, enforcing §10 / 10-byok-chat-cut security requirements.
+
+**Critical**: This test is **expected to FAIL** until Settings.tsx migrates to Tauri secure storage / OS keychain. Leaving it red is intentional and documents the technical debt.
+
+---
+
+#### TC-059: Settings Must Not Use localStorage for Keys
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/byok_chat_contract.rs`  
+**Function**: `tc_059_settings_no_localstorage_keys()`
+
+**Purpose**: Validate Settings.tsx does NOT store API keys in localStorage (security violation).
+
+**Current Status**: ❌ **EXPECTED FAIL** (intentional)
+
+**Violation**: `apps/desktop/src/components/Settings.tsx` currently uses:
+```typescript
+localStorage.setItem('apiKey', apiKey);
+localStorage.setItem('openai_api_key', openaiKey);
+localStorage.setItem('anthropic_api_key', anthropicKey);
+```
+
+**Security Requirement**: API keys and tokens MUST be stored in:
+- Tauri secure storage (`invoke('plugin:keytar|get_password')`)
+- OS native keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+
+**Why localStorage is Insecure**:
+- Browser localStorage is plain text
+- No OS-level encryption
+- Accessible to all JavaScript code
+- Persists across sessions without protection
+
+**Test Behavior**:
+- ✅ PASS if Settings.tsx doesn't exist
+- ❌ FAIL if Settings.tsx uses `localStorage.setItem` + key/token patterns
+- **NO ESCAPE HATCHES**: SECURITY TODO comments do NOT soft-pass this test
+
+**Expected Result**: ❌ Test fails until secure storage migration is complete
+
+**Command**:
+
+```bash
+cargo test tc_059 -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (file parsing only)
+
+**Honesty Note**: This test is expected to fail and should NOT be "fixed" by:
+- Adding SECURITY TODO comments (removed escape hatches)
+- Deleting the keys feature (encoding team owns the fix)
+- Commenting out the test (defeats the purpose)
+
+The correct fix is migrating Settings.tsx to Tauri secure storage APIs. Until then, TC-059 stays red.
+
+---
+
 ## All Tests Summary (Updated for TC-051+)
 
 ### Backend Tests (Rust)
@@ -1613,15 +1676,18 @@ OPENSTAFF_SMOKE=1 cargo test -p openstaff-protocol --test one_click_contract -- 
 cargo test --workspace --exclude openstaff-desktop
 ```
 
-**Expected**: ✅ 46+ tests pass
+**Expected**: ✅ 46+ tests pass, ❌ 1 expected failure (TC-059)
 - TC-001 through TC-020: Protocol + health endpoints (20 tests)
 - TC-028, TC-029: External insight schema + reconcile gate (2 tests)
 - TC-031 through TC-038: Demo-MVP contract tests (8 tests)
 - TC-043 through TC-045: Slice 2 runtime tests (3 tests, **known failures on main**)
 - TC-046 through TC-050: Slice 2 desktop tests (5 tests)
 - **TC-051 through TC-054c: One-click start contract tests (6 tests)** ⭐ **NEW**
+- **TC-059: BYOK Settings security contract (1 test)** ⭐ **EXPECTED FAIL** ❌
 
-**Note**: TC-043, TC-044, TC-045 are known failures on main (a7f2dc4) - insights endpoint not fully implemented.
+**Note**: 
+- TC-043, TC-044, TC-045 are known failures on main (a7f2dc4) - insights endpoint not fully implemented.
+- **TC-059 is expected to FAIL** until Settings.tsx migrates to Tauri secure storage (intentional red).
 
 ### Frontend Tests (TypeScript)
 

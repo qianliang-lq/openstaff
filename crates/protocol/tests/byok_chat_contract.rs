@@ -6,6 +6,7 @@
 //! - Auth failures: no key + no env → 401/403 (not silent success)
 //! - Audit scrubbing: no keys, no full message bodies in logs
 //!
+//! TC-059 HARDENED: NO escape hatches for SECURITY TODO comments.
 //! These tests are offline-friendly and run in CI by default.
 
 use std::env;
@@ -198,6 +199,8 @@ fn tc_058_path_gate_desktop_targets_api() {
 
 /// TC-059: Settings Key Storage - No localStorage Keys
 ///
+/// **HARDENED VERSION**: NO escape hatches for SECURITY TODO comments.
+///
 /// Validates that provider API keys are NOT stored in localStorage
 /// (which is vulnerable to XSS attacks).
 ///
@@ -209,12 +212,17 @@ fn tc_058_path_gate_desktop_targets_api() {
 /// - localStorage
 /// - sessionStorage
 /// - Unencrypted files in repository
+///
+/// **CRITICAL**: This test is expected to FAIL until Settings.tsx migrates to secure storage.
+/// DO NOT add SECURITY TODO comments to bypass this test.
+/// DO NOT delete the keys feature to make this pass - encoding team owns the fix.
 #[test]
 fn tc_059_settings_no_localstorage_keys() {
     // Contract: Desktop settings MUST NOT write provider keys to localStorage
     // Search for patterns like:
     //   - localStorage.setItem("qwen_key", ...)
     //   - localStorage.setItem("glm_key", ...)
+    //   - localStorage.setItem with apiKey patterns
     //   - window.localStorage
 
     let desktop_src_path = workspace_root().join("apps/desktop/src");
@@ -241,16 +249,26 @@ fn tc_059_settings_no_localstorage_keys() {
                     || content.contains("api_key");
 
                 if has_localstorage_set && has_key_pattern {
-                    // Allow if there's a comment explaining it's NOT for provider keys
-                    // OR it's marked as TODO/temporary MVP implementation
-                    assert!(
-                        content.contains("// NOT provider key")
-                            || content.contains("// safe:")
-                            || content.contains("// test fixture")
-                            || content.contains("TODO: SECURITY")
-                            || content.contains("SECURITY - Migrate to Tauri"),
-                        "Suspicious localStorage.setItem with key pattern in {:?} - add safety/TODO comment if temporary MVP",
-                        file.file_name()
+                    // HARDENED: NO ESCAPE HATCHES
+                    // Even if there's a TODO: SECURITY comment, this test FAILS
+                    // This is the key change from the original TC-059
+                    panic!(
+                        "SECURITY VIOLATION: {:?} uses localStorage.setItem for sensitive data (keys/tokens).\n\
+                         \n\
+                         This violates §10 / 10-byok-chat-cut security requirements.\n\
+                         \n\
+                         localStorage is NOT secure for API keys - they must be stored in:\n\
+                         - Tauri secure storage (invoke('plugin:keytar|get_password'))\n\
+                         - OS native keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)\n\
+                         \n\
+                         This test is expected to FAIL until secure storage migration is complete.\n\
+                         DO NOT add SECURITY TODO comments to bypass this test (escape hatches removed).\n\
+                         DO NOT delete the keys feature to make this pass - encoding team owns the fix.\n\
+                         \n\
+                         Expected fix: Migrate to Tauri secure storage APIs.\n\
+                         File: {:?}",
+                        file.file_name(),
+                        file
                     );
                 }
             }
@@ -265,6 +283,7 @@ fn tc_059_settings_no_localstorage_keys() {
     eprintln!(
         "   Contract: Use OS keychain (Tauri secure storage) or encrypted app data directory"
     );
+    eprintln!("   HARDENED: NO escape hatches for SECURITY TODO comments");
 }
 
 #[cfg(test)]
