@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import ValidationGateWidget from '../ValidationGateWidget';
 import ExternalInsightReportCard, { type ExternalInsightFact } from '../ExternalInsightReportCard';
 import './ChatStage.css';
@@ -6,13 +7,6 @@ import './ChatStage.css';
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
-}
-
-interface LLMConfig {
-  provider: 'qwen' | 'glm';
-  apiKey: string;
-  baseUrl?: string;
-  model?: string;
 }
 
 interface DemoResponse {
@@ -89,24 +83,8 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
     scrollToBottom();
   }, [messages]);
 
-  const getLLMConfig = (): LLMConfig | null => {
-    const configStr = localStorage.getItem('llm_config');
-    if (!configStr) return null;
-    try {
-      return JSON.parse(configStr);
-    } catch {
-      return null;
-    }
-  };
-
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
-
-    const config = getLLMConfig();
-    if (!config || !config.apiKey) {
-      setErrorMessage('请先在设置中配置 API Key');
-      return;
-    }
 
     const userMessage: ChatMessage = {
       role: 'user',
@@ -119,28 +97,57 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
     setErrorMessage(null);
 
     try {
+      // Get API key from Tauri secure store
+      let providerKey: string | null = null;
+      let provider = 'qwen'; // Default
+
+      try {
+        // Try qwen first
+        providerKey = (await invoke('get_provider_key', {
+          provider: 'qwen',
+        })) as string | null;
+
+        if (!providerKey) {
+          // Try glm
+          providerKey = (await invoke('get_provider_key', {
+            provider: 'glm',
+          })) as string | null;
+          if (providerKey) {
+            provider = 'glm';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to get provider key:', err);
+      }
+
+      if (!providerKey) {
+        setErrorMessage('请先在 Settings 中配置 API Key');
+        setMessages((prev) => prev.slice(0, -1)); // Remove user message
+        return;
+      }
+
       const systemPrompt: ChatMessage = {
         role: 'system',
         content: `你是${agentName}，请帮助用户完成工作任务。`,
       };
 
-      const response = await fetch('http://localhost:3001/v1/chat', {
+      // Call API service (not gateway directly)
+      const response = await fetch('http://localhost:3000/v1/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-OpenStaff-Provider-Key': providerKey,
         },
         body: JSON.stringify({
-          provider: config.provider,
-          model: config.model || undefined,
-          api_key: config.apiKey,
-          base_url: config.baseUrl || undefined,
+          provider,
           messages: [systemPrompt, ...messages, userMessage],
+          stream: false,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Failed to get response');
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
@@ -153,6 +160,8 @@ function ChatStage({ demoResponse, agentName = '产品经理数字员工' }: Cha
     } catch (error) {
       console.error('Chat error:', error);
       setErrorMessage(error instanceof Error ? error.message : '发送消息失败');
+      // Remove the user message on error
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }

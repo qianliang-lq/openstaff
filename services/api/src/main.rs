@@ -1,3 +1,5 @@
+mod chat;
+
 use axum::{
     routing::{get, post},
     Json, Router,
@@ -43,6 +45,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(root))
         .route("/health", get(health_check))
         .route("/api/v1/echo", post(echo_handler))
+        .route("/v1/chat", post(chat::chat_handler))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
 
@@ -52,6 +55,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("🚀 OpenStaff API Service v{}", env!("CARGO_PKG_VERSION"));
     tracing::info!("📡 Listening on http://{}", addr);
     tracing::info!("🏥 Health check: http://{}/health", addr);
+    tracing::info!("💬 Chat forwarding: POST /v1/chat");
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
