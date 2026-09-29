@@ -12,8 +12,7 @@ use std::path::PathBuf;
 /// Helper to get workspace root directory
 fn workspace_root() -> PathBuf {
     // CARGO_MANIFEST_DIR points to crates/protocol, go up two levels
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR")
-        .expect("CARGO_MANIFEST_DIR not set");
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     PathBuf::from(manifest_dir)
         .parent()
         .expect("parent 1")
@@ -28,10 +27,7 @@ fn workspace_root() -> PathBuf {
 #[test]
 fn tc_051_justfile_has_required_recipes() {
     let justfile_path = workspace_root().join("justfile");
-    assert!(
-        justfile_path.exists(),
-        "justfile not found at project root"
-    );
+    assert!(justfile_path.exists(), "justfile not found at project root");
 
     let content = fs::read_to_string(justfile_path).expect("Failed to read justfile");
 
@@ -82,10 +78,7 @@ fn tc_051_justfile_has_required_recipes() {
 #[test]
 fn tc_052_dev_recipe_configuration() {
     let script_path = workspace_root().join("scripts/dev-up.sh");
-    assert!(
-        script_path.exists(),
-        "scripts/dev-up.sh not found"
-    );
+    assert!(script_path.exists(), "scripts/dev-up.sh not found");
 
     let content = fs::read_to_string(script_path).expect("Failed to read dev-up.sh");
 
@@ -109,8 +102,10 @@ fn tc_052_dev_recipe_configuration() {
 
     // Verify port documentation exists
     assert!(
-        content.contains("3000") && content.contains("3001") 
-        && content.contains("3002") && content.contains("3003"),
+        content.contains("3000")
+            && content.contains("3001")
+            && content.contains("3002")
+            && content.contains("3003"),
         "dev-up.sh should document ports 3000-3003"
     );
 
@@ -139,8 +134,7 @@ fn tc_053_prod_compose_structure() {
         "docker-compose.prod.yml not found at deploy/compose/"
     );
 
-    let content = fs::read_to_string(compose_path)
-        .expect("Failed to read docker-compose.prod.yml");
+    let content = fs::read_to_string(compose_path).expect("Failed to read docker-compose.prod.yml");
 
     // Required services
     let required_services = ["gateway:", "api:", "runtime:", "scheduler:"];
@@ -244,23 +238,19 @@ fn tc_053b_prod_health_script_checks_all_services() {
 
     // Verify all four services are checked
     assert!(
-        prod_health_content.contains("openstaff-api") 
-        && prod_health_content.contains("3000"),
+        prod_health_content.contains("openstaff-api") && prod_health_content.contains("3000"),
         "prod-health should check openstaff-api on port 3000"
     );
     assert!(
-        prod_health_content.contains("openstaff-gateway") 
-        && prod_health_content.contains("3001"),
+        prod_health_content.contains("openstaff-gateway") && prod_health_content.contains("3001"),
         "prod-health should check openstaff-gateway on port 3001"
     );
     assert!(
-        prod_health_content.contains("openstaff-scheduler") 
-        && prod_health_content.contains("3002"),
+        prod_health_content.contains("openstaff-scheduler") && prod_health_content.contains("3002"),
         "prod-health should check openstaff-scheduler on port 3002"
     );
     assert!(
-        prod_health_content.contains("openstaff-runtime") 
-        && prod_health_content.contains("3003"),
+        prod_health_content.contains("openstaff-runtime") && prod_health_content.contains("3003"),
         "prod-health should check openstaff-runtime on port 3003"
     );
 
@@ -278,8 +268,7 @@ fn tc_053b_prod_health_script_checks_all_services() {
 #[test]
 fn tc_053c_docker_compose_yaml_valid() {
     let compose_path = workspace_root().join("deploy/compose/docker-compose.prod.yml");
-    let content = fs::read_to_string(compose_path)
-        .expect("Failed to read docker-compose.prod.yml");
+    let content = fs::read_to_string(compose_path).expect("Failed to read docker-compose.prod.yml");
 
     // Basic YAML structure validation (no full parser needed)
     // Check that services section exists and is indented correctly
@@ -324,7 +313,7 @@ fn tc_053c_docker_compose_yaml_valid() {
 mod integration_smoke_tests {
     //! Optional integration smoke tests that actually start services.
     //! Run only when OPENSTAFF_SMOKE=1 is set.
-    
+
     use std::env;
     use std::process::Command;
 
@@ -367,7 +356,7 @@ mod integration_smoke_tests {
     /// Validates that `just prod-up` successfully starts all services
     /// and `just prod-health` reports all healthy.
     ///
-    /// **REQUIRES**: 
+    /// **REQUIRES**:
     /// - OPENSTAFF_SMOKE=1 environment variable
     /// - Docker daemon running
     /// - .env.prod configured
@@ -380,9 +369,7 @@ mod integration_smoke_tests {
         }
 
         // Check if docker is available
-        let docker_check = Command::new("docker")
-            .arg("info")
-            .output();
+        let docker_check = Command::new("docker").arg("info").output();
 
         if docker_check.is_err() || !docker_check.unwrap().status.success() {
             eprintln!("⏭️  Docker not available, skipping prod smoke test");
@@ -411,13 +398,9 @@ mod integration_smoke_tests {
     #[test]
     fn tc_054c_smoke_script_validates_all_services() {
         let smoke_path = super::workspace_root().join("scripts/smoke.sh");
-        assert!(
-            smoke_path.exists(),
-            "scripts/smoke.sh not found"
-        );
+        assert!(smoke_path.exists(), "scripts/smoke.sh not found");
 
-        let content = std::fs::read_to_string(smoke_path)
-            .expect("Failed to read smoke.sh");
+        let content = std::fs::read_to_string(smoke_path).expect("Failed to read smoke.sh");
 
         // Verify all four services are checked
         assert!(

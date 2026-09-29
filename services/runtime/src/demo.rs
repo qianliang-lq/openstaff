@@ -4,10 +4,10 @@ use crate::external_insight::{
 };
 use axum::{http::StatusCode, Json};
 use chrono::Utc;
+use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::fs::{create_dir_all, write};
 use std::path::PathBuf;
-use scraper::{Html, Selector};
 
 #[derive(Debug, Deserialize)]
 pub struct JobFireRequest {
@@ -81,8 +81,8 @@ async fn fetch_facts_via_gateway(
 ) -> anyhow::Result<Vec<ExternalInsightFact>> {
     let gateway_url = std::env::var("OPENSTAFF_GATEWAY_URL")
         .unwrap_or_else(|_| "http://localhost:3001".to_string());
-    let service_token = std::env::var("RUNTIME_SERVICE_TOKEN")
-        .unwrap_or_else(|_| "dev-runtime-token".to_string());
+    let service_token =
+        std::env::var("RUNTIME_SERVICE_TOKEN").unwrap_or_else(|_| "dev-runtime-token".to_string());
 
     // URL allowlist from skill: changelog/blog/arxiv style URLs
     let urls = vec![
@@ -145,7 +145,7 @@ fn parse_content_to_facts(url: &str, html: &str) -> anyhow::Result<Vec<ExternalI
 
     // Simple parsing: extract title and create a fact
     let document = Html::parse_document(html);
-    
+
     if url.contains("factory.ai") {
         // Factory changelog
         let title_selector = Selector::parse("h1, h2").unwrap();
@@ -188,7 +188,10 @@ fn parse_content_to_facts(url: &str, html: &str) -> anyhow::Result<Vec<ExternalI
                     bucket: "前沿模型".to_string(),
                     title: title.clone(),
                     summary_zh: format!("arXiv 论文：{}", title),
-                    url: format!("https://arxiv.org{}", element.value().attr("href").unwrap_or("")),
+                    url: format!(
+                        "https://arxiv.org{}",
+                        element.value().attr("href").unwrap_or("")
+                    ),
                     tags: vec!["学术研究".to_string(), "期刊论文".to_string()],
                     pdf_url: None,
                 });
@@ -313,10 +316,14 @@ pub struct LatestInsightResponse {
 
 pub async fn get_latest_insight() -> Result<Json<LatestInsightResponse>, (StatusCode, String)> {
     let artifacts_dir = get_artifacts_dir();
-    
+
     // Find the most recent facts file
-    let entries = std::fs::read_dir(&artifacts_dir)
-        .map_err(|e| (StatusCode::NOT_FOUND, format!("Artifacts directory not found: {}", e)))?;
+    let entries = std::fs::read_dir(&artifacts_dir).map_err(|e| {
+        (
+            StatusCode::NOT_FOUND,
+            format!("Artifacts directory not found: {}", e),
+        )
+    })?;
 
     let mut latest_file: Option<PathBuf> = None;
     let mut latest_time: Option<std::time::SystemTime> = None;
@@ -335,16 +342,22 @@ pub async fn get_latest_insight() -> Result<Json<LatestInsightResponse>, (Status
         }
     }
 
-    let facts_file = latest_file.ok_or((
-        StatusCode::NOT_FOUND,
-        "No facts file found".to_string(),
-    ))?;
+    let facts_file =
+        latest_file.ok_or((StatusCode::NOT_FOUND, "No facts file found".to_string()))?;
 
-    let content = std::fs::read_to_string(&facts_file)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read facts file: {}", e)))?;
+    let content = std::fs::read_to_string(&facts_file).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to read facts file: {}", e),
+        )
+    })?;
 
-    let facts: Vec<ExternalInsightFact> = serde_json::from_str(&content)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to parse facts: {}", e)))?;
+    let facts: Vec<ExternalInsightFact> = serde_json::from_str(&content).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to parse facts: {}", e),
+        )
+    })?;
 
     let summary: Vec<String> = facts.iter().take(3).map(|f| f.title.clone()).collect();
 
