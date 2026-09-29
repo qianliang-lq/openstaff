@@ -51,7 +51,11 @@ pub fn write_audit_record(record: &AuditRecord) -> anyhow::Result<()> {
         record.status,
         record.bytes,
         record.latency_ms,
-        record.deny_reason.as_ref().map(|r| format!("DENIED: {}", r)).unwrap_or_default()
+        record
+            .deny_reason
+            .as_ref()
+            .map(|r| format!("DENIED: {}", r))
+            .unwrap_or_default()
     );
 
     Ok(())

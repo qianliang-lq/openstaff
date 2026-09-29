@@ -15,8 +15,10 @@ pub struct JobFireRequest {
     pub routine_id: String,
     pub skill_id: String,
     pub trigger: String,
+    #[allow(dead_code)]
     pub scheduled_for: String,
     #[serde(default)]
+    #[allow(dead_code)]
     pub payload: serde_json::Value,
 }
 

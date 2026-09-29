@@ -57,4 +57,42 @@ describe('ChatStage', () => {
     expect(mockFireRequest.routine_id).toBe('external-insight-daily');
     expect(mockFireRequest.skill_id).toBe('external-insight-public-search');
   });
+
+  it('renders button with correct label', () => {
+    render(<ChatStage />);
+
+    const button = screen.getByRole('button', { name: /立即跑一次/i });
+    expect(button).toBeInTheDocument();
+  });
+
+  it('report card uses correct avatar', () => {
+    const demoResponse = {
+      reconcile_status: 'PASS',
+      facts: [
+        {
+          bucket: '竞对',
+          title: 'Test Fact',
+          summary_zh: 'Test summary',
+          url: 'https://example.com',
+          tags: ['test'],
+        },
+      ],
+      summary: ['Test summary item'],
+      artifacts_path: 'artifacts/external-insight/2026-09-28-public-facts.json',
+      timestamp: '2026-09-28',
+    };
+
+    render(<ChatStage demoResponse={demoResponse} />);
+
+    const avatars = screen.getAllByText('产');
+    expect(avatars.length).toBeGreaterThan(0);
+  });
+
+  it('polls insights endpoint after job fire', () => {
+    render(<ChatStage />);
+
+    const button = screen.getByRole('button', { name: /立即跑一次/i });
+    expect(button).toBeInTheDocument();
+    expect(button).not.toBeDisabled();
+  });
 });

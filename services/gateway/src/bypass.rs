@@ -1,5 +1,8 @@
 use crate::audit::{write_audit_record, AuditRecord};
-use axum::{http::{HeaderMap, StatusCode}, Json};
+use axum::{
+    http::{HeaderMap, StatusCode},
+    Json,
+};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;

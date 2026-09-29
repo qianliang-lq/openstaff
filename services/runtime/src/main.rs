@@ -161,4 +161,87 @@ mod tests {
         assert_eq!(response_json["accepted"], true);
         assert_eq!(response_json.as_object().unwrap().len(), 2);
     }
+
+    #[tokio::test]
+    async fn test_insights_latest_contract_shape() {
+        let app = Router::new().route("/v1/insights/latest", get(demo::get_latest_insight));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/insights/latest")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let response_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert!(response_json.get("job_status").is_some());
+        assert!(response_json.get("reconcile_status").is_some());
+        assert!(response_json.get("facts").is_some());
+        assert!(response_json.get("artifacts_path").is_some());
+        assert!(response_json.get("timestamp").is_some());
+
+        assert!(response_json["facts"].is_array());
+    }
+
+    #[test]
+    fn test_runtime_uses_gateway_client_for_egress() {
+        let runtime_src = include_str!("demo.rs");
+        let insight_src = include_str!("external_insight.rs");
+
+        assert!(
+            !runtime_src.contains("reqwest::Client"),
+            "Runtime demo module must NOT use reqwest::Client directly for public egress"
+        );
+        assert!(
+            !insight_src.contains("reqwest::Client"),
+            "Runtime external_insight module must NOT use reqwest::Client directly for public egress"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_insights_latest_response_fields_complete() {
+        let app = Router::new().route("/v1/insights/latest", get(demo::get_latest_insight));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/insights/latest")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let response_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        let required_fields = vec![
+            "job_status",
+            "reconcile_status",
+            "facts",
+            "artifacts_path",
+            "timestamp",
+        ];
+
+        for field in required_fields {
+            assert!(
+                response_json.get(field).is_some(),
+                "Missing required field: {}",
+                field
+            );
+        }
+    }
 }

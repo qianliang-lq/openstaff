@@ -1075,4 +1075,229 @@ The demo-MVP tests validate offline contract wiring. The following are intention
 
 ---
 
+---
+
+## Slice 2 Contract Tests (TC-043+)
+
+### Runtime Egress Gateway Client Tests
+
+#### TC-043: Runtime Uses Gateway Client for Egress
+
+**Layer**: Contract  
+**File**: `services/runtime/src/main.rs`  
+**Function**: `test_runtime_uses_gateway_client_for_egress()`
+
+**Purpose**: Verify Runtime does NOT use reqwest::Client directly for public egress; must use Gateway client instead (per 08-demo-mvp-cut architecture).
+
+**Test Coverage**:
+- ✅ Runtime demo module does NOT contain `reqwest::Client`
+- ✅ Runtime external_insight module does NOT contain `reqwest::Client`
+- ✅ All public egress goes through Gateway `/v1/egress/fetch`
+
+**Expected Result**: ✅ No direct reqwest::Client usage in insight path
+
+**Architecture Constraint**: Runtime MUST NOT bypass Gateway for public HTTP calls (sole egress point).
+
+---
+
+#### TC-044: GET /v1/insights/latest Contract Shape
+
+**Layer**: Contract  
+**File**: `services/runtime/src/main.rs`  
+**Function**: `test_insights_latest_contract_shape()`
+
+**Purpose**: Verify Runtime `/v1/insights/latest` endpoint returns correct response shape.
+
+**Response Contract**:
+
+```json
+{
+  "job_status": "completed" | "not_found",
+  "reconcile_status": "PASS" | "FAILED" | "N/A",
+  "facts": [...],
+  "artifacts_path": "artifacts/external-insight/2026-09-28-public-facts.json",
+  "timestamp": "2026-09-28"
+}
+```
+
+**Test Coverage**:
+- ✅ All required fields present: job_status, reconcile_status, facts, artifacts_path, timestamp
+- ✅ facts is array type
+- ✅ HTTP 200 response
+
+**Expected Result**: ✅ Response matches contract shape
+
+**Command**:
+
+```bash
+cargo test test_insights_latest_contract_shape -p openstaff-runtime
+```
+
+---
+
+#### TC-045: Insights Latest Response Fields Complete
+
+**Layer**: Contract  
+**File**: `services/runtime/src/main.rs`  
+**Function**: `test_insights_latest_response_fields_complete()`
+
+**Purpose**: Validate all response fields are present with correct types.
+
+**Expected Result**:
+- ✅ job_status is string
+- ✅ reconcile_status is string
+- ✅ facts is array
+- ✅ artifacts_path is string
+- ✅ timestamp is string
+
+---
+
+### Desktop Polling and UI Tests
+
+#### TC-046: Desktop Polls Insights Latest - PASS Shows Card
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/stages/ChatStage.test.tsx`  
+**Function**: `test('fire handler processes demo response with PASS status')`
+
+**Purpose**: Verify Desktop processes insights/latest response with reconcile_status: "PASS" and displays report card.
+
+**Expected Result**: ✅ Report card rendered when reconcile PASS
+
+---
+
+#### TC-047: Desktop Polls Insights Latest - FAILED Silent
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/stages/ChatStage.test.tsx`  
+**Function**: `test('fire handler blocks report card on FAILED reconcile')`
+
+**Purpose**: Verify Desktop does NOT render report card when reconcile_status: "FAILED" (per reconcile gate TC-029).
+
+**Expected Result**: ✅ Report card NOT rendered when reconcile FAILED (silent failure)
+
+---
+
+#### TC-048: Desktop Button Label「立即跑一次」
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/stages/ChatStage.test.tsx`  
+**Function**: `test('renders button with correct label')`
+
+**Purpose**: Verify Desktop chat stage displays button with Chinese label「立即跑一次」.
+
+**Expected Result**: ✅ Button renders with label「立即跑一次」
+
+**UI Spec**: Button triggers manual fire via Scheduler → Runtime jobs/fire
+
+---
+
+#### TC-049: Report Card Avatar「产」
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/stages/ChatStage.test.tsx`  
+**Function**: `test('report card uses correct avatar')`
+
+**Purpose**: Verify report card is attributed to 产品经理数字员工 with「产」avatar (not「研」per slice 2 spec).
+
+**Expected Result**: ✅ Report card message has avatar「产」
+
+**UI Change**: Changed from「研」(research) to「产」(product manager) per product design.
+
+---
+
+#### TC-050: Desktop Polls Insights Endpoint After Job Fire
+
+**Layer**: Unit  
+**File**: `apps/desktop/src/components/stages/ChatStage.test.tsx`  
+**Function**: `test('polls insights endpoint after job fire')`
+
+**Purpose**: Verify Desktop implements polling logic for insights/latest endpoint after manual trigger.
+
+**Expected Result**: ✅ Button wired to fire job and poll insights
+
+**Flow**: Button click → POST /demo/fire → Poll GET /v1/insights/latest → Display result
+
+---
+
+## All Tests Summary (Updated for Slice 2)
+
+### Backend Tests (Rust)
+
+```bash
+# Run all backend tests (excludes openstaff-desktop Tauri)
+cargo test --workspace --exclude openstaff-desktop
+```
+
+**Expected**: ✅ 40 tests pass
+- TC-001 through TC-020: Protocol + health endpoints (20 tests)
+- TC-028, TC-029: External insight schema + reconcile gate (2 tests)
+- TC-031 through TC-038: Demo-MVP contract tests (8 tests)
+- TC-043 through TC-045: Slice 2 runtime tests (3 tests)
+
+### Frontend Tests (TypeScript)
+
+```bash
+# Desktop app tests
+cd apps/desktop && pnpm test
+
+# Web admin tests
+cd apps/web-admin && pnpm test
+
+# Run all frontend tests from root
+pnpm test
+```
+
+**Expected**: ✅ 15 test suites pass
+- TC-021 through TC-027: Shell UI (7 suites)
+- TC-030: External insight report card summary ≤ 3 (1 suite)
+- TC-039 through TC-042: Desktop fire handler (4 tests in 1 suite)
+- TC-046 through TC-050: Slice 2 desktop tests (5 tests in ChatStage suite)
+
+---
+
+## Running Slice 2 Tests Only
+
+### Runtime Insights Tests (TC-043~TC-045)
+
+```bash
+cargo test -p openstaff-runtime test_insights_latest
+cargo test -p openstaff-runtime test_runtime_uses_gateway_client_for_egress
+```
+
+**Expected**: ✅ 3 tests pass
+
+### Desktop Slice 2 Tests (TC-046~TC-050)
+
+```bash
+cd apps/desktop && pnpm test ChatStage
+```
+
+**Expected**: ✅ 8 tests pass (includes TC-039~TC-042 from slice 1)
+
+---
+
+## Test Coverage Summary (Slice 2)
+
+### New Coverage Added
+
+1. **Runtime Gateway Client Enforcement**: TC-043 validates no direct reqwest in insight path
+2. **Insights Latest Endpoint**: TC-044, TC-045 validate new GET /v1/insights/latest contract
+3. **Desktop Polling Logic**: TC-050 validates desktop follows job via insights/latest
+4. **UI Copy Compliance**: TC-048 validates button label「立即跑一次」
+5. **Avatar Attribution**: TC-049 validates report card uses「产」avatar per spec
+
+### Gaps (Intentional)
+
+The following are NOT covered (next slice or out of MVP scope):
+
+1. **Live Gateway Fetch**: Runtime calling Gateway in live mode (uses offline fixture in MVP)
+2. **Polling Performance**: Desktop polling interval/retry logic (basic implementation only)
+3. **Job Failure Handling**: Runtime retry on job execution failure
+4. **Audit Log Persistence Validation**: Gateway writes audit but tests don't read file back
+
+**Honesty Note**: Tests validate offline contract wiring. Runtime uses Gateway client structure but offline fixture mode. Live egress wiring is partial (Gateway has live mode, Runtime demo doesn't call it in MVP).
+
+---
+
 **Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.

@@ -48,19 +48,87 @@ function ChatStage({ demoResponse }: ChatStageProps) {
   const [displayedFacts, setDisplayedFacts] = useState<ExternalInsightFact[]>(mockFacts);
   const [reconcileStatus, setReconcileStatus] = useState<'PASS' | 'FAILED'>('PASS');
   const [displayDate, setDisplayDate] = useState('2026-09-27');
+  const [isRunning, setIsRunning] = useState(false);
 
   useEffect(() => {
     if (demoResponse && demoResponse.reconcile_status === 'PASS' && demoResponse.facts) {
       setDisplayedFacts(demoResponse.facts);
       setReconcileStatus('PASS');
       setDisplayDate(demoResponse.timestamp || '2026-09-27');
+      setIsRunning(false);
     } else if (demoResponse && demoResponse.reconcile_status === 'FAILED') {
       setReconcileStatus('FAILED');
+      setIsRunning(false);
     }
   }, [demoResponse]);
 
+  const handleFireJob = async () => {
+    setIsRunning(true);
+    try {
+      const response = await fetch('http://localhost:3002/demo/fire', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          routine_id: 'external-insight-daily',
+          skill_id: 'external-insight-public-search',
+          trigger: 'manual',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fire job');
+      }
+
+      pollInsights();
+    } catch (error) {
+      console.error('Error firing job:', error);
+      setIsRunning(false);
+    }
+  };
+
+  const pollInsights = async () => {
+    const maxAttempts = 10;
+    const pollInterval = 1000;
+
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const response = await fetch('http://localhost:3003/v1/insights/latest');
+        if (!response.ok) {
+          throw new Error('Failed to fetch insights');
+        }
+
+        const data = await response.json();
+
+        if (data.job_status === 'completed') {
+          if (data.reconcile_status === 'PASS' && data.facts && data.facts.length > 0) {
+            setDisplayedFacts(data.facts);
+            setReconcileStatus('PASS');
+            setDisplayDate(data.timestamp || '2026-09-27');
+          } else {
+            setReconcileStatus('FAILED');
+          }
+          setIsRunning(false);
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      } catch (error) {
+        console.error('Error polling insights:', error);
+      }
+    }
+
+    setIsRunning(false);
+  };
+
   return (
     <div className="chat-stage">
+      <div className="chat-toolbar">
+        <button className="fire-job-btn" onClick={handleFireJob} disabled={isRunning}>
+          {isRunning ? '运行中...' : '立即跑一次'}
+        </button>
+      </div>
       <div className="chat-messages">
         <div className="message user">
           <div className="message-bubble">

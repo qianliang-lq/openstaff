@@ -6,6 +6,34 @@
   background: var(--g2);
 }
 
+.chat-toolbar {
+  border-bottom: 1px solid var(--g4);
+  background: #fff;
+  padding: 12px 24px;
+  flex-shrink: 0;
+}
+
+.fire-job-btn {
+  height: 32px;
+  padding: 0 16px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity 0.15s;
+  cursor: pointer;
+}
+
+.fire-job-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.fire-job-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
