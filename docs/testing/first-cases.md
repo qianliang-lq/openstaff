@@ -2665,213 +2665,165 @@ cargo test -p openstaff-gateway -- --test-threads=1
 
 ---
 
-## Connectors Tauri Guard Tests (TC-063+)
+## App-Mode First-Boot Contract Tests (TC-076+)
 
 ### Overview
 
-TC-063+ validates that Connectors component properly guards Tauri API availability before calling `invoke()`, preventing crashes when running in Vite preview mode (localhost:5173) without Tauri. Per §4 from 10-byok-chat-cut.md architecture brief: without Tauri, save operations must NOT crash; instead, disable save and guide users to set `OPENSTAFF_LLM_API_KEY` environment variable or run `pnpm tauri:dev`.
+TC-076+ validates App-mode (Tauri Desktop) first-boot contracts that browser-only Connectors UI tests never covered. These tests encode fatal startup failures hit by product owner during manual testing:
 
-**Implementation Status**: ✅ **Complete** (landed in commit 75cbd9e)
+1. **TC-076**: `beforeDevCommand` / `beforeBuildCommand` script names exist in `package.json`
+2. **TC-077**: `devUrl` port aligns with Vite `strictPort: true` config (no fallback 5173→5174)
+3. **TC-078**: Single chrome contract (no double title bar: native + in-app)
 
-**Coverage**:
-- TC-063: Tauri availability guard enforcement ✅ **PASS**
-- TC-064: Non-Tauri UI guidance and disabled save ✅ **PASS**
-- TC-065: No localStorage for keys ✅ **PASS**
-
-### Test Location
-
-**File**: `apps/desktop/src/components/Connectors.test.tsx` (17 tests)
-
-### Implementation Details
-
-**Tauri Helper Functions** (`apps/desktop/src/utils/tauri.ts`):
-```typescript
-export function isTauriEnvironment(): boolean {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
-}
-
-export async function saveProviderKey(provider: string, key: string): Promise<void> {
-  if (!isTauriEnvironment()) {
-    throw new Error('保存 Key 需要 Tauri 环境。请运行：pnpm tauri:dev');
-  }
-  return tauriInvoke('save_provider_key', { provider, key });
-}
-```
-
-**Connectors Usage** (`apps/desktop/src/components/Connectors.tsx`):
-```typescript
-import { isTauriEnvironment, getProviderKey, saveProviderKey, deleteProviderKey } from '../utils/tauri';
-
-// Check environment
-const [isTauri, setIsTauri] = useState(false);
-useEffect(() => {
-  setIsTauri(isTauriEnvironment());
-}, []);
-
-// Disable save/clear when not in Tauri
-<button disabled={!isTauri} onClick={handleSave}>保存</button>
-
-// Show warning banner in non-Tauri mode
-{!isTauri && <div className="warning-banner">...</div>}
-```
+**Critical**: These tests are **EXPECTED to FAIL** on current tip until encoding fixes land. They document the contract that product code must satisfy.
 
 ---
 
-#### TC-063: Tauri Availability Guard (✅ PASS)
+### TC-076: beforeDev/beforeBuild Scripts Exist
 
-**Layer**: Unit / Contract  
-**File**: `apps/desktop/src/components/Connectors.test.tsx`  
-**Tests**: 3 tests
+**Layer**: Contract  
+**File**: `apps/desktop/src/app-mode-contract.test.ts`  
+**Function**: Tests for beforeDevCommand and beforeBuildCommand script existence
 
-**Purpose**: Validate that Connectors component guards Tauri availability via helper functions before calling `invoke()`.
+**Purpose**: Validate that `tauri.conf.json` `beforeDevCommand` and `beforeBuildCommand` reference script names that actually exist in `apps/desktop/package.json` scripts section.
 
-**Implementation Contract**:
-- ✅ Uses `isTauriEnvironment()`, `getProviderKey()`, `saveProviderKey()`, `deleteProviderKey()` from `utils/tauri.ts`
-- ✅ Does NOT import `invoke` directly from `@tauri-apps/api/core`
-- ✅ Helper functions check `window.__TAURI__` existence before invoke
-- ✅ Save/Clear buttons disabled when `!isTauri`
+**Current Failure** (on tip ~22603ae):
+- `tauri.conf.json` has `beforeDevCommand: "pnpm dev:web"`
+- `package.json` only has `"dev": "vite"`, NOT `"dev:web"`
+- Same issue: `beforeBuildCommand: "pnpm build:web"` but only `"build": "tsc && vite build"`
 
-**Test Coverage**:
-- ✅ Source code check: verifies helper function usage
-- ✅ Simulated Tauri environment: save operations work
-- ✅ Simulated non-Tauri environment: buttons disabled, graceful handling
+**Test Behavior**:
+1. Parse `apps/desktop/src-tauri/tauri.conf.json` → `build.beforeDevCommand` and `build.beforeBuildCommand`
+2. Extract script name after `pnpm ` (e.g. `dev:web`, `build:web`)
+3. Read `apps/desktop/package.json` → `scripts`
+4. Assert each script name exists as a key
 
-**Expected Result**: ✅ All tests pass
+**Expected Result**: ❌ Test fails on current tip (scripts don't exist)
 
 **Command**:
+
 ```bash
-cd apps/desktop && pnpm test Connectors -- -t "TC-063"
+cd apps/desktop && pnpm test app-mode-contract
 ```
 
-**Offline**: ✅ Yes (vitest unit test)
+**Offline**: ✅ Yes (reads JSON files only)
+
+**Fix Required**: Either:
+- Option A: Rename scripts in `package.json` to match (add `dev:web` and `build:web`)
+- Option B: Update `tauri.conf.json` to use existing script names (`dev` and `build`)
 
 ---
 
-#### TC-064: Non-Tauri UI Guidance (✅ PASS)
+### TC-077: devUrl Port Aligns with Vite Strict Port
 
-**Layer**: Unit / Contract  
-**File**: `apps/desktop/src/components/Connectors.test.tsx`  
-**Tests**: 7 tests
+**Layer**: Contract  
+**File**: `apps/desktop/src/app-mode-contract.test.ts`  
+**Function**: Test for devUrl port alignment with Vite strictPort config
 
-**Purpose**: Validate that UI shows clear guidance when running without Tauri, with disabled buttons and environment variable instructions.
+**Purpose**: Validate that `tauri.conf.json` `devUrl` port matches Vite config port AND that `strictPort: true` is set to prevent fallback.
 
-**Acceptance Criteria** (all implemented):
-- ✅ Warning banner shows "浏览器预览模式" when `!isTauri`
-- ✅ Guidance mentions `pnpm tauri:dev` command
-- ✅ Guidance mentions `OPENSTAFF_LLM_API_KEY` + `just dev-up` fallback
-- ✅ Save buttons disabled when `!isTauri`
-- ✅ Clear buttons disabled when `!isTauri`
-- ✅ Warning banner hidden in Tauri environment
-- ✅ Save buttons enabled in Tauri environment
+**Current Issue**:
+- `tauri.conf.json` hardcodes `devUrl: "http://localhost:5173"`
+- `vite.config.ts` has `server.port: 5173` but NO `strictPort: true`
+- **Risk**: If port 5173 is in use, Vite falls back to 5174, but Tauri still tries 5173 → connection failure
 
-**UI Implementation**:
+**Test Behavior**:
+1. Parse `tauri.conf.json` → extract port from `build.devUrl` (e.g. 5173)
+2. Read `vite.config.ts` (as text) → extract `server.port` value
+3. Assert ports match
+4. Assert `vite.config.ts` contains `strictPort: true` (or `strictPort:true`)
+
+**Expected Result**: ❌ Test fails on current tip (`strictPort: true` missing)
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test app-mode-contract
+```
+
+**Offline**: ✅ Yes (reads config files only)
+
+**Fix Required**: Add to `apps/desktop/vite.config.ts`:
+
 ```typescript
-{!isTauri && (
-  <div className="warning-banner">
-    <strong>浏览器预览模式</strong>
-    <div>
-      保存/清除功能需要 Tauri 环境。请运行 <code>pnpm tauri:dev</code>
-      或配置环境变量 <code>OPENSTAFF_LLM_API_KEY</code> + <code>just dev-up</code>。
-    </div>
-  </div>
-)}
-
-<button disabled={!isTauri} title={!isTauri ? '保存需要 Tauri 环境。请运行: pnpm tauri:dev' : ''}>
-  保存
-</button>
+server: {
+  port: 5173,
+  strictPort: true,  // ← Add this line
+},
 ```
 
-**Expected Result**: ✅ All tests pass
+---
+
+### TC-078: Single Chrome (No Duplicate Title Bars)
+
+**Layer**: Contract  
+**File**: `apps/desktop/src/app-mode-contract.test.ts`  
+**Function**: Test for single chrome contract (no duplicate title bars)
+
+**Purpose**: Validate that App mode has single chrome: either (A) native decorations with NO in-app title duplication, OR (B) `decorations: false` + custom Titlebar only.
+
+**Current Issue** (per user screenshot):
+- `tauri.conf.json` windows have NO `decorations: false` (defaults to true = native chrome)
+- `Titlebar.tsx` renders `<div className="titlebar-title">OpenStaff</div>`
+- `App.tsx` mounts `<Titlebar />` at top of shell
+- **Result**: Double title bar chrome — native macOS title bar showing "OpenStaff" PLUS in-app Titlebar also showing "OpenStaff"
+
+**Test Behavior**:
+1. Read `tauri.conf.json` → check if any window has `decorations: false`
+2. Read `Titlebar.tsx` → check if it renders "OpenStaff" or has `titlebar-title` element
+3. Read `App.tsx` → check if it mounts `<Titlebar />`
+4. **Contract**: If Titlebar is mounted AND renders product name, THEN decorations MUST be false
+
+**Expected Result**: ❌ Test fails on current tip (decorations not disabled, Titlebar renders title)
 
 **Command**:
+
 ```bash
-cd apps/desktop && pnpm test Connectors -- -t "TC-064"
+cd apps/desktop && pnpm test app-mode-contract
 ```
 
-**Offline**: ✅ Yes (vitest unit test)
+**Offline**: ✅ Yes (reads source files only)
+
+**Fix Required**: Choose one approach:
+- **Option A** (custom chrome): Set `"decorations": false` in `tauri.conf.json` windows config
+- **Option B** (native chrome): Remove "OpenStaff" title text from `Titlebar.tsx` (keep traffic lights only, or remove Titlebar entirely)
+
+**Product Decision Required**: Encoding teammate owns this fix — tests only document the contract.
 
 ---
 
-#### TC-065: No localStorage for Keys (✅ PASS)
+### Running App-Mode Contract Tests
 
-**Layer**: Unit / Security Contract  
-**File**: `apps/desktop/src/components/Connectors.test.tsx`  
-**Tests**: 4 tests
-
-**Purpose**: Maintain TC-059 hard gate: API keys MUST NEVER be stored in localStorage. Enforces use of Tauri helper functions.
-
-**Security Requirements**:
-- ❌ **MUST NOT** use `localStorage.setItem` for keys, tokens, secrets
-- ❌ **MUST NOT** use `localStorage.getItem` for key retrieval
-- ✅ **MUST** use Tauri helper functions: `getProviderKey()`, `saveProviderKey()`, `deleteProviderKey()`
-- ✅ Helper functions throw errors in non-Tauri (no localStorage fallback)
-
-**Test Coverage**:
-- ✅ Monitors `localStorage.setItem` calls during save flow (should be zero)
-- ✅ Monitors `localStorage.getItem` calls during load flow (should be zero)
-- ✅ Validates keys stored via Tauri helpers
-- ✅ Source code check: no `localStorage.setItem/getItem` in Connectors.tsx
-
-**Expected Result**: ✅ All tests pass (no localStorage usage)
-
-**Command**:
 ```bash
-cd apps/desktop && pnpm test Connectors -- -t "TC-065"
+# All three tests (TC-076, TC-077, TC-078)
+cd apps/desktop && pnpm test app-mode-contract
+
+# Run with details
+cd apps/desktop && pnpm test app-mode-contract -- --reporter=verbose
 ```
 
-**Offline**: ✅ Yes (vitest unit test)
+**Expected on Current Tip**: ❌ All 3 tests FAIL (intentional — encoding must fix)
+
+**Time**: ~1 second  
+**Offline**: ✅ Yes (no services required)
 
 ---
 
-### Running Connectors Guard Tests
-
-#### All Connectors Tests (TC-063+)
-
-```bash
-cd apps/desktop && pnpm test Connectors
-```
-
-**Expected**: ✅ 17 tests pass
-- ✅ TC-063: Tauri helper usage (3 tests)
-- ✅ TC-064: Non-Tauri guidance + disabled buttons (7 tests)
-- ✅ TC-065: No localStorage (4 tests)
-- ✅ Security banner (1 test)
-- ✅ Default model display (2 tests: qwen-plus, Bailian link)
-
-**Time**: ~1-2 seconds  
-**Offline**: ✅ Yes (all vitest unit tests)
-
----
-
-### Test Coverage Summary (TC-063+)
+### Test Coverage Summary (TC-076+)
 
 **Added Coverage**:
+1. **Script Name Contract**: TC-076 catches mismatch between Tauri commands and package.json scripts
+2. **Port Stability Contract**: TC-077 catches missing `strictPort: true` (prevents silent port fallback failures)
+3. **UI Chrome Contract**: TC-078 catches double title bar (UX bug from user screenshot)
 
-1. **Tauri Guard Enforcement** (TC-063): ✅ Via helper functions in `utils/tauri.ts`
-2. **Non-Tauri UI Guidance** (TC-064): ✅ Warning banner + disabled buttons + env var instructions
-3. **localStorage Prohibition** (TC-065): ✅ No localStorage usage (security gate maintained)
+**Delivery Bar**: App-mode smoke (`pnpm tauri:dev` cold start) is part of MVP delivery. Browser-only Connectors green is insufficient. These tests gate App-mode readiness.
 
-**Architecture Gates Enforced**:
-- ✅ Vite preview mode (localhost:5173) does not crash (§4 from 10-byok-chat-cut.md)
-- ✅ Save disabled + guidance when Tauri unavailable (§4)
-- ✅ No localStorage fallback for keys (§1 from 10-byok-chat-cut.md, TC-059 maintained)
+**Honesty Note**: Tests are RED on current tip by design. Do NOT:
+- Add escape hatches (SECURITY TODO soft-pass)
+- Delete tests to make CI green
+- Fix by removing features (encoding owns product code)
 
-**Implementation Quality**:
-- ✅ Clean separation: helper functions in `utils/tauri.ts`
-- ✅ Clear error messages with actionable instructions
-- ✅ Consistent use of `isTauriEnvironment()` check
-- ✅ No direct `invoke` imports in Connectors component
-
----
-
-### Additional Tests
-
-#### Default Model Display
-
-**Tests**: 2 tests verify display copy updates per commit c7bbf02
-
-- ✅ Default model shows `qwen-plus` (not `qwen-turbo`)
-- ✅ URL links to Bailian console: `bailian.console.aliyun.com/cn-beijing/model/market`
+Correct path: Encoding fixes product code → tests turn green → App mode is validated.
 
 ---
 
