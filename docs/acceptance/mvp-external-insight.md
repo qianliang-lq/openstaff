@@ -38,7 +38,25 @@
 
 ## 快速启动
 
-### 1. 启动后端服务
+### 一键启动（推荐）
+
+```bash
+# 安装依赖（首次运行）
+just install
+
+# 一键启动所有服务（后端 + Desktop）
+just dev-up
+```
+
+服务将在后台启动，默认使用 Demo 模式配置。访问 http://localhost:5173 使用 Desktop 界面。
+
+按 **Ctrl-C** 停止所有服务。
+
+---
+
+### 手动启动（高级用户）
+
+#### 1. 启动后端服务
 
 ```bash
 cd /workspace
@@ -79,7 +97,7 @@ cargo run -p openstaff-scheduler &
 OPENSTAFF_INSIGHT_DEMO=0 OPENSTAFF_GATEWAY_URL=http://localhost:3001 cargo run -p openstaff-runtime &
 ```
 
-### 2. 启动 Desktop
+#### 2. 启动 Desktop
 
 ```bash
 cd /workspace/apps/desktop
@@ -101,6 +119,8 @@ pnpm dev
 5. 若 reconcile FAILED：卡片不渲染（用户无感知）
 
 **注意**: 报告卡片显示在「产」头像下（产品经理数字员工 agent），而非「研」头像。
+
+**快速故障排查**: 如果服务未启动，使用 `just dev-up` 一键启动所有服务。
 
 ---
 

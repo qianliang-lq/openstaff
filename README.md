@@ -89,12 +89,18 @@ just check
 just test
 # 或 cargo test --workspace
 
-# 🚀 启动所有后端服务（一键启动）
+# 🚀 一键启动所有服务（推荐，后端 + Desktop）
+just dev-up
+# 访问 http://localhost:5173 使用 Desktop 界面
+# 按 Ctrl-C 停止所有服务
+
+# 或使用传统方式启动后端服务（前台运行）
 just dev
 # 服务将在以下端口运行：
 # - API:       http://localhost:3000
 # - Gateway:   http://localhost:3001
 # - Scheduler: http://localhost:3002
+# - Runtime:   http://localhost:3003
 
 # 检查服务健康状态
 just health
@@ -102,13 +108,15 @@ just health
 curl http://localhost:3000/health
 curl http://localhost:3001/health
 curl http://localhost:3002/health
+curl http://localhost:3003/health
 
 # 或单独运行某个服务
 cargo run -p openstaff-api        # port 3000
 cargo run -p openstaff-gateway    # port 3001
 cargo run -p openstaff-scheduler  # port 3002
+cargo run -p openstaff-runtime    # port 3003
 
-# 启动前端应用（需先 pnpm install）
+# 单独启动前端应用（需先 pnpm install）
 cd apps/desktop && pnpm dev       # port 5173 (Tauri)
 cd apps/web-admin && pnpm dev     # port 5174
 ```
@@ -117,11 +125,13 @@ cd apps/web-admin && pnpm dev     # port 5174
 
 ```bash
 just install    # 安装所有依赖
+just dev-up     # 🚀 一键启动所有服务（后端 + Desktop）
 just check      # 检查 Rust 代码
 just test       # 运行测试
 just lint       # 代码检查
 just format     # 格式化代码
 just build      # 构建所有项目
+just dev-down   # 停止所有服务
 ```
 
 ### 文档

@@ -5,7 +5,20 @@
 default:
     @just --list
 
-# Run full development stack (backend services)
+# Run full development stack (backend services + desktop)
+# One command to start everything with sensible demo defaults
+dev-up:
+    @bash scripts/dev-up.sh
+
+# Stop all OpenStaff development services
+dev-down:
+    @echo "🛑 Stopping OpenStaff services..."
+    @pkill -f "cargo run -p openstaff" || echo "  No cargo processes found"
+    @pkill -f "pnpm dev" || echo "  No pnpm dev processes found"
+    @echo "✅ Services stopped"
+
+# Run full development stack (backend services only, foreground)
+# Note: Consider using 'just dev-up' for background mode with desktop
 dev:
     @echo "🚀 Starting OpenStaff backend services..."
     @echo ""
@@ -18,6 +31,8 @@ dev:
     @echo "Frontend apps (run separately after 'pnpm install'):"
     @echo "  - Desktop:   cd apps/desktop && pnpm dev"
     @echo "  - Admin:     cd apps/web-admin && pnpm dev"
+    @echo ""
+    @echo "💡 Tip: Use 'just dev-up' for one-command startup with desktop"
     @echo ""
     just dev-services
 
