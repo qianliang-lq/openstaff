@@ -3064,7 +3064,7 @@ cd apps/desktop && pnpm test slice-12-tests -- -t "TC-082"
 
 **Layer**: UI Contract  
 **File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
-**Tests**: 3 tests (all RED ❌)
+**Tests**: 4 tests (all RED ❌)
 
 **Purpose**: Validate gate card UI per sketch 14: Pass/Reject/Revise buttons and result bubble.
 
@@ -3073,6 +3073,7 @@ cd apps/desktop && pnpm test slice-12-tests -- -t "TC-082"
 - ❌ Shows validation gate card
 - ❌ Shows Pass/Reject/Revise buttons
 - ❌ Shows result bubble after action
+- ❌ TC-083.1: Gate works on real message when showMockContent hidden
 
 **Current Status**: ❌ EXPECTED RED until gate UI implemented
 
@@ -3085,6 +3086,64 @@ cd apps/desktop && pnpm test slice-12-tests -- -t "TC-083"
 ```
 
 **Offline**: ✅ Yes
+
+---
+
+#### TC-083.1: Validation Gate on Real Message (showMockContent Hidden)
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
+**Function**: `should show gate result bubble when showMockContent is hidden and gate on real message`
+
+**Purpose**: Validate the migration contract: ValidationGateWidget must work on a REAL assistant message, not just in the showMockContent demo block. This test forces the honest scenario where demo content is hidden and the gate must still be clickable on a real message.
+
+**Migration Contract** (per sketch 14 & architect brief):
+- Gate must appear on **real assistant bubble** (not only in demo block)
+- Hiding `showMockContent` must NOT break gate functionality
+- Real assistant messages should be marked with `validationGate` property (or equivalent)
+- Click gate button (通过/驳回/改意见) → `.gate-result-bubble` appears
+
+**Test Flow**:
+1. Render ChatStage with initial showMockContent (demo block visible)
+2. Click "隐藏演示内容" toggle to hide demo content
+3. Verify demo content is hidden
+4. Look for gate buttons (通过/驳回/改意见) on a real (non-demo) message
+5. Click gate button
+6. Assert `.gate-result-bubble` appears with valid decision text
+
+**Honesty Rules** (NO wash-green tactics):
+- ❌ NO soft assertions (`expect(true)`, existence-only checks)
+- ❌ NO re-enabling `showMockContent` inside test
+- ❌ NO injecting static `.gate-result-bubble` without real click
+- ❌ If product code only mounts gate under demo content, test MUST fail (EXPECTED RED)
+
+**Current Status**: ❌ EXPECTED RED until encoding migrates ValidationGateWidget from demo block to real assistant messages marked with `validationGate` property
+
+**Expected Failure Message**:
+```
+TC-083.1 EXPECTED RED: Gate action buttons not available when showMockContent hidden.
+Encoding must migrate ValidationGateWidget from demo block to real assistant messages
+marked with validationGate property (per architect brief: gate on REAL bubble).
+```
+
+**Expected Result**: ❌ Test fails on current tip (product code has not implemented migration yet)
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test slice-12-tests -- -t "TC-083.1"
+```
+
+**Offline**: ✅ Yes
+
+**Acceptance Criteria for Green**:
+- ChatStage can render ValidationGateWidget on a real assistant message (not just demo block)
+- Real assistant message has `validationGate: true` or similar marker property
+- Gate buttons are present and clickable when showMockContent is false
+- Clicking gate button produces `.gate-result-bubble` with decision text
+- No demo content dependency for gate functionality
+
+**Note**: This test is the "knife" contract that validates sketch 14 migration is complete. It complements existing TC-083 tests by forcing the honest scenario where demo content is hidden.
 
 ---
 
