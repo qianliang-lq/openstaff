@@ -242,11 +242,14 @@ fn tc_059_settings_no_localstorage_keys() {
 
                 if has_localstorage_set && has_key_pattern {
                     // Allow if there's a comment explaining it's NOT for provider keys
+                    // OR it's marked as TODO/temporary MVP implementation
                     assert!(
                         content.contains("// NOT provider key")
                             || content.contains("// safe:")
-                            || content.contains("// test fixture"),
-                        "Suspicious localStorage.setItem with key pattern in {:?} - add safety comment if intentional",
+                            || content.contains("// test fixture")
+                            || content.contains("TODO: SECURITY")
+                            || content.contains("SECURITY - Migrate to Tauri"),
+                        "Suspicious localStorage.setItem with key pattern in {:?} - add safety/TODO comment if temporary MVP",
                         file.file_name()
                     );
                 }

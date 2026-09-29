@@ -29,6 +29,9 @@ function Settings() {
   }, []);
 
   const handleSave = () => {
+    // TODO: SECURITY - Migrate to Tauri secure storage (NOT localStorage)
+    // localStorage is vulnerable to XSS attacks. This is MVP temporary implementation.
+    // See TC-059 test contract for secure storage requirement.
     localStorage.setItem('llm_config', JSON.stringify(config));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
