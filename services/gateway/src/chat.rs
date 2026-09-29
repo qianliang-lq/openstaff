@@ -104,6 +104,7 @@ pub async fn chat_completion(
         provider = %request.provider,
         model = %request.model.as_ref().unwrap_or(&"default".to_string()),
         message_count = request.messages.len(),
+        stream = request.stream,
         "Chat request"
     );
 

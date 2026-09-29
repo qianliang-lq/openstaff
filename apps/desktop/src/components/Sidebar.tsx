@@ -109,16 +109,14 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
 }
 
 function Sidebar({ activeAgent, onAgentChange }: SidebarProps) {
-  const [agents, setAgents] = useState<Agent[]>(() => {
-    const saved = localStorage.getItem('agents');
-    return saved ? JSON.parse(saved) : mockAgents;
-  });
+  const [agents] = useState<Agent[]>(mockAgents);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const handleSaveAgent = (newAgent: Agent) => {
-    const updatedAgents = [...agents, newAgent];
-    setAgents(updatedAgents);
-    localStorage.setItem('agents', JSON.stringify(updatedAgents));
+    // Note: Agent creation is demo-only in MVP
+    // Full agent management will be implemented in future milestone
+    console.log('Agent created (demo):', newAgent);
+    setShowCreateModal(false);
     onAgentChange(newAgent.name);
   };
   return (
