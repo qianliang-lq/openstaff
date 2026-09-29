@@ -2827,4 +2827,157 @@ Correct path: Encoding fixes product code → tests turn green → App mode is v
 
 ---
 
+## UI Interaction Contract Tests (TC-079+)
+
+### Overview
+
+TC-079+ validates UI interaction contracts that ensure user actions always have visible feedback and tab content meets minimum quality bars.
+
+**Coverage**:
+- TC-079: 「立即跑一次」不可静默 - 点击必有可见反馈
+- TC-080: 四 Tab 无「开发中」- Computer/Routines/Skills/Memory 最小内容
+
+---
+
+### TC-079: 「立即跑一次」不可静默
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/tc-079-080-ui-contract.test.tsx`  
+**Tests**: 4 tests
+
+**Purpose**: Validate that clicking「立即跑一次」button always produces visible feedback. No silent failure allowed.
+
+**Contract (对齐草图 17 与「可点必有反馈」规则)**:
+
+After clicking「立即跑一次」, user MUST see one of:
+1. **运行中状态**: Button text changes to「运行中...」+ disabled state, OR spinner/loading indicator
+2. **成功反馈**: Success toast / report card / ✅ message
+3. **失败红卡**: Error message with clear reason (e.g.「后端未起」/「Scheduler 服务未响应」)
+
+**Test Coverage**:
+
+- ✅ MainStage button shows「运行中...」when clicked
+- ✅ ChatStage button shows running message「⏳ 运行中...正在执行外部洞察搜索任务」
+- ✅ Failure case: Shows error card with「❌」and backend error details
+- ✅ Success case: Shows「✅ 运行成功！已生成 X 条外部洞察」
+- ✅ Maintains visible feedback throughout operation lifecycle (running → result)
+
+**Current Status**: ✅ All 4 tests PASS
+
+ChatStage implementation (lines 225-345) has complete feedback:
+- Running: Adds running message to chat
+- Failure: Adds red error card with retry action
+- Success: Adds success message + report card
+- Timeout: Adds timeout warning
+
+**Expected Result**: ✅ Tests pass on current main
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test tc-079-080 -- -t "TC-079"
+```
+
+**Offline**: ✅ Yes (mocks fetch calls)
+
+---
+
+### TC-080: 四 Tab 无「开发中」
+
+**Layer**: UI Contract  
+**File**: `apps/desktop/src/tc-079-080-ui-contract.test.tsx`  
+**Tests**: 6 tests
+
+**Purpose**: Validate that Computer/Routines/Skills/Memory tabs do NOT show「开发中」stub text. Each tab must have minimum content (list, cards, or UI elements).
+
+**Contract (对照架构契约与草图)**:
+
+- **Computer tab**: Must have sandbox UI or computer control elements (NOT just「Computer 沙箱 (开发中)」)
+- **Routines tab**: Must have routine list or task cards (NOT just「Routines 任务编排 (开发中)」)
+- **Skills tab**: Must have skills library or catalog (NOT just「Skills 技能库 (开发中)」)
+- **Memory tab**: Must have memory/profile UI or persona cards (NOT just「Memory 记忆与人设 (开发中)」)
+
+**Exemptions**: Chat and Connectors tabs are exempt (allowed to have any implementation state)
+
+**Test Coverage**:
+
+- ❌ Computer tab: Checks for no「开发中」text
+- ❌ Routines tab: Checks for no「开发中」text
+- ❌ Skills tab: Checks for no「开发中」text
+- ❌ Memory tab: Checks for no「开发中」text
+- ❌ All four tabs: Validates stub-page div doesn't just contain「开发中」text
+- ✅ Chat/Connectors: Confirms exemption (already implemented)
+
+**Current Status**: ❌ 5 tests FAIL (expected until encoding fixes land)
+
+Current MainStage.tsx (lines 143-147) has stub content:
+
+```typescript
+{activeTab === 'computer' && <div className="stub-page">Computer 沙箱 (开发中)</div>}
+{activeTab === 'routines' && <div className="stub-page">Routines 任务编排 (开发中)</div>}
+{activeTab === 'skills' && <div className="stub-page">Skills 技能库 (开发中)</div>}
+{activeTab === 'memory' && <div className="stub-page">Memory 记忆与人设 (开发中)</div>}
+```
+
+**Expected Result**: ❌ Tests fail on current tip (expected behavior)
+
+**Fix Required**: Replace stub divs with minimum viable UI:
+- Computer: Empty sandbox + status indicator
+- Routines: Empty routine list + "创建 Routine" button
+- Skills: Skills catalog with 0 installed skills message
+- Memory: Agent profile card or empty persona editor
+
+**Command**:
+
+```bash
+cd apps/desktop && pnpm test tc-079-080 -- -t "TC-080"
+```
+
+**Offline**: ✅ Yes (renders components only)
+
+---
+
+### Running UI Contract Tests
+
+```bash
+# All TC-079/080 tests
+cd apps/desktop && pnpm test tc-079-080
+
+# Only TC-079 (立即跑一次 feedback)
+cd apps/desktop && pnpm test tc-079-080 -- -t "TC-079"
+
+# Only TC-080 (四 Tab 最小内容)
+cd apps/desktop && pnpm test tc-079-080 -- -t "TC-080"
+```
+
+**Expected on Current Tip**:
+- TC-079: ✅ 4 tests PASS (feedback already implemented)
+- TC-080: ❌ 5 tests FAIL (intentional - stubs need replacement)
+
+**Time**: ~1 second  
+**Offline**: ✅ Yes (all tests mock network calls)
+
+---
+
+### Test Coverage Summary (TC-079+)
+
+**Added Coverage**:
+1. **Button Feedback Contract** (TC-079): Validates「可点必有反馈」rule - no silent failures
+2. **Tab Content Quality** (TC-080): Validates four tabs have minimum viable content (no「开发中」stubs)
+
+**Delivery Bar**: 
+- TC-079 already satisfied (ChatStage has complete feedback loop)
+- TC-080 gates four-tab MVP readiness (Computer/Routines/Skills/Memory must have real UI)
+
+**Honesty Note**: 
+- TC-079 tests GREEN - implementation already complies with contract
+- TC-080 tests RED by design - waiting for encoding to replace stubs with minimum viable UI
+- Do NOT fix by removing「开发中」text while keeping empty stubs (must have real content)
+
+**Reference**: 
+- TC-079 aligns with 草图 17 (「立即跑一次」交互流程)
+- TC-080 aligns with `/workspace/briefs/openstaff/11-four-tabs-min-contract.md` (if exists) or architecture brief §minimum viable content per tab
+
+---
+
 **Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.
