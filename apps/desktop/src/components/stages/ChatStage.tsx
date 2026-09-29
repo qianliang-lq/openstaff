@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { getProviderKey } from '../../utils/tauri';
 import ValidationGateWidget from '../ValidationGateWidget';
 import ExternalInsightReportCard, { type ExternalInsightFact } from '../ExternalInsightReportCard';
 import './ChatStage.css';
@@ -97,12 +97,8 @@ function ChatStage({
 
   const checkKeys = async () => {
     try {
-      const qwenKey = (await invoke('get_provider_key', {
-        provider: 'qwen',
-      })) as string | null;
-      const glmKey = (await invoke('get_provider_key', {
-        provider: 'glm',
-      })) as string | null;
+      const qwenKey = await getProviderKey('qwen');
+      const glmKey = await getProviderKey('glm');
 
       setHasAnyKey(!!(qwenKey || glmKey));
     } catch (err) {
@@ -129,14 +125,10 @@ function ChatStage({
       let provider = 'qwen';
 
       try {
-        providerKey = (await invoke('get_provider_key', {
-          provider: 'qwen',
-        })) as string | null;
+        providerKey = await getProviderKey('qwen');
 
         if (!providerKey) {
-          providerKey = (await invoke('get_provider_key', {
-            provider: 'glm',
-          })) as string | null;
+          providerKey = await getProviderKey('glm');
           if (providerKey) {
             provider = 'glm';
           }

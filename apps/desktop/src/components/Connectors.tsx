@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import {
+  isTauriEnvironment,
+  getProviderKey,
+  saveProviderKey,
+  deleteProviderKey,
+} from '../utils/tauri';
 import './Connectors.css';
 
 interface ProviderConfig {
@@ -27,19 +32,17 @@ function Connectors() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [isTauri, setIsTauri] = useState(false);
 
   useEffect(() => {
+    setIsTauri(isTauriEnvironment());
     loadKeys();
   }, []);
 
   const loadKeys = async () => {
     try {
-      const qwenKey = (await invoke('get_provider_key', {
-        provider: 'qwen',
-      })) as string | null;
-      const glmKey = (await invoke('get_provider_key', {
-        provider: 'glm',
-      })) as string | null;
+      const qwenKey = await getProviderKey('qwen');
+      const glmKey = await getProviderKey('glm');
 
       if (qwenKey) {
         setQwenConfig((prev) => ({
@@ -75,10 +78,7 @@ function Connectors() {
     }
 
     try {
-      await invoke('save_provider_key', {
-        provider,
-        key: config.apiKey,
-      });
+      await saveProviderKey(provider, config.apiKey);
 
       setConfig((prev) => ({ ...prev, hasKey: true, status: 'saved', error: undefined }));
       setTimeout(() => {
@@ -98,7 +98,7 @@ function Connectors() {
     const setConfig = provider === 'qwen' ? setQwenConfig : setGlmConfig;
 
     try {
-      await invoke('delete_provider_key', { provider });
+      await deleteProviderKey(provider);
       setConfig({
         provider,
         hasKey: false,
@@ -217,13 +217,19 @@ function Connectors() {
             </button>
             <button
               onClick={() => handleSave(config.provider)}
-              disabled={config.status === 'testing'}
+              disabled={config.status === 'testing' || !isTauri}
               className="btn-save"
+              title={!isTauri ? '保存需要 Tauri 环境。请运行: pnpm tauri:dev' : ''}
             >
               保存
             </button>
             {config.hasKey && (
-              <button onClick={() => handleClear(config.provider)} className="btn-clear">
+              <button
+                onClick={() => handleClear(config.provider)}
+                disabled={!isTauri}
+                className="btn-clear"
+                title={!isTauri ? '清除需要 Tauri 环境。请运行: pnpm tauri:dev' : ''}
+              >
                 清除
               </button>
             )}
@@ -255,6 +261,62 @@ function Connectors() {
           认证层。请勿在公共设备保存。
         </div>
       </div>
+
+      {!isTauri && (
+        <div
+          className="warning-banner"
+          style={{
+            backgroundColor: '#fff3cd',
+            border: '1px solid #ffc107',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '20px',
+            display: 'flex',
+            gap: '12px',
+          }}
+        >
+          <div style={{ fontSize: '20px' }}>⚠️</div>
+          <div>
+            <strong>浏览器预览模式</strong>
+            <div style={{ fontSize: '14px', marginTop: '4px', color: '#856404' }}>
+              保存/清除功能需要 Tauri 环境。请运行{' '}
+              <code
+                style={{
+                  backgroundColor: '#f8f9fa',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  fontFamily: 'monospace',
+                }}
+              >
+                pnpm tauri:dev
+              </code>{' '}
+              或配置环境变量{' '}
+              <code
+                style={{
+                  backgroundColor: '#f8f9fa',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  fontFamily: 'monospace',
+                }}
+              >
+                OPENSTAFF_LLM_API_KEY
+              </code>{' '}
+              +{' '}
+              <code
+                style={{
+                  backgroundColor: '#f8f9fa',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  fontFamily: 'monospace',
+                }}
+              >
+                just dev-up
+              </code>
+              。
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="section">
         <h2 className="section-title">模型 API Key (BYOK)</h2>
