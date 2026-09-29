@@ -45,14 +45,6 @@ const mockAgents: Agent[] = [
     avatar: '研',
     avatarClass: 'dev',
   },
-  {
-    id: '4',
-    name: '测试员工',
-    role: '测试 · 演示向导功能',
-    status: 'idle',
-    avatar: '测',
-    avatarClass: 'custom',
-  },
 ];
 
 function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {

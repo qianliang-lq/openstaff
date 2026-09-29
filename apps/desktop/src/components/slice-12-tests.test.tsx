@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import App from '../App';
 import MainStage from './MainStage';
 import Sidebar from './Sidebar';
@@ -256,17 +257,38 @@ describe('TC-083: Validation gate card', () => {
     ).toBeInTheDocument();
   });
 
-  it('should show chat bubble after gate action', () => {
+  it('should show chat bubble after gate action', async () => {
     // ❌ EXPECTED RED: Gate action flow not yet implemented
+    const user = userEvent.setup();
+
     render(<App />);
 
-    // After clicking Pass/Reject/Revise, should show chat bubble with result
-    const gateResultBubble = document.querySelector('.gate-result-bubble');
+    // TIGHTENED CONTRACT: Must click Pass/Reject/Revise button
+    // Find one of the gate action buttons (通过/拒绝/改意见)
+    const passButton = screen.queryByRole('button', { name: /通过|Pass/i });
+    const rejectButton = screen.queryByRole('button', { name: /拒绝|驳回|Reject/i });
+    const reviseButton = screen.queryByRole('button', { name: /改意见|修改|Revise/i });
 
+    const actionButton = passButton || rejectButton || reviseButton;
+
+    // Must have at least one gate button
     expect(
-      gateResultBubble,
-      'TC-083 EXPECTED RED: Gate result chat bubble not yet implemented'
-    ).toBeTruthy();
+      actionButton,
+      'TC-083 EXPECTED RED: Gate action buttons not yet implemented'
+    ).toBeInTheDocument();
+
+    if (actionButton) {
+      // Click the gate action button
+      await user.click(actionButton);
+
+      // After click, should show chat bubble with result
+      const gateResultBubble = document.querySelector('.gate-result-bubble');
+
+      expect(
+        gateResultBubble,
+        'TC-083 EXPECTED RED: Gate result chat bubble not yet implemented after click'
+      ).toBeInTheDocument();
+    }
   });
 });
 
@@ -306,25 +328,67 @@ describe('TC-084: New agent wizard', () => {
     ).toBeTruthy();
   });
 
-  it('should add new agent to sidebar after wizard completion', () => {
-    // ❌ EXPECTED TO FAIL: Wizard flow not yet implemented
+  it('should add new agent to sidebar after wizard completion', async () => {
+    // ❌ EXPECTED RED: Wizard flow not yet implemented
+    const user = userEvent.setup();
+
     render(<App />);
 
-    // After completing wizard, sidebar should show new agent
-    // This is a fixture test - real backend integration not required
+    // TIGHTENED CONTRACT: Must click "新建" button to open wizard
+    const newAgentButton = screen.queryByRole('button', { name: /新建|创建|\+/i });
 
-    const sidebar = document.querySelector('.sidebar');
-    expect(sidebar, 'Sidebar should exist').toBeInTheDocument();
-
-    // Look for evidence of dynamic agent list (not just hardcoded agents)
-    const agentItems = document.querySelectorAll('.agent-item, .agent-card');
-
-    // Currently shows 3 hardcoded agents
-    // After wizard: should support adding new ones
     expect(
-      agentItems.length,
-      'TC-084 EXPECTED RED: Sidebar should support dynamic agent list (wizard not implemented)'
-    ).toBeGreaterThan(3);
+      newAgentButton,
+      'TC-084 EXPECTED RED: New agent button not yet implemented'
+    ).toBeInTheDocument();
+
+    if (newAgentButton) {
+      // Click to open wizard
+      await user.click(newAgentButton);
+
+      // Should show wizard modal/form
+      const wizardModal = document.querySelector('.modal, .wizard-modal, [role="dialog"]');
+      expect(
+        wizardModal,
+        'TC-084 EXPECTED RED: Wizard modal not yet implemented'
+      ).toBeInTheDocument();
+
+      // Fill in agent name (unique name to verify it appears)
+      const testAgentName = '向导验收员工';
+      const nameInput = screen.queryByLabelText(/Agent 名称|名字|Name/i);
+
+      if (nameInput) {
+        await user.clear(nameInput);
+        await user.type(nameInput, testAgentName);
+      }
+
+      // Fill in role
+      const roleInput = screen.queryByLabelText(/角色|Role/i);
+      if (roleInput) {
+        await user.clear(roleInput);
+        await user.type(roleInput, '测试角色');
+      }
+
+      // Submit wizard (look for "完成", "创建", "确定", etc.)
+      const submitButton = screen.queryByRole('button', { name: /完成|创建|确定|提交|Save/i });
+
+      if (submitButton) {
+        await user.click(submitButton);
+
+        // After submission, new agent should appear in sidebar
+        const sidebar = document.body;
+
+        expect(
+          sidebar.textContent,
+          'TC-084 EXPECTED RED: New agent name should appear in sidebar after wizard completion'
+        ).toContain(testAgentName);
+      } else {
+        expect(
+          submitButton,
+          'TC-084 EXPECTED RED: Wizard submit button not yet implemented'
+        ).toBeInTheDocument();
+      }
+    }
   });
 
   it('should support agent name and role configuration in wizard', () => {

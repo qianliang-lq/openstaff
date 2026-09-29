@@ -511,19 +511,6 @@ function ChatStage({
               </div>
             </div>
 
-            {/* Show completed gate result for TC-083 in test environment */}
-            {(process.env.NODE_ENV === 'test' || import.meta.env?.MODE === 'test') && (
-              <div className="message assistant">
-                <div className="message-avatar">产</div>
-                <div className="message-content">
-                  <div className="gate-result-bubble">
-                    <span className="result-icon">✅</span>
-                    <span className="result-text">已通过验证</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {reconcileStatus === 'PASS' && (
               <div className="message assistant">
                 <div className="message-avatar">产</div>
