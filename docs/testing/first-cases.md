@@ -2827,13 +2827,23 @@ Correct path: Encoding fixes product code → tests turn green → App mode is v
 
 ---
 
-## §12 Next Slice Tests v1.1 (TC-081+ including TC-086)
+## §12 Next Slice Tests v1.2 (TC-081+ including TC-086 v1.2)
 
 ### Overview
 
-TC-081+ validates the §12 next slice requirements **v1.1**. These are **TEST ONLY** cases - implementation is expected to land separately. Some tests are **EXPECTED RED** until encoding fixes land.
+TC-081+ validates the §12 next slice requirements **v1.2**. These are **TEST ONLY** cases - implementation is expected to land separately. Some tests are **EXPECTED RED** until encoding fixes land.
 
-**v1.1 Changes**:
+**v1.2 Changes** (from v1.1):
+- **Hardened TC-086: Web Search Skill** (sketch 22 locked)
+  - Added skill_id: `web-search`
+  - Added 「在 Chat 里提问」button requirement
+  - Added enable/disable toast/badge change requirement
+  - Added NO search API Key in Connectors constraint
+  - Added Gateway architecture documentation requirement
+  - Added distinction from external-insight-daily
+  - Total TC-086 tests: 10 → 16
+
+**v1.1 Changes** (from v1.0):
 - Added **TC-086: Web Search Skill** (sketch 22/04/16)
   - NOT a Connectors OAuth card
   - Under Skills tab: list + detail + test run
@@ -2841,7 +2851,7 @@ TC-081+ validates the §12 next slice requirements **v1.1**. These are **TEST ON
 
 **Critical**: These tests document contracts that must be satisfied. Do NOT:
 - Add escape hatches or SECURITY TODO soft-pass
-- Delete tests to make CI green
+- Delete tests to green CI
 - Invent product UI labels
 
 **Test Location**: `apps/desktop/src/components/slice-12-tests.test.tsx`
@@ -3040,34 +3050,53 @@ cd apps/desktop && pnpm test slice-12-tests -t "TC-085"
 
 ---
 
-### TC-086: Web Search Skill (Sketch 22/04/16) ⭐ NEW in v1.1
+### TC-086: Web Search Skill v1.2 (Sketch 22 Locked) ⭐ UPDATED
 
 **Layer**: UI Contract  
 **File**: `apps/desktop/src/components/slice-12-tests.test.tsx`  
 **Function**: Multiple tests for Web Search skill
 
-**Purpose**: Validate Web Search skill UI and test run flow per sketch 22/04/16.
+**Purpose**: Validate Web Search skill UI and test run flow per sketch 22 (locked).
+
+**skill_id**: `web-search`
+
+**Architecture Contract** (v1.2):
+- Lives under Skills (list + detail), NOT Connectors OAuth
+- **NO** search API Key in Connectors (outbound search only via Gateway)
+- Distinct from external-insight daily (sketch 16): this is **in-session instant search**
+- CTAs: 「试跑一次」**and** 「在 Chat 里提问」→ visible feedback (running/green/red)
+- Enable/disable → toast or badge change
 
 **Critical Contract**: Web Search is a **Skill**, NOT a Connectors OAuth card.
 
+**FORBIDDEN** (v1.2):
+- ❌ Web Search as Connectors OAuth card
+- ❌ Connectors-style Key field for web-search skill (e.g., "Serper API Key")
+- ❌ Direct Serper/Tavily/Google API calls (must go via Gateway)
+
 **Acceptance Criteria**:
 - ✅ Web Search appears in Skills tab (NOT Connectors)
+- ✅ skill_id="web-search" attribute
 - ✅ List item in Skills
 - ✅ Detail view: enable/disable toggle
+- ✅ Enable/disable → toast or badge change
 - ✅ Detail view: auto-call configuration
 - ✅ 「试跑一次」button
+- ✅ 「在 Chat 里提问」button (NEW in v1.2)
 - ✅ Running state indicator
 - ✅ Green success summary on success
 - ✅ Red error card on failure
 - ✅ Explicit backend down error (not silent)
 - ✅ Uses fixture (no real Serper/Tavily/Google API calls)
-- ❌ FORBIDDEN: Second SaaS auth card for Web Search in Connectors
+- ✅ Gateway architecture requirement documented
+- ✅ Distinction from external-insight-daily documented
 
 **UI Elements Expected**:
-- Skills tab: Web Search skill list item
+- Skills tab: Web Search skill list item with `data-skill-id="web-search"`
 - Detail view: Enable/disable toggle
 - Detail view: Auto-call configuration (when to trigger)
-- Test button: 「试跑一次」
+- Test buttons: 「试跑一次」+ 「在 Chat 里提问」(NEW)
+- Toast or badge change on enable/disable toggle (NEW)
 - Running state: `.skill-running` or `.running-state`
 - Success: `.skill-success` green summary card
 - Error: `.skill-error` red error card
@@ -3077,20 +3106,26 @@ cd apps/desktop && pnpm test slice-12-tests -t "TC-085"
 
 **Expected Result**: ✅ Web Search skill with test run flow
 
-**Test Results**:
-- **Total**: 10 tests
-- **Passed**: 2 ✅
+**Test Results v1.2**:
+- **Total**: 16 tests (was 10 in v1.1)
+- **Passed**: 5 ✅ (31%)
   1. should NOT show Web Search as SaaS auth card in Connectors
-  2. should use fixture for Web Search test run (no real web calls required)
-- **Failed**: 8 ❌ (EXPECTED)
-  1. should render Web Search skill in Skills tab (not Connectors)
+  2. should NOT show search API Key field in Connectors for web-search skill (NEW)
+  3. should use fixture for Web Search test run (no real web calls required)
+  4. should document Gateway architecture requirement for outbound search (NEW)
+  5. should distinguish web-search from external-insight-daily (NEW - intermittent)
+- **Failed**: 11 ❌ (69% - EXPECTED)
+  1. should render Web Search skill with skill_id "web-search" in Skills tab (UPDATED)
   2. should show Web Search skill detail with enable/disable toggle
-  3. should show Web Search skill detail with auto-call configuration
-  4. should render「试跑一次」button for Web Search skill
-  5. should show running state when executing Web Search test run
-  6. should show green success summary after successful Web Search test run
-  7. should show red error card when Web Search test run fails
-  8. should show explicit error message when backend is down
+  3. should show toast or badge change when enable/disable toggled (NEW)
+  4. should show Web Search skill detail with auto-call configuration
+  5. should render「试跑一次」button for Web Search skill
+  6. should render「在 Chat 里提问」button for Web Search skill (NEW)
+  7. should show running state when executing Web Search test run
+  8. should show green success summary after successful Web Search test run
+  9. should show red error card when Web Search test run fails
+  10. should show explicit error message when backend is down
+  11. should distinguish web-search from external-insight-daily (intermittent)
 
 **Command**:
 
@@ -3104,7 +3139,7 @@ cd apps/desktop && pnpm test slice-12-tests -t "TC-086"
 
 ---
 
-## Running §12 Slice Tests v1.1
+## Running §12 Slice Tests v1.2
 
 ### All Slice 12 Tests
 
@@ -3116,10 +3151,10 @@ cd apps/desktop && pnpm test slice-12-tests
 **Time**: ~2-3 seconds  
 **Offline**: ✅ Yes (all UI rendering tests)
 
-**v1.1 Results**:
-- **Total**: 35 tests (was 25 in v1.0)
-- **Passed**: 6 ✅ (17%)
-- **Failed**: 29 ❌ (83% - EXPECTED RED)
+**v1.2 Results**:
+- **Total**: 40 tests (was 35 in v1.1, was 25 in v1.0)
+- **Passed**: 9 ✅ (23%)
+- **Failed**: 31 ❌ (77% - EXPECTED RED)
 
 ### Individual Test Suites
 
@@ -3145,7 +3180,7 @@ cd apps/desktop && pnpm test slice-12-tests -t "TC-086"
 
 ---
 
-## Test Coverage Summary (TC-081+ v1.1)
+## Test Coverage Summary (TC-081+ v1.2)
 
 **Added Coverage**:
 1. **Ban-word Scan**: TC-081 validates no forbidden placeholder text across all routes
@@ -3153,19 +3188,30 @@ cd apps/desktop && pnpm test slice-12-tests -t "TC-086"
 3. **Validation Gate**: TC-083 validates gate card UI per sketch 14
 4. **Agent Wizard**: TC-084 validates 3-step creation wizard per sketch 12
 5. **GitHub Connector**: TC-085 validates Connect/Test/Status UI (no real OAuth)
-6. **Web Search Skill**: TC-086 validates Skill UI and test run flow (sketch 22/04/16) ⭐ **NEW**
+6. **Web Search Skill v1.2**: TC-086 validates Skill UI and test run flow (sketch 22 locked) ⭐ **HARDENED**
+   - skill_id: `web-search`
+   - NO Connectors API Key fields
+   - Gateway architecture requirement
+   - 「在 Chat 里提问」button
+   - Enable/disable toast/badge
+   - Distinction from external-insight-daily
 
-**Delivery Bar**: These tests are TEST ONLY - expected red until implementation lands. Tests document contracts that encoding must satisfy.
+**Delivery Bar**: These tests are TEST ONLY - expected red until implementation lands D2. Tests document contracts that encoding must satisfy.
 
-**Expected Red Tests v1.1**:
+**Expected Red Tests v1.2**:
 - TC-081: Multiple routes show "开发中" (5 tests failing)
 - TC-082: Error swallowed into timeout (3 tests failing)
 - TC-083: Gate UI not implemented (3 tests failing)
 - TC-084: Wizard UI not implemented (3 tests failing)
 - TC-085: GitHub connector is stub (6 tests failing)
-- TC-086: Web Search skill not implemented (8 tests failing) ⭐ **NEW**
+- TC-086 v1.2: Web Search skill not implemented (11 tests failing) ⭐ **UPDATED**
+  - skill_id attribute missing
+  - Enable/disable toggle missing
+  - Toast/badge change missing
+  - 「在 Chat 里提问」button missing
+  - Test run flow not implemented
 
-**Total**: ~28-29 tests failing (expected)
+**Total**: ~31 tests failing (expected)
 
 **Honesty Note**: These tests are designed to fail until features land. Do NOT:
 - Add escape hatches (SECURITY TODO)

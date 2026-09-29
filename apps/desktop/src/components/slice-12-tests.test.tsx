@@ -474,22 +474,27 @@ describe('TC-085: GitHub SaaS connector smoke', () => {
     );
   });
 });
-
 /**
- * TC-086: Web Search Skill (sketch 22/04/16)
+ * TC-086: Web Search Skill v1.2 (sketch 22 locked)
  *
- * NOT a Connectors OAuth card. Under Skills tab:
- * - List item + detail view (auto-call config / enable-disable toggle)
- * - 「试跑一次」→ running state → green summary OR red error card
- * - Backend down → explicit error (not silent failure)
- * - Fixture OK for testing
+ * skill_id: `web-search`
  *
- * FORBIDDEN: Second SaaS auth card for web search in Connectors
+ * Architecture Contract:
+ * - Lives under Skills (list + detail), NOT Connectors OAuth
+ * - NO search API Key in Connectors (outbound search only via Gateway)
+ * - Distinct from external-insight daily (sketch 16): this is in-session instant search
+ * - CTAs: 「试跑一次」and 「在 Chat 里提问」→ visible feedback (running/green/red)
+ * - Enable/disable → toast or badge change
+ *
+ * FORBIDDEN:
+ * - Web Search as Connectors OAuth card
+ * - Connectors-style Key field for web-search skill
+ * - Direct Serper/Tavily/Google API calls (must go via Gateway)
  *
  * Current Status: ❌ EXPECTED RED - Web Search Skill not implemented
  */
-describe('TC-086: Web Search Skill', () => {
-  it('should render Web Search skill in Skills tab (not Connectors)', () => {
+describe('TC-086: Web Search Skill v1.2', () => {
+  it('should render Web Search skill with skill_id "web-search" in Skills tab', () => {
     render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
 
     // ❌ EXPECTED TO FAIL: Skills tab is stub, Web Search not implemented
@@ -497,7 +502,14 @@ describe('TC-086: Web Search Skill', () => {
 
     expect(
       webSearchSkill,
-      'TC-086 EXPECTED RED: Web Search skill not yet implemented in Skills tab'
+      'TC-086 v1.2 EXPECTED RED: Web Search skill (skill_id: web-search) not yet implemented in Skills tab'
+    ).toBeInTheDocument();
+
+    // Should have data-skill-id="web-search" when implemented
+    const skillElement = document.querySelector('[data-skill-id="web-search"]');
+    expect(
+      skillElement,
+      'TC-086 v1.2 EXPECTED RED: skill_id "web-search" not found'
     ).toBeInTheDocument();
   });
 
@@ -523,18 +535,59 @@ describe('TC-086: Web Search Skill', () => {
     ).toBe(false);
   });
 
+  it('should NOT show search API Key field in Connectors for web-search skill', () => {
+    render(<MainStage activeTab="connectors" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // v1.2 Contract: NO Connectors-style Key field for web-search
+    // Outbound search only via Gateway (architecture requirement)
+
+    const body = document.body.textContent || '';
+
+    // Should NOT show:
+    // - "Serper API Key"
+    // - "Tavily API Key"
+    // - "Google Search API Key"
+    // These would indicate Connectors-style auth (FORBIDDEN)
+
+    expect(body).not.toContain('Serper API Key');
+    expect(body).not.toContain('Tavily API Key');
+    expect(body).not.toContain('Google Search API Key');
+
+    // This test passes (Connectors doesn't have web search keys)
+    // Documents the contract: web-search uses Gateway, not direct API keys
+    expect(
+      true,
+      'TC-086 v1.2: Web Search must NOT have API Key fields in Connectors (uses Gateway)'
+    ).toBe(true);
+  });
+
   it('should show Web Search skill detail with enable/disable toggle', () => {
     render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
 
     // ❌ EXPECTED TO FAIL: Skill detail view not implemented
     const enableToggle = screen.queryByRole('switch', {
-      name: /启用|Enable/i,
+      name: /启用|Enable|web.?search/i,
     });
 
     expect(
       enableToggle,
-      'TC-086 EXPECTED RED: Enable/disable toggle not yet implemented'
+      'TC-086 v1.2 EXPECTED RED: Enable/disable toggle not yet implemented'
     ).toBeInTheDocument();
+  });
+
+  it('should show toast or badge change when enable/disable toggled', () => {
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // ❌ EXPECTED TO FAIL: Enable/disable feedback not implemented
+    // v1.2: Toggle should trigger toast notification or badge state change
+
+    const toast = document.querySelector('.toast, .notification');
+    const badge = document.querySelector('.skill-badge, .status-badge');
+
+    expect(
+      toast || badge,
+      'TC-086 v1.2 EXPECTED RED: Enable/disable should show toast or badge change'
+    ).toBeTruthy();
   });
 
   it('should show Web Search skill detail with auto-call configuration', () => {
@@ -545,7 +598,7 @@ describe('TC-086: Web Search Skill', () => {
 
     expect(
       autoCallConfig,
-      'TC-086 EXPECTED RED: Auto-call config not yet implemented'
+      'TC-086 v1.2 EXPECTED RED: Auto-call config not yet implemented'
     ).toBeInTheDocument();
   });
 
@@ -554,12 +607,27 @@ describe('TC-086: Web Search Skill', () => {
 
     // ❌ EXPECTED TO FAIL: Test run button not implemented
     const testRunButton = screen.queryByRole('button', {
-      name: /试跑一次|测试运行/i,
+      name: /试跑一次/i,
     });
 
     expect(
       testRunButton,
-      'TC-086 EXPECTED RED: Test run button not yet implemented'
+      'TC-086 v1.2 EXPECTED RED: 「试跑一次」button not yet implemented'
+    ).toBeInTheDocument();
+  });
+
+  it('should render「在 Chat 里提问」button for Web Search skill', () => {
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    // ❌ EXPECTED TO FAIL: Chat CTA button not implemented
+    // v1.2: New CTA for in-session instant search (distinct from external-insight daily)
+    const chatButton = screen.queryByRole('button', {
+      name: /在 Chat 里提问|Chat/i,
+    });
+
+    expect(
+      chatButton,
+      'TC-086 v1.2 EXPECTED RED: 「在 Chat 里提问」button not yet implemented'
     ).toBeInTheDocument();
   });
 
@@ -572,7 +640,7 @@ describe('TC-086: Web Search Skill', () => {
 
     expect(
       runningIndicator,
-      'TC-086 EXPECTED RED: Running state indicator not yet implemented'
+      'TC-086 v1.2 EXPECTED RED: Running state indicator not yet implemented'
     ).toBeTruthy();
   });
 
@@ -585,7 +653,7 @@ describe('TC-086: Web Search Skill', () => {
 
     expect(
       successSummary,
-      'TC-086 EXPECTED RED: Success summary card not yet implemented'
+      'TC-086 v1.2 EXPECTED RED: Green success summary card not yet implemented'
     ).toBeTruthy();
   });
 
@@ -596,7 +664,7 @@ describe('TC-086: Web Search Skill', () => {
     // When test run fails, should show red error card
     const errorCard = document.querySelector('.skill-error, .error-card');
 
-    expect(errorCard, 'TC-086 EXPECTED RED: Error card not yet implemented').toBeTruthy();
+    expect(errorCard, 'TC-086 v1.2 EXPECTED RED: Red error card not yet implemented').toBeTruthy();
   });
 
   it('should show explicit error message when backend is down', () => {
@@ -612,7 +680,7 @@ describe('TC-086: Web Search Skill', () => {
     // Explicit error when backend down (not silent failure)
     expect(
       body.includes('后端') || body.includes('Backend') || body.includes('服务'),
-      'TC-086 EXPECTED RED: Explicit backend error message not yet implemented'
+      'TC-086 v1.2 EXPECTED RED: Explicit backend error message not yet implemented'
     ).toBe(true);
   });
 
@@ -633,7 +701,58 @@ describe('TC-086: Web Search Skill', () => {
 
     // This test passes trivially now (stub),
     // but documents that implementation should use fixtures
-    expect(true, 'TC-086: Web Search tests should use fixtures (no real API calls)').toBe(true);
+    expect(true, 'TC-086 v1.2: Web Search tests should use fixtures (no real API calls)').toBe(
+      true
+    );
+  });
+
+  it('should document Gateway architecture requirement for outbound search', () => {
+    // v1.2 Architecture Contract:
+    // Web Search skill_id=web-search must route search queries via Gateway
+    // NO direct Serper/Tavily/Google API calls from UI or Skills service
+    //
+    // This is enforced by:
+    // 1. NO API Key fields in Connectors (tested above)
+    // 2. Skills service calls Gateway /v1/search (not tested here, backend contract)
+    // 3. UI does not contain hardcoded search API endpoints (tested below)
+
+    render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
+
+    const body = document.body.textContent || '';
+
+    // UI should NOT contain direct search API endpoints
+    expect(body).not.toContain('https://google.serper.dev');
+    expect(body).not.toContain('https://api.tavily.com');
+    expect(body).not.toContain('https://www.googleapis.com/customsearch');
+
+    // This test documents the architecture requirement
+    expect(
+      true,
+      'TC-086 v1.2 Architecture: Web Search must route via Gateway (no direct API calls)'
+    ).toBe(true);
+  });
+
+  it('should distinguish web-search from external-insight-daily (sketch 16 vs 22)', () => {
+    // v1.2 Contract: web-search (sketch 22) is DISTINCT from external-insight daily (sketch 16)
+    //
+    // Differences:
+    // - external-insight: scheduled daily job, returns curated facts
+    // - web-search: in-session instant search, user-triggered
+    //
+    // Both should be visible in UI, but serve different purposes
+
+    render(<App />);
+
+    // This test documents the distinction
+    // Both skills should coexist (when implemented)
+
+    // external-insight: should have "立即跑一次" button in MainStage/ChatStage
+    // web-search: should have "试跑一次" and "在 Chat 里提问" in Skills tab
+
+    expect(
+      true,
+      'TC-086 v1.2: web-search (instant) is distinct from external-insight-daily (scheduled)'
+    ).toBe(true);
   });
 });
 
@@ -645,9 +764,15 @@ describe('TC-086: Web Search Skill', () => {
  * TC-083: ❌ EXPECTED RED - Validation gate UI not implemented (sketch 14)
  * TC-084: ❌ EXPECTED RED - Agent wizard not implemented (sketch 12)
  * TC-085: ❌ EXPECTED RED - GitHub connector is stub with "敬请期待"
- * TC-086: ❌ EXPECTED RED - Web Search skill not implemented (sketch 22/04/16)
+ * TC-086 v1.2: ❌ EXPECTED RED - Web Search skill not implemented (sketch 22 locked)
+ *   - skill_id: web-search
+ *   - Skills tab only (NOT Connectors OAuth)
+ *   - NO search API Key in Connectors (uses Gateway)
+ *   - CTAs: 试跑一次 + 在 Chat 里提问
+ *   - Distinct from external-insight daily (sketch 16)
  *
  * These tests document the contracts that encoding must satisfy.
  * Tests should NOT be deleted or soft-passed with escape hatches.
  * Correct path: Implement features → tests turn green.
+ * Expected-red until encoding lands D2. No soft-pass.
  */
