@@ -344,8 +344,8 @@ describe('Connectors - TC-063+ Tests', () => {
     });
   });
 
-  describe('Default Model Display', () => {
-    it('should display qwen-plus as default model for Qwen provider', async () => {
+  describe('Display Copy (c9453ea)', () => {
+    it('should display "Qwen3.8 系列（API：qwen-plus）" for Qwen default model', async () => {
       mockIsTauriEnvironment.mockReturnValue(true);
       mockGetProviderKey.mockResolvedValue(null);
 
@@ -355,8 +355,23 @@ describe('Connectors - TC-063+ Tests', () => {
         expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
       });
 
-      // Check for qwen-plus in the UI
-      expect(screen.getByText(/qwen-plus/i)).toBeInTheDocument();
+      // Check for complete display copy (per c9453ea)
+      expect(screen.getByText(/Qwen3\.8 系列（API：qwen-plus）/)).toBeInTheDocument();
+    });
+
+    it('should mention "百炼" (Bailian) in section description', async () => {
+      mockIsTauriEnvironment.mockReturnValue(true);
+      mockGetProviderKey.mockResolvedValue(null);
+
+      render(<Connectors />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
+
+      // Check for "百炼" (not "DashScope")
+      expect(screen.getByText(/百炼/)).toBeInTheDocument();
+      expect(screen.getByText(/百炼 OpenAI 兼容/)).toBeInTheDocument();
     });
 
     it('should link to Bailian console for Qwen', async () => {
@@ -376,6 +391,20 @@ describe('Connectors - TC-063+ Tests', () => {
         'href',
         expect.stringContaining('bailian.console.aliyun.com')
       );
+    });
+
+    it('should display glm-4-flash as default model for GLM provider', async () => {
+      mockIsTauriEnvironment.mockReturnValue(true);
+      mockGetProviderKey.mockResolvedValue(null);
+
+      render(<Connectors />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
+
+      // Check for GLM default model
+      expect(screen.getByText(/glm-4-flash/)).toBeInTheDocument();
     });
   });
 });
