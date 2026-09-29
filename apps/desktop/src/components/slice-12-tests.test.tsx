@@ -466,7 +466,8 @@ describe('TC-084: New agent wizard', () => {
         await user.type(nameInput, testAgentName);
 
         // Click "下一步" to go to step 2
-        const nextButton = screen.queryByText(/下一步/i);
+        // Use button role to avoid collision with "低成本下一步" text in report card
+        const nextButton = screen.queryByRole('button', { name: /^下一步$/i });
         if (nextButton) {
           await user.click(nextButton);
 
@@ -480,7 +481,7 @@ describe('TC-084: New agent wizard', () => {
           });
 
           // Click "下一步" to go to step 3
-          const nextButton2 = screen.queryByText(/下一步/i);
+          const nextButton2 = screen.queryByRole('button', { name: /^下一步$/i });
           if (nextButton2) {
             await user.click(nextButton2);
 
