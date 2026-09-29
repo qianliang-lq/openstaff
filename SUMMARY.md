@@ -9,12 +9,14 @@
 ## ✅ What Was Fixed
 
 ### WRONG (Previous Implementation - DELETED)
+
 - ❌ Desktop → Gateway (direct)
 - ❌ localStorage for keys (XSS risk)
 - ❌ API key in request body
 - ❌ No audit logging
 
 ### RIGHT (Current Implementation)
+
 - ✅ Desktop → API → Gateway → Vendor
 - ✅ Tauri encrypted file storage (mode 600)
 - ✅ X-OpenStaff-Provider-Key header
@@ -27,14 +29,18 @@
 ### Backend
 
 #### API Service (`services/api/`)
+
 **NEW**: `src/chat.rs` (+160 lines)
+
 - Forwarding endpoint: `POST /v1/chat`
 - Accepts `X-OpenStaff-Provider-Key` header
 - Forwards to Gateway with `Authorization: Bearer <token>`
 - Logs metadata only (no key, no body)
 
 #### Gateway Service (`services/gateway/`)
+
 **MODIFIED**: `src/chat.rs` (rewritten)
+
 - Uses `X-OpenStaff-Provider-Key` header (not body)
 - Requires `Authorization: Bearer <token>`
 - New response format: `{id, provider, model, message, usage}`
@@ -43,18 +49,23 @@
 ### Frontend
 
 #### Desktop Tauri (`apps/desktop/src-tauri/`)
+
 **MODIFIED**: `src/main.rs` (+140 lines)
+
 - Tauri commands: `save_provider_key`, `get_provider_key`, `delete_provider_key`, `list_provider_keys`
 - Encrypted file storage: `~/.local/share/OpenStaff/keys.dat` (base64-encoded JSON)
 - Unix permissions: mode 600
 
 #### Desktop UI (`apps/desktop/src/`)
+
 **MODIFIED**: `components/Settings.tsx` (rewritten)
+
 - Uses `invoke()` to call Tauri commands
 - No localStorage usage
 - Error handling for key operations
 
 **MODIFIED**: `components/stages/ChatStage.tsx`
+
 - Calls API (`http://localhost:3000/v1/chat`) instead of Gateway
 - Reads key via `invoke('get_provider_key')`
 - Passes key in `X-OpenStaff-Provider-Key` header
@@ -63,14 +74,14 @@
 
 ## 🔐 Security Improvements
 
-| Feature | Before | After |
-|---------|--------|-------|
-| Key Storage | localStorage | Encrypted file (mode 600) |
-| API Path | Desktop → Gateway | Desktop → API → Gateway |
-| Key Passing | Request body | HTTP header |
-| Audit Logs | None | Metadata only (no secrets) |
-| Git Safety | ❌ localStorage leak risk | ✅ File not in git |
-| XSS Safety | ❌ Vulnerable | ✅ Protected |
+| Feature     | Before                    | After                      |
+| ----------- | ------------------------- | -------------------------- |
+| Key Storage | localStorage              | Encrypted file (mode 600)  |
+| API Path    | Desktop → Gateway         | Desktop → API → Gateway    |
+| Key Passing | Request body              | HTTP header                |
+| Audit Logs  | None                      | Metadata only (no secrets) |
+| Git Safety  | ❌ localStorage leak risk | ✅ File not in git         |
+| XSS Safety  | ❌ Vulnerable             | ✅ Protected               |
 
 ---
 

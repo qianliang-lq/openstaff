@@ -168,7 +168,7 @@ mod tests {
         let response = ChatResponse {
             id: "test".to_string(),
             provider: "qwen".to_string(),
-            model: "qwen-turbo".to_string(),
+            model: "qwen-plus".to_string(),
             message: ChatMessage {
                 role: "assistant".to_string(),
                 content: "Hello".to_string(),

@@ -206,7 +206,7 @@ async fn tc_056_integration_with_key_returns_200() {
 
     let request_payload = json!({
         "provider": "qwen",
-        "model": "qwen-turbo",
+        "model": "qwen-plus",
         "messages": [{"role": "user", "content": "Hello"}],
         "stream": false
     });

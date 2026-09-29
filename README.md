@@ -61,6 +61,7 @@ openstaff/
 #### 本地开发 (Development)
 
 前置要求:
+
 - Rust stable (通过 `rust-toolchain.toml` 自动管理)
 - Node.js >= 18
 - pnpm >= 8
@@ -148,6 +149,7 @@ just prod-down    # 停止生产服务
 使用 Docker Compose 在云服务器（如阿里云 ECS）上一键部署。
 
 **前置要求**:
+
 - Docker + Docker Compose
 - 2C2G 云服务器（最小配置）
 - （可选）域名用于 HTTPS
@@ -155,6 +157,7 @@ just prod-down    # 停止生产服务
 **部署步骤**:
 
 1. **克隆仓库并配置环境**:
+
 ```bash
 git clone https://github.com/qianliang-lq/openstaff.git
 cd openstaff
@@ -171,6 +174,7 @@ mkdir -p data/artifacts
 ```
 
 2. **启动服务**:
+
 ```bash
 just prod-up
 # 或不使用 just:
@@ -178,12 +182,14 @@ just prod-up
 ```
 
 3. **验证服务**:
+
 ```bash
 just prod-health
 # 应显示所有 4 个服务（api, gateway, scheduler, runtime）健康
 ```
 
 4. **配置本地 Desktop 客户端**:
+
 ```bash
 # 在本地机器上启动 Desktop
 cd apps/desktop && pnpm install && pnpm dev
@@ -193,12 +199,14 @@ cd apps/desktop && pnpm install && pnpm dev
 ```
 
 **注意**:
+
 - 默认使用 SQLite 数据库 (存储在 `./data/openstaff.db`)
 - Runtime artifacts 存储在 `./data/artifacts`
 - Caddy 提供自动 HTTPS（需要配置域名）
 - 生产环境默认使用 Live 模式（真实 API 调用）
 
 **查看日志**:
+
 ```bash
 just prod-logs
 # 或查看特定服务:
@@ -206,6 +214,7 @@ just prod-logs
 ```
 
 **停止服务**:
+
 ```bash
 just prod-down
 ```

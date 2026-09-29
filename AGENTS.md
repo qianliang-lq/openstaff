@@ -65,6 +65,7 @@ Agents are **NOT** just chatbots. They are stateful, auditable, and can execute 
 **⭐ REQUIRED**: [docs/architecture/02-monorepo-conventions.md](docs/architecture/02-monorepo-conventions.md)
 
 This doc defines:
+
 - Directory layout
 - Service boundaries
 - Protocol as source of truth
@@ -94,6 +95,7 @@ cargo doc --open
 ```
 
 Key types:
+
 - `Message` - Basic chat message
 - `EventEnvelope` - Wrapper for all events
 - `AgentProfile` - Agent persona & config
@@ -415,12 +417,14 @@ openstaff-cli inspect-session <session-id>
 ### 1. Use Protocol Types
 
 ✅ **Good**:
+
 ```rust
 use openstaff_protocol::{Message, EventEnvelope};
 let msg = Message { content: "Hello".to_string() };
 ```
 
 ❌ **Bad**:
+
 ```rust
 struct Message { content: String }  // DON'T redefine protocol types
 ```
@@ -428,6 +432,7 @@ struct Message { content: String }  // DON'T redefine protocol types
 ### 2. Always Request Approval for High-Risk Actions
 
 ✅ **Good**:
+
 ```rust
 if tool_risk_level == RiskLevel::High {
     request_approval(tool_call).await?;
@@ -435,6 +440,7 @@ if tool_risk_level == RiskLevel::High {
 ```
 
 ❌ **Bad**:
+
 ```rust
 // Just execute without checking
 write_file(path, content)?;  // DANGEROUS
@@ -443,11 +449,13 @@ write_file(path, content)?;  // DANGEROUS
 ### 3. Use Gateway for LLM Calls
 
 ✅ **Good**:
+
 ```rust
 let response = gateway_client.complete(prompt).await?;
 ```
 
 ❌ **Bad**:
+
 ```rust
 let response = openai_client.complete(prompt).await?;  // Bypass gateway
 ```

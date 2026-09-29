@@ -159,9 +159,9 @@ function Connectors() {
     const providerName = config.provider === 'qwen' ? '通义千问 / Qwen' : '智谱 GLM';
     const providerUrl =
       config.provider === 'qwen'
-        ? 'https://dashscope.console.aliyun.com/'
+        ? 'https://bailian.console.aliyun.com/cn-beijing/model/market'
         : 'https://open.bigmodel.cn/';
-    const defaultModel = config.provider === 'qwen' ? 'qwen-turbo' : 'glm-4-flash';
+    const defaultModel = config.provider === 'qwen' ? 'qwen-plus' : 'glm-4-flash';
 
     return (
       <div className="provider-card">

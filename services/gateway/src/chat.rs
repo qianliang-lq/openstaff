@@ -161,7 +161,7 @@ async fn qwen_completion(
     api_key: &str,
 ) -> Result<Json<ChatResponse>, (StatusCode, Json<ErrorResponse>)> {
     let base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1";
-    let model = request.model.unwrap_or_else(|| "qwen-turbo".to_string());
+    let model = request.model.unwrap_or_else(|| "qwen-plus".to_string());
 
     let url = format!("{}/chat/completions", base_url);
 
@@ -382,7 +382,7 @@ mod tests {
     fn test_chat_request_deserialize() {
         let json = r#"{
             "provider": "qwen",
-            "model": "qwen-turbo",
+            "model": "qwen-plus",
             "messages": [
                 {"role": "user", "content": "Hello"}
             ],
@@ -392,7 +392,7 @@ mod tests {
 
         let request: ChatRequest = serde_json::from_str(json).unwrap();
         assert_eq!(request.provider, "qwen");
-        assert_eq!(request.model, Some("qwen-turbo".to_string()));
+        assert_eq!(request.model, Some("qwen-plus".to_string()));
         assert_eq!(request.messages.len(), 1);
         assert_eq!(request.stream, false);
         assert_eq!(request.temperature, Some(0.8));
@@ -418,7 +418,7 @@ mod tests {
         let response = ChatResponse {
             id: "chat_123".to_string(),
             provider: "qwen".to_string(),
-            model: "qwen-turbo".to_string(),
+            model: "qwen-plus".to_string(),
             message: ChatMessage {
                 role: "assistant".to_string(),
                 content: "Hello!".to_string(),

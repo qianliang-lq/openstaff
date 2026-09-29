@@ -20,6 +20,7 @@ Vendor (DashScope / Zhipu)
 ```
 
 **Key Points:**
+
 - ✅ Desktop → API → Gateway → Vendor (NOT Desktop → Gateway)
 - ✅ Keys stored in encrypted file (app data dir, mode 600)
 - ✅ Header-based key passing (X-OpenStaff-Provider-Key)
@@ -30,7 +31,7 @@ Vendor (DashScope / Zhipu)
 ## 📋 Prerequisites
 
 1. **Get API Key** (choose one):
-   - **Qwen**: https://dashscope.console.aliyun.com/
+   - **Qwen**: https://bailian.console.aliyun.com/cn-beijing/model/market
    - **GLM**: https://open.bigmodel.cn/
 
 2. **System requirements**:
@@ -58,6 +59,7 @@ just dev-up
 ```
 
 Wait for all services to start:
+
 - API Service: http://localhost:3000 ✓
 - Gateway Service: http://localhost:3001 ✓
 - Scheduler Service: http://localhost:3002 ✓
@@ -70,10 +72,11 @@ Wait for all services to start:
 2. Click **Settings** tab
 3. Select Provider: **Qwen** or **GLM**
 4. Enter your **API Key**
-5. (Optional) Custom Model: `qwen-turbo` or `glm-4-flash`
+5. (Optional) Custom Model: `qwen-plus` or `glm-4-flash`
 6. Click **保存配置** (Save)
 
 ✅ Key is encrypted and stored in:
+
 - **Linux**: `~/.local/share/OpenStaff/keys.dat`
 - **macOS**: `~/Library/Application Support/OpenStaff/keys.dat`
 - **Windows**: `%APPDATA%\OpenStaff\keys.dat`
@@ -92,6 +95,7 @@ File permissions: **600** (owner read/write only)
 ## 🔐 Security Features
 
 ### Key Storage
+
 - ✅ **Encrypted file** in app data directory (MVP)
 - ✅ **Mode 600** permissions (Unix)
 - ✅ **NOT localStorage** (XSS-safe)
@@ -99,13 +103,16 @@ File permissions: **600** (owner read/write only)
 - ✅ **Never logged** (audit logs metadata only)
 
 ### API Path
+
 - ✅ Desktop **cannot** call Gateway directly
 - ✅ API enforces service token authentication
 - ✅ Keys passed via header (not body)
 - ✅ API logs metadata only (no key, no full messages)
 
 ### Gateway Audit
+
 Logs only:
+
 - Timestamp
 - Request ID
 - Provider & Model
@@ -113,6 +120,7 @@ Logs only:
 - Token usage (prompt_tokens, completion_tokens)
 
 **Never logs**:
+
 - API keys
 - Full message content
 - User identifiable content
@@ -154,7 +162,7 @@ Authorization: Bearer sk-xxx
 Content-Type: application/json
 
 {
-  "model": "qwen-turbo",
+  "model": "qwen-plus",
   "messages": [...]
 }
 
@@ -162,7 +170,7 @@ Content-Type: application/json
 {
   "id": "chat_abc123",
   "provider": "qwen",
-  "model": "qwen-turbo",
+  "model": "qwen-plus",
   "message": {
     "role": "assistant",
     "content": "你好！我是通义千问..."
@@ -179,11 +187,13 @@ Content-Type: application/json
 ## 🧪 Verification
 
 ### Check Services
+
 ```bash
 just health
 ```
 
 Expected output:
+
 ```json
 {"status":"ok","service":"api"}
 {"status":"ok","service":"gateway"}
@@ -192,6 +202,7 @@ Expected output:
 ```
 
 ### Check Key Storage
+
 ```bash
 # Unix/Linux/macOS
 ls -l ~/.local/share/OpenStaff/  # or ~/Library/Application Support/OpenStaff/
@@ -202,12 +213,13 @@ dir %APPDATA%\OpenStaff\
 ```
 
 ### Check Audit Logs
+
 ```bash
 # Gateway logs (no keys, no full messages)
 grep "Chat request" logs/gateway.log
 
 # Should see:
-# provider=qwen model=qwen-turbo message_count=2
+# provider=qwen model=qwen-plus message_count=2
 # NOT: api_key=xxx, content="..."
 ```
 
@@ -222,6 +234,7 @@ A: Configure key in Settings first. The key must be saved before chatting.
 ### Q: Settings not saving?
 
 A: Check Desktop app has write permissions to app data directory:
+
 ```bash
 # Unix/Linux/macOS
 mkdir -p ~/.local/share/OpenStaff  # or ~/Library/Application Support/OpenStaff
@@ -233,6 +246,7 @@ chmod 700 ~/.local/share/OpenStaff
 ### Q: Can I use environment variable for demo?
 
 A: Yes, Gateway falls back to `OPENSTAFF_LLM_API_KEY` if no header key:
+
 ```bash
 export OPENSTAFF_LLM_API_KEY="sk-your-key"
 just dev-up
@@ -243,6 +257,7 @@ But header key (from Settings) takes precedence.
 ### Q: How to clear saved keys?
 
 A: Click **清除密钥** (Clear Key) button in Settings, or:
+
 ```bash
 rm ~/.local/share/OpenStaff/keys.dat
 ```

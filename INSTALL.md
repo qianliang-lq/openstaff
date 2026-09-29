@@ -20,6 +20,7 @@
 Tauri 需要以下系统库：
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt-get update
 sudo apt-get install -y \
@@ -35,6 +36,7 @@ sudo apt-get install -y \
 ```
 
 **Fedora:**
+
 ```bash
 sudo dnf install -y \
   gtk3-devel \
@@ -45,6 +47,7 @@ sudo dnf install -y \
 ```
 
 **Arch Linux:**
+
 ```bash
 sudo pacman -S --needed \
   webkit2gtk-4.1 \
@@ -121,7 +124,8 @@ OpenStaff 使用您自己的 LLM API 密钥（BYOK - Bring Your Own Key）。目
 6. 点击"保存配置"
 
 获取 API Key：
-- **Qwen**: https://dashscope.console.aliyun.com/
+
+- **Qwen**: https://bailian.console.aliyun.com/cn-beijing/model/market
 - **GLM**: https://open.bigmodel.cn/
 
 #### 方式二：通过环境变量配置
@@ -135,6 +139,7 @@ just dev-up
 ```
 
 **安全提示：**
+
 - API Key 仅存储在本地浏览器中，不会上传到服务器
 - 环境变量配置也仅在本地使用
 - 请勿在公共电脑上保存 API Key
@@ -158,6 +163,7 @@ just dev-up
 ```
 
 服务端口：
+
 - API Service: http://localhost:3000
 - Gateway Service: http://localhost:3001
 - Scheduler Service: http://localhost:3002
@@ -206,6 +212,7 @@ pnpm install --force
 Tauri requires the following system libraries:
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt-get update
 sudo apt-get install -y \
@@ -221,6 +228,7 @@ sudo apt-get install -y \
 ```
 
 **Fedora:**
+
 ```bash
 sudo dnf install -y \
   gtk3-devel \
@@ -231,6 +239,7 @@ sudo dnf install -y \
 ```
 
 **Arch Linux:**
+
 ```bash
 sudo pacman -S --needed \
   webkit2gtk-4.1 \
