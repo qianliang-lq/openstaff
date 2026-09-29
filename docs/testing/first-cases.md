@@ -2527,7 +2527,7 @@ cargo test --workspace --exclude openstaff-desktop
 - TC-046 through TC-050: Slice 2 desktop tests (5 tests)
 - TC-051 through TC-054c: One-click start contract tests (6 tests)
 - TC-055 through TC-059: BYOK chat contract tests (5 tests)
-- **TC-060 through TC-062: BYOK UI acceptance tests (7 tests)** ⭐ **NEW**
+- **TC-060 through TC-062: BYOK UI acceptance tests (7 tests)**
 
 **Note**: TC-043, TC-044, TC-045 are known failures on main - insights endpoint not fully implemented.
 
@@ -2544,11 +2544,18 @@ cd apps/web-admin && pnpm test
 pnpm test
 ```
 
-**Expected**: ✅ 15 test suites pass
+**Expected**: ✅ Desktop 29 tests pass (Connectors), Web admin suites pass
 - TC-021 through TC-027: Shell UI (7 suites)
 - TC-030: External insight report card summary ≤ 3 (1 suite)
 - TC-039 through TC-042: Desktop fire handler (4 tests in 1 suite)
 - TC-046 through TC-050: Slice 2 desktop tests (5 tests in ChatStage suite)
+- **TC-063 through TC-075: Connectors tests (29 tests)** ⭐ **NEW**
+  - TC-063: Tauri availability guard (3 tests)
+  - TC-064: Non-Tauri UI guidance (6 tests)
+  - TC-065: No localStorage for keys (4 tests)
+  - Display Copy (4 tests)
+  - TC-066+: Test connection feedback (7 tests)
+  - TC-073+: Badge status display (3 tests)
 
 ---
 
