@@ -407,4 +407,260 @@ describe('Connectors - TC-063+ Tests', () => {
       expect(screen.getByText(/glm-4-flash/)).toBeInTheDocument();
     });
   });
+
+  describe('TC-066+: Test Connection Visible Feedback', () => {
+    let fetchSpy: ReturnType<typeof vi.spyOn<typeof global.fetch>>;
+
+    beforeEach(() => {
+      // Mock global fetch
+      fetchSpy = vi.spyOn(global, 'fetch');
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+    });
+
+    it('TC-066: should show visible success feedback after successful test connection', async () => {
+      // Mock successful API response
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 'chatcmpl_test123',
+          provider: 'qwen',
+          model: 'qwen-plus',
+          message: {
+            role: 'assistant',
+            content: '测试连接成功',
+          },
+          usage: {
+            prompt_tokens: 10,
+            completion_tokens: 20,
+          },
+        }),
+      });
+
+      mockIsTauriEnvironment.mockReturnValue(true);
+      mockGetProviderKey.mockResolvedValue(null);
+
+      render(<Connectors />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
+
+      // Fill in API key
+      const inputs = screen.getAllByPlaceholderText('输入 API Key');
+      const qwenInput = inputs[0];
+      const user = userEvent.setup();
+      await user.type(qwenInput, 'sk-test-key-success');
+
+      // Get initial error state (should be none)
+      expect(screen.queryByText(/连接测试失败/)).not.toBeInTheDocument();
+
+      // Click test connection button
+      const testButtons = screen.getAllByText('测试连接');
+      await user.click(testButtons[0]);
+
+      // CRITICAL: Wait for fetch to be called
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          'http://localhost:3000/v1/chat',
+          expect.objectContaining({
+            method: 'POST',
+            headers: expect.objectContaining({
+              'X-OpenStaff-Provider-Key': 'sk-test-key-success',
+            }),
+          })
+        );
+      });
+
+      // After success, no error should be visible (visible success = no error)
+      await waitFor(() => {
+        expect(screen.queryByText(/连接测试失败/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/请先填写/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/错误/)).not.toBeInTheDocument();
+      });
+
+      // Button should return to normal state
+      await waitFor(() => {
+        expect(screen.getAllByText('测试连接')[0]).toBeInTheDocument();
+      });
+    });
+
+    it('TC-067: should show visible error feedback after failed test connection (network error)', async () => {
+      // Mock network error
+      fetchSpy.mockRejectedValueOnce(new Error('Network request failed'));
+
+      mockIsTauriEnvironment.mockReturnValue(true);
+      mockGetProviderKey.mockResolvedValue(null);
+
+      render(<Connectors />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
+
+      // Fill in API key
+      const inputs = screen.getAllByPlaceholderText('输入 API Key');
+      const user = userEvent.setup();
+      await user.type(inputs[0], 'sk-test-key-fail');
+
+      // Click test connection button
+      const testButtons = screen.getAllByText('测试连接');
+      await user.click(testButtons[0]);
+
+      // CRITICAL: Must show visible error feedback
+      await waitFor(() => {
+        expect(screen.getByText(/Network request failed/)).toBeInTheDocument();
+      });
+
+      // Error message should be clearly visible (not silent failure)
+      const errorMessage = screen.getByText(/Network request failed/);
+      expect(errorMessage).toBeInTheDocument();
+      expect(errorMessage).toHaveClass('error-message');
+    });
+
+    it('TC-068: should show visible error feedback after failed test connection (401 Unauthorized)', async () => {
+      // Mock 401 error response
+      fetchSpy.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({
+          error: 'Missing provider API key',
+          code: 'auth_required',
+        }),
+      });
+
+      mockIsTauriEnvironment.mockReturnValue(true);
+      mockGetProviderKey.mockResolvedValue(null);
+
+      render(<Connectors />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
+
+      // Fill in API key
+      const inputs = screen.getAllByPlaceholderText('输入 API Key');
+      const user = userEvent.setup();
+      await user.type(inputs[0], 'sk-invalid-key');
+
+      // Click test connection button
+      const testButtons = screen.getAllByText('测试连接');
+      await user.click(testButtons[0]);
+
+      // CRITICAL: Must show visible error feedback
+      await waitFor(() => {
+        expect(screen.getByText(/Missing provider API key/)).toBeInTheDocument();
+      });
+
+      // Error should be visible and clear
+      const errorMessage = screen.getByText(/Missing provider API key/);
+      expect(errorMessage).toBeInTheDocument();
+      expect(errorMessage).toHaveClass('error-message');
+    });
+
+    it('TC-069: should show visible error feedback when API key is empty', async () => {
+      mockIsTauriEnvironment.mockReturnValue(true);
+      mockGetProviderKey.mockResolvedValue(null);
+
+      render(<Connectors />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
+
+      // Do NOT fill in API key, just click test connection
+      const testButtons = screen.getAllByText('测试连接');
+      const user = userEvent.setup();
+      await user.click(testButtons[0]);
+
+      // CRITICAL: Must show visible error feedback immediately
+      await waitFor(() => {
+        expect(screen.getByText('请先填写 API Key')).toBeInTheDocument();
+      });
+
+      // Error message should be visible
+      const errorMessage = screen.getByText('请先填写 API Key');
+      expect(errorMessage).toBeInTheDocument();
+      expect(errorMessage).toHaveClass('error-message');
+    });
+
+    it('TC-070: should call fetch with correct parameters on test connection', async () => {
+      // Mock successful response
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 'chatcmpl_test',
+          provider: 'qwen',
+          model: 'qwen-plus',
+          message: { role: 'assistant', content: 'ok' },
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        }),
+      });
+
+      mockIsTauriEnvironment.mockReturnValue(true);
+      mockGetProviderKey.mockResolvedValue(null);
+
+      render(<Connectors />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
+
+      // Fill key and click test
+      const inputs = screen.getAllByPlaceholderText('输入 API Key');
+      const user = userEvent.setup();
+      await user.type(inputs[0], 'sk-test-key-12345');
+
+      const testButtons = screen.getAllByText('测试连接');
+      await user.click(testButtons[0]);
+
+      // CRITICAL: Verify fetch was called with correct endpoint and headers
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          'http://localhost:3000/v1/chat',
+          expect.objectContaining({
+            method: 'POST',
+            headers: expect.objectContaining({
+              'Content-Type': 'application/json',
+              'X-OpenStaff-Provider-Key': 'sk-test-key-12345',
+            }),
+          })
+        );
+      });
+    });
+
+    it('TC-071: should NOT silently fail when test connection fails', async () => {
+      // Mock failed response
+      fetchSpy.mockRejectedValueOnce(new Error('Connection timeout'));
+
+      mockIsTauriEnvironment.mockReturnValue(true);
+      mockGetProviderKey.mockResolvedValue(null);
+
+      render(<Connectors />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
+
+      // Fill key and click test
+      const inputs = screen.getAllByPlaceholderText('输入 API Key');
+      const user = userEvent.setup();
+      await user.type(inputs[0], 'sk-test');
+
+      const testButtons = screen.getAllByText('测试连接');
+      await user.click(testButtons[0]);
+
+      // CRITICAL: Must show visible error feedback (NOT silent failure)
+      await waitFor(() => {
+        expect(screen.getByText(/Connection timeout/)).toBeInTheDocument();
+      });
+
+      // Error message must be visible
+      const errorMessage = screen.getByText(/Connection timeout/);
+      expect(errorMessage).toBeInTheDocument();
+      expect(errorMessage).toHaveClass('error-message');
+    });
+  });
 });
