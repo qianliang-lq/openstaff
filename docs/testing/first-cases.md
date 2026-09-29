@@ -2658,4 +2658,214 @@ cargo test -p openstaff-gateway -- --test-threads=1
 
 ---
 
+## Connectors Tauri Guard Tests (TC-063+)
+
+### Overview
+
+TC-063+ validates that Connectors component properly guards Tauri API availability before calling `invoke()`, preventing crashes when running in Vite preview mode (localhost:5173) without Tauri. Per §4 from 10-byok-chat-cut.md architecture brief: without Tauri, save operations must NOT crash; instead, disable save and guide users to set `OPENSTAFF_LLM_API_KEY` environment variable or run `pnpm tauri:dev`.
+
+**Implementation Status**: ✅ **Complete** (landed in commit 75cbd9e)
+
+**Coverage**:
+- TC-063: Tauri availability guard enforcement ✅ **PASS**
+- TC-064: Non-Tauri UI guidance and disabled save ✅ **PASS**
+- TC-065: No localStorage for keys ✅ **PASS**
+
+### Test Location
+
+**File**: `apps/desktop/src/components/Connectors.test.tsx` (17 tests)
+
+### Implementation Details
+
+**Tauri Helper Functions** (`apps/desktop/src/utils/tauri.ts`):
+```typescript
+export function isTauriEnvironment(): boolean {
+  return typeof window !== 'undefined' && '__TAURI__' in window;
+}
+
+export async function saveProviderKey(provider: string, key: string): Promise<void> {
+  if (!isTauriEnvironment()) {
+    throw new Error('保存 Key 需要 Tauri 环境。请运行：pnpm tauri:dev');
+  }
+  return tauriInvoke('save_provider_key', { provider, key });
+}
+```
+
+**Connectors Usage** (`apps/desktop/src/components/Connectors.tsx`):
+```typescript
+import { isTauriEnvironment, getProviderKey, saveProviderKey, deleteProviderKey } from '../utils/tauri';
+
+// Check environment
+const [isTauri, setIsTauri] = useState(false);
+useEffect(() => {
+  setIsTauri(isTauriEnvironment());
+}, []);
+
+// Disable save/clear when not in Tauri
+<button disabled={!isTauri} onClick={handleSave}>保存</button>
+
+// Show warning banner in non-Tauri mode
+{!isTauri && <div className="warning-banner">...</div>}
+```
+
+---
+
+#### TC-063: Tauri Availability Guard (✅ PASS)
+
+**Layer**: Unit / Contract  
+**File**: `apps/desktop/src/components/Connectors.test.tsx`  
+**Tests**: 3 tests
+
+**Purpose**: Validate that Connectors component guards Tauri availability via helper functions before calling `invoke()`.
+
+**Implementation Contract**:
+- ✅ Uses `isTauriEnvironment()`, `getProviderKey()`, `saveProviderKey()`, `deleteProviderKey()` from `utils/tauri.ts`
+- ✅ Does NOT import `invoke` directly from `@tauri-apps/api/core`
+- ✅ Helper functions check `window.__TAURI__` existence before invoke
+- ✅ Save/Clear buttons disabled when `!isTauri`
+
+**Test Coverage**:
+- ✅ Source code check: verifies helper function usage
+- ✅ Simulated Tauri environment: save operations work
+- ✅ Simulated non-Tauri environment: buttons disabled, graceful handling
+
+**Expected Result**: ✅ All tests pass
+
+**Command**:
+```bash
+cd apps/desktop && pnpm test Connectors -- -t "TC-063"
+```
+
+**Offline**: ✅ Yes (vitest unit test)
+
+---
+
+#### TC-064: Non-Tauri UI Guidance (✅ PASS)
+
+**Layer**: Unit / Contract  
+**File**: `apps/desktop/src/components/Connectors.test.tsx`  
+**Tests**: 7 tests
+
+**Purpose**: Validate that UI shows clear guidance when running without Tauri, with disabled buttons and environment variable instructions.
+
+**Acceptance Criteria** (all implemented):
+- ✅ Warning banner shows "浏览器预览模式" when `!isTauri`
+- ✅ Guidance mentions `pnpm tauri:dev` command
+- ✅ Guidance mentions `OPENSTAFF_LLM_API_KEY` + `just dev-up` fallback
+- ✅ Save buttons disabled when `!isTauri`
+- ✅ Clear buttons disabled when `!isTauri`
+- ✅ Warning banner hidden in Tauri environment
+- ✅ Save buttons enabled in Tauri environment
+
+**UI Implementation**:
+```typescript
+{!isTauri && (
+  <div className="warning-banner">
+    <strong>浏览器预览模式</strong>
+    <div>
+      保存/清除功能需要 Tauri 环境。请运行 <code>pnpm tauri:dev</code>
+      或配置环境变量 <code>OPENSTAFF_LLM_API_KEY</code> + <code>just dev-up</code>。
+    </div>
+  </div>
+)}
+
+<button disabled={!isTauri} title={!isTauri ? '保存需要 Tauri 环境。请运行: pnpm tauri:dev' : ''}>
+  保存
+</button>
+```
+
+**Expected Result**: ✅ All tests pass
+
+**Command**:
+```bash
+cd apps/desktop && pnpm test Connectors -- -t "TC-064"
+```
+
+**Offline**: ✅ Yes (vitest unit test)
+
+---
+
+#### TC-065: No localStorage for Keys (✅ PASS)
+
+**Layer**: Unit / Security Contract  
+**File**: `apps/desktop/src/components/Connectors.test.tsx`  
+**Tests**: 4 tests
+
+**Purpose**: Maintain TC-059 hard gate: API keys MUST NEVER be stored in localStorage. Enforces use of Tauri helper functions.
+
+**Security Requirements**:
+- ❌ **MUST NOT** use `localStorage.setItem` for keys, tokens, secrets
+- ❌ **MUST NOT** use `localStorage.getItem` for key retrieval
+- ✅ **MUST** use Tauri helper functions: `getProviderKey()`, `saveProviderKey()`, `deleteProviderKey()`
+- ✅ Helper functions throw errors in non-Tauri (no localStorage fallback)
+
+**Test Coverage**:
+- ✅ Monitors `localStorage.setItem` calls during save flow (should be zero)
+- ✅ Monitors `localStorage.getItem` calls during load flow (should be zero)
+- ✅ Validates keys stored via Tauri helpers
+- ✅ Source code check: no `localStorage.setItem/getItem` in Connectors.tsx
+
+**Expected Result**: ✅ All tests pass (no localStorage usage)
+
+**Command**:
+```bash
+cd apps/desktop && pnpm test Connectors -- -t "TC-065"
+```
+
+**Offline**: ✅ Yes (vitest unit test)
+
+---
+
+### Running Connectors Guard Tests
+
+#### All Connectors Tests (TC-063+)
+
+```bash
+cd apps/desktop && pnpm test Connectors
+```
+
+**Expected**: ✅ 17 tests pass
+- ✅ TC-063: Tauri helper usage (3 tests)
+- ✅ TC-064: Non-Tauri guidance + disabled buttons (7 tests)
+- ✅ TC-065: No localStorage (4 tests)
+- ✅ Security banner (1 test)
+- ✅ Default model display (2 tests: qwen-plus, Bailian link)
+
+**Time**: ~1-2 seconds  
+**Offline**: ✅ Yes (all vitest unit tests)
+
+---
+
+### Test Coverage Summary (TC-063+)
+
+**Added Coverage**:
+
+1. **Tauri Guard Enforcement** (TC-063): ✅ Via helper functions in `utils/tauri.ts`
+2. **Non-Tauri UI Guidance** (TC-064): ✅ Warning banner + disabled buttons + env var instructions
+3. **localStorage Prohibition** (TC-065): ✅ No localStorage usage (security gate maintained)
+
+**Architecture Gates Enforced**:
+- ✅ Vite preview mode (localhost:5173) does not crash (§4 from 10-byok-chat-cut.md)
+- ✅ Save disabled + guidance when Tauri unavailable (§4)
+- ✅ No localStorage fallback for keys (§1 from 10-byok-chat-cut.md, TC-059 maintained)
+
+**Implementation Quality**:
+- ✅ Clean separation: helper functions in `utils/tauri.ts`
+- ✅ Clear error messages with actionable instructions
+- ✅ Consistent use of `isTauriEnvironment()` check
+- ✅ No direct `invoke` imports in Connectors component
+
+---
+
+### Additional Tests
+
+#### Default Model Display
+
+**Tests**: 2 tests verify display copy updates per commit c7bbf02
+
+- ✅ Default model shows `qwen-plus` (not `qwen-turbo`)
+- ✅ URL links to Bailian console: `bailian.console.aliyun.com/cn-beijing/model/market`
+
+---
+
 **Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.
