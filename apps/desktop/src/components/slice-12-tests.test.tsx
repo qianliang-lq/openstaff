@@ -259,9 +259,7 @@ describe('TC-083: Validation gate card', () => {
 
   it('should show chat bubble after gate action', async () => {
     // ❌ EXPECTED RED: Gate action flow not yet implemented
-    const user = userEvent.setup();
-
-    const { container } = render(<App />);
+    render(<App />);
 
     // TIGHTENED CONTRACT: Must click Pass/Reject/Revise button
     // Find one of the gate action buttons (通过/拒绝/改意见)
