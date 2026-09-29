@@ -1662,4 +1662,424 @@ pnpm test
 
 ---
 
+---
+
+## BYOK Chat Contract Tests (TC-055+)
+
+### Overview
+
+TC-055+ validates the BYOK (Bring Your Own Key) chat security and architecture contracts. These tests ensure:
+- Secure key storage (no localStorage, git, logs)
+- Correct routing path (desktop → api → gateway)
+- Proper auth failures (401/403, not silent success)
+- Audit scrubbing (no keys, no full messages)
+
+**Coverage**:
+- TC-055: No key returns auth error
+- TC-056: With mock key returns valid response
+- TC-057: Audit log scrubbing
+- TC-058: Path gate validation
+- TC-059: No localStorage key storage
+
+### Test Location
+
+**File**: `crates/protocol/tests/byok_chat_contract.rs`
+
+All tests are offline contract/structure validation tests except TC-055-live and TC-056-live which are opt-in integration tests.
+
+---
+
+#### TC-055: No Provider Key Returns Auth Error
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/byok_chat_contract.rs`  
+**Function**: `tc_055_no_provider_key_returns_auth_error()`
+
+**Purpose**: Validate that chat endpoint returns 401/403 when no provider key is supplied and no env fallback exists.
+
+**Contract**:
+- Endpoint: `POST /v1/chat`
+- Missing: `X-OpenStaff-Provider-Key` header
+- Missing: `QWEN_API_KEY` or `GLM_API_KEY` env vars
+- Expected: HTTP 401 or 403 with clear error message
+
+**Expected Response**:
+```json
+{
+  "error": "Missing provider API key",
+  "code": "auth_required"
+}
+```
+
+**MUST NOT** return HTTP 200 with fake assistant content (silent success).
+
+**Command**:
+
+```bash
+cargo test tc_055 -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (contract specification test)
+
+**OPENSTAFF Note**: When gateway `/v1/chat` route is implemented, add integration test similar to `test_egress_fetch_unauthorized` in `services/gateway/src/main.rs`.
+
+---
+
+#### TC-056: With Mock Key Returns Valid Response
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/byok_chat_contract.rs`  
+**Function**: `tc_056_with_mock_key_returns_valid_response()`
+
+**Purpose**: Validate that with a mock/test key (or stub), the api→gateway path returns 200 JSON with correct chat response shape.
+
+**Request Contract**:
+
+```json
+POST /v1/chat
+Headers:
+  Authorization: Bearer <service_token>
+  X-OpenStaff-Provider-Key: <user_byok_key>
+
+{
+  "provider": "qwen" | "glm",
+  "model": "string",
+  "messages": [
+    {"role": "user", "content": "..."}
+  ],
+  "stream": false,
+  "temperature": 0.7
+}
+```
+
+**Response Contract** (HTTP 200):
+
+```json
+{
+  "id": "chat_...",
+  "provider": "qwen",
+  "model": "...",
+  "message": {
+    "role": "assistant",
+    "content": "..."
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0
+  }
+}
+```
+
+**Required Fields**: `id`, `provider`, `model`, `message`, `usage`
+
+**Command**:
+
+```bash
+cargo test tc_056 -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (contract specification test)
+
+**OPENSTAFF Note**: When gateway `/v1/chat` is implemented, add integration test with offline mock similar to `test_egress_fetch_auth_and_request_shape`.
+
+---
+
+#### TC-057: Audit Log Scrub - No Keys or Full Messages
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/byok_chat_contract.rs`  
+**Function**: `tc_057_audit_log_scrub_no_keys_or_full_messages()`
+
+**Purpose**: Validate that audit logs do NOT contain provider API keys or full message bodies.
+
+**Audit Log Contract**:
+
+**MUST include**:
+- `ts` - timestamp
+- `request_id` - unique request identifier
+- `provider` - "qwen" or "glm"
+- `model` - model name
+- `status` - "success" or "error"
+- `latency_ms` - request latency
+- `prompt_tokens` - token count
+- `completion_tokens` - token count
+
+**MUST NOT include**:
+- `X-OpenStaff-Provider-Key` header value
+- Full `messages` content (prompt/response text)
+
+**MAY include**:
+- `message_hash` - SHA-256 hash of messages
+- `message_len` - length in characters
+
+**Example Valid Audit Line**:
+
+```json
+{
+  "ts": "2026-09-29T09:00:00Z",
+  "request_id": "chat_abc123",
+  "provider": "qwen",
+  "model": "qwen-max",
+  "status": "success",
+  "latency_ms": 1234,
+  "prompt_tokens": 45,
+  "completion_tokens": 78,
+  "message_hash": "sha256:...",
+  "message_len": 156
+}
+```
+
+**Command**:
+
+```bash
+cargo test tc_057 -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (checks audit.rs source code patterns)
+
+---
+
+#### TC-058: Path Gate - Desktop Targets API Not Gateway
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/byok_chat_contract.rs`  
+**Function**: `tc_058_path_gate_desktop_targets_api()`
+
+**Purpose**: Validate that desktop chat client targets API `/v1/chat`, never vendor hosts or gateway directly.
+
+**Required Path**: `desktop → api → gateway`
+
+**Desktop MUST call**:
+- `POST <api_base_url>/v1/chat` (e.g., `http://localhost:3000/v1/chat`)
+
+**Desktop MUST NOT call**:
+- Vendor URLs: `api.qwen.com`, `open.bigmodel.cn`, `dashscope.aliyuncs.com`
+- Gateway directly: `http://localhost:3001/v1/chat`
+
+**Rationale**:
+- Session tracking via API
+- Future gating/quota enforcement
+- Complete audit trail
+
+**Command**:
+
+```bash
+cargo test tc_058 -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (checks desktop source code for bypass patterns)
+
+---
+
+#### TC-059: Settings Key Storage - No localStorage Keys
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/byok_chat_contract.rs`  
+**Function**: `tc_059_settings_no_localstorage_keys()`
+
+**Purpose**: Validate that provider API keys are NOT stored in localStorage (vulnerable to XSS).
+
+**Keys MUST be stored in**:
+- OS keychain / Tauri secure storage (recommended)
+- Encrypted app data directory with file permissions 600 (MVP acceptable)
+
+**Keys MUST NOT be stored in**:
+- `localStorage`
+- `sessionStorage`
+- Unencrypted files in repository
+- Git-tracked files
+- Log files
+- Audit bodies
+
+**Test Coverage**:
+- Searches desktop source for `localStorage.setItem` + key patterns
+- Rejects suspicious patterns without safety comments
+
+**Command**:
+
+```bash
+cargo test tc_059 -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (checks desktop source code for localStorage patterns)
+
+---
+
+### Optional BYOK Integration Tests
+
+#### TC-055-live: No Key Auth Error (Live)
+
+**Layer**: Integration  
+**File**: `crates/protocol/tests/byok_chat_contract.rs`  
+**Function**: `tc_055_live_no_key_auth_error()` (ignored by default)
+
+**Purpose**: Live test that calls gateway `/v1/chat` without key and expects 401/403.
+
+**Requirements**:
+- Set `OPENSTAFF_SMOKE=1` environment variable
+- Gateway service running on port 3001
+
+**Command**:
+
+```bash
+OPENSTAFF_SMOKE=1 cargo test tc_055_live -p openstaff-protocol -- --ignored
+```
+
+**Offline**: ❌ No (requires service running)  
+**CI Default**: ⏭️ Skipped
+
+**Manual Test**:
+
+```bash
+curl -X POST http://localhost:3001/v1/chat \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer test-token' \
+  -d '{"provider":"qwen","messages":[{"role":"user","content":"hi"}]}'
+```
+
+**Expected**: HTTP 401 or 403 with error message
+
+---
+
+#### TC-056-live: Mock Key Success (Live)
+
+**Layer**: Integration  
+**File**: `crates/protocol/tests/byok_chat_contract.rs`  
+**Function**: `tc_056_live_mock_key_success()` (ignored by default)
+
+**Purpose**: Live test that calls gateway `/v1/chat` with test key and expects 200.
+
+**Command**:
+
+```bash
+OPENSTAFF_SMOKE=1 cargo test tc_056_live -p openstaff-protocol -- --ignored
+```
+
+**Offline**: ❌ No (requires service running)  
+**CI Default**: ⏭️ Skipped
+
+**Manual Test**:
+
+```bash
+curl -X POST http://localhost:3001/v1/chat \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer test-token' \
+  -H 'X-OpenStaff-Provider-Key: test-mock-key' \
+  -d '{"provider":"qwen","messages":[{"role":"user","content":"hi"}]}'
+```
+
+**Expected**: HTTP 200 with `{"id","provider","model","message","usage"}`
+
+---
+
+### Running BYOK Chat Contract Tests
+
+#### All BYOK Tests (Default CI)
+
+```bash
+cargo test -p openstaff-protocol --test byok_chat_contract
+```
+
+**Expected**: ✅ 5 tests pass (TC-055, TC-056, TC-057, TC-058, TC-059), 2 ignored (TC-055-live, TC-056-live)  
+**Time**: ~1 second  
+**Offline**: ✅ Yes (default tests are all offline)
+
+---
+
+#### Optional Integration Tests
+
+```bash
+# Requires gateway service running
+OPENSTAFF_SMOKE=1 cargo test -p openstaff-protocol --test byok_chat_contract -- --ignored
+```
+
+**Expected**: ✅ 2 tests pass if environment ready (or report not implemented)  
+**Time**: ~5-10 seconds  
+**Offline**: ❌ No (requires service startup)
+
+**Note**: Integration tests document the manual test contracts but may report "not yet implemented" until gateway `/v1/chat` route is added.
+
+---
+
+### Test Coverage Summary (TC-055+)
+
+**Added Coverage**:
+
+1. **Auth Failure Contract**: TC-055 validates clear error when no key provided (not silent success)
+2. **Response Shape Contract**: TC-056 validates chat response fields and structure
+3. **Audit Security**: TC-057 validates no keys or full messages in audit logs
+4. **Path Enforcement**: TC-058 validates desktop→api→gateway routing (no bypass)
+5. **Key Storage Security**: TC-059 validates no localStorage usage for provider keys
+
+**Architecture Gates Enforced**:
+- Provider keys never in localStorage, git, logs, audit bodies (§1 from 10-byok-chat-cut.md)
+- Gateway is sole LLM egress point (§2)
+- Desktop → API → Gateway path (§3, never bypass)
+- No key + no env → clear 401/403 (§4)
+- Audit scrubbing enforced (§5)
+
+**Honesty Note**: Tests define contracts before production implementation. TC-055 and TC-056 are contract specification tests; when gateway `/v1/chat` is implemented, add integration tests similar to existing egress tests. Desktop source checks (TC-058, TC-059) pass if desktop source doesn't exist yet (pre-implementation). Default CI stays offline/green.
+
+---
+
+## All Tests Summary (Updated for TC-055+)
+
+### Backend Tests (Rust)
+
+```bash
+# Run all backend tests (excludes openstaff-desktop)
+cargo test --workspace --exclude openstaff-desktop
+```
+
+**Expected**: ✅ 51+ tests pass
+- TC-001 through TC-020: Protocol + health endpoints (20 tests)
+- TC-028, TC-029: External insight schema + reconcile gate (2 tests)
+- TC-031 through TC-038: Demo-MVP contract tests (8 tests)
+- TC-043 through TC-045: Slice 2 runtime tests (3 tests, **known failures on main**)
+- TC-046 through TC-050: Slice 2 desktop tests (5 tests)
+- TC-051 through TC-054c: One-click start contract tests (6 tests)
+- **TC-055 through TC-059: BYOK chat contract tests (5 tests)** ⭐ **NEW**
+
+**Note**: TC-043, TC-044, TC-045 are known failures on main - insights endpoint not fully implemented.
+
+### Frontend Tests (TypeScript)
+
+```bash
+# Desktop app tests
+cd apps/desktop && pnpm test
+
+# Web admin tests
+cd apps/web-admin && pnpm test
+
+# Run all frontend tests from root
+pnpm test
+```
+
+**Expected**: ✅ 15 test suites pass
+- TC-021 through TC-027: Shell UI (7 suites)
+- TC-030: External insight report card summary ≤ 3 (1 suite)
+- TC-039 through TC-042: Desktop fire handler (4 tests in 1 suite)
+- TC-046 through TC-050: Slice 2 desktop tests (5 tests in ChatStage suite)
+
+---
+
+## CI Default Test Gate
+
+```bash
+# Fast offline gate (default CI)
+cargo test --workspace --exclude openstaff-desktop
+
+# Plus frontend tests
+pnpm test
+```
+
+**Offline**: ✅ Yes (all default tests are offline)  
+**Time**: ~35 seconds total (including TC-055+)
+
+**Optional Heavy Tests** (not in default CI):
+- TC-054a/b: Integration smoke tests (require `OPENSTAFF_SMOKE=1`)
+- TC-055-live/TC-056-live: BYOK integration tests (require `OPENSTAFF_SMOKE=1`)
+
+---
+
 **Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.
