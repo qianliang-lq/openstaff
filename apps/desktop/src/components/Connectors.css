@@ -146,6 +146,11 @@
   color: #0d7a3f;
 }
 
+.status-badge.filled {
+  background: #cfe2ff;
+  color: #084298;
+}
+
 .status-badge.empty {
   background: var(--g3);
   color: var(--g7);

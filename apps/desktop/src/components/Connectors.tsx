@@ -12,8 +12,9 @@ interface ProviderConfig {
   hasKey: boolean;
   apiKey: string;
   model?: string;
-  status: 'empty' | 'saved' | 'testing' | 'error';
+  status: 'empty' | 'saved' | 'testing' | 'error' | 'test-success' | 'test-error';
   error?: string;
+  successMessage?: string;
 }
 
 function Connectors() {
@@ -116,11 +117,21 @@ function Connectors() {
     const setConfig = provider === 'qwen' ? setQwenConfig : setGlmConfig;
 
     if (!config.hasKey && !config.apiKey.trim()) {
-      setConfig((prev) => ({ ...prev, error: '请先填写 API Key', status: 'error' }));
+      setConfig((prev) => ({
+        ...prev,
+        error: '请先填写 API Key',
+        status: 'test-error',
+        successMessage: undefined,
+      }));
       return;
     }
 
-    setConfig((prev) => ({ ...prev, status: 'testing', error: undefined }));
+    setConfig((prev) => ({
+      ...prev,
+      status: 'testing',
+      error: undefined,
+      successMessage: undefined,
+    }));
 
     try {
       // Test by calling a simple chat request
@@ -138,16 +149,33 @@ function Connectors() {
       });
 
       if (response.ok) {
-        setConfig((prev) => ({ ...prev, status: 'saved', error: undefined }));
+        const data = await response.json();
+        const modelName = data.model || config.model || 'qwen-plus';
+        setConfig((prev) => ({
+          ...prev,
+          status: 'test-success',
+          error: undefined,
+          successMessage: `连接成功 ✓ 模型: ${modelName}`,
+        }));
+        // Auto-clear success message after 5 seconds
+        setTimeout(() => {
+          setConfig((prev) => ({
+            ...prev,
+            status: prev.hasKey ? 'saved' : 'empty',
+            successMessage: undefined,
+          }));
+        }, 5000);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '连接测试失败';
       setConfig((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : '连接测试失败',
-        status: 'error',
+        error: errorMessage,
+        status: 'test-error',
+        successMessage: undefined,
       }));
     }
   };
@@ -178,6 +206,8 @@ function Connectors() {
           <div className="provider-status">
             {config.hasKey ? (
               <span className="status-badge saved">已配置</span>
+            ) : config.apiKey.trim() ? (
+              <span className="status-badge filled">已填写</span>
             ) : (
               <span className="status-badge empty">未填写</span>
             )}
@@ -206,6 +236,22 @@ function Connectors() {
               {config.provider === 'qwen' ? 'Qwen3.8 系列（API：qwen-plus）' : defaultModel} (可在对话时指定)
             </div>
           </div>
+
+          {config.successMessage && (
+            <div
+              className="success-message"
+              style={{
+                backgroundColor: '#d4edda',
+                color: '#155724',
+                border: '1px solid #c3e6cb',
+                borderRadius: '4px',
+                padding: '12px',
+                marginBottom: '16px',
+              }}
+            >
+              {config.successMessage}
+            </div>
+          )}
 
           {config.error && <div className="error-message">{config.error}</div>}
 
