@@ -1,96 +1,108 @@
+import { useState, useEffect } from 'react';
 import './Computer.css';
 
-function Computer() {
+interface ComputerView {
+  agentId: string;
+  status: 'running' | 'idle' | 'stopped' | 'error';
+  workspacePath: string;
+  cwd: string;
+  recentFiles: { path: string; updatedAt: string }[];
+  terminalPreview?: string;
+}
+
+interface ComputerProps {
+  agentName: string;
+}
+
+const mockComputerData: ComputerView = {
+  agentId: 'agent-1',
+  status: 'idle',
+  workspacePath: '/home/agent/workspace',
+  cwd: '/home/agent/workspace',
+  recentFiles: [
+    { path: 'PRD_2026Q3.md', updatedAt: '2026-09-28 15:30' },
+    { path: 'competitor_analysis.xlsx', updatedAt: '2026-09-27 14:22' },
+    { path: 'meeting_notes.txt', updatedAt: '2026-09-27 10:15' },
+  ],
+  terminalPreview: '$ ls -la\ntotal 24\ndrwxr-xr-x 3 agent agent 4096 Sep 28 15:30 .',
+};
+
+function Computer({ agentName }: ComputerProps) {
+  const [data, setData] = useState<ComputerView>(mockComputerData);
+  const [loading, setLoading] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+
+  const handleRefresh = async () => {
+    setLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    setData(mockComputerData);
+    setLoading(false);
+  };
+
+  const handleOpenWorkspace = () => {
+    setCopyFeedback(true);
+    navigator.clipboard.writeText(data.workspacePath);
+    setTimeout(() => setCopyFeedback(false), 2000);
+  };
+
+  const getStatusBadge = (status: ComputerView['status']) => {
+    const statusMap = {
+      running: { label: '运行中', className: 'running' },
+      idle: { label: '空闲', className: 'idle' },
+      stopped: { label: '已停止', className: 'stopped' },
+      error: { label: '错误', className: 'error' },
+    };
+    const { label, className } = statusMap[status];
+    return <span className={`status-badge ${className}`}>{label}</span>;
+  };
+
   return (
     <div className="computer-container">
       <div className="computer-header">
-        <h1>Computer</h1>
-        <p className="computer-subtitle">沙箱环境 · 命令行 · 文件系统</p>
+        <div>
+          <h2>Computer 沙箱</h2>
+          <p className="subtitle">{agentName} 的工作区快照</p>
+        </div>
+        <button onClick={handleRefresh} disabled={loading} className="btn-refresh">
+          {loading ? '刷新中...' : '刷新'}
+        </button>
       </div>
 
-      <div className="section">
-        <h2 className="section-title">沙箱状态</h2>
-        <div className="sandbox-card">
-          <div className="sandbox-header">
-            <div className="sandbox-icon">🖥️</div>
-            <div className="sandbox-info">
-              <div className="sandbox-name">产品经理数字员工 - 沙箱</div>
-              <div className="sandbox-status">
-                <span className="status-badge running">运行中</span>
+      <div className="computer-status-bar">
+        {getStatusBadge(data.status)}
+        <span className="workspace-path">{data.workspacePath}</span>
+      </div>
+
+      <div className="computer-section">
+        <h3>最近文件</h3>
+        {data.recentFiles.length > 0 ? (
+          <div className="files-list">
+            {data.recentFiles.map((file, idx) => (
+              <div key={idx} className="file-item">
+                <div className="file-icon">📄</div>
+                <div className="file-info">
+                  <div className="file-path">{file.path}</div>
+                  <div className="file-updated">{file.updatedAt}</div>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
-
-          <div className="sandbox-details">
-            <div className="detail-row">
-              <span className="detail-label">容器ID:</span>
-              <span className="detail-value">sandbox-pm-001</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">工作目录:</span>
-              <span className="detail-value">/workspace</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">运行时长:</span>
-              <span className="detail-value">2h 34m</span>
-            </div>
-          </div>
-        </div>
+        ) : (
+          <div className="empty-state">暂无文件</div>
+        )}
       </div>
 
-      <div className="section">
-        <h2 className="section-title">终端</h2>
-        <div className="terminal-card">
-          <div className="terminal-header">
-            <span className="terminal-title">bash</span>
-            <div className="terminal-actions">
-              <button className="terminal-btn">清屏</button>
-              <button className="terminal-btn">重启</button>
-            </div>
-          </div>
-          <div className="terminal-body">
-            <div className="terminal-line">
-              <span className="terminal-prompt">ubuntu@sandbox:~/workspace$</span>
-              <span className="terminal-command">ls -la briefs/</span>
-            </div>
-            <div className="terminal-output">
-              total 8<br />
-              drwxr-xr-x 2 ubuntu ubuntu 4096 Sep 28 10:22 .<br />
-              drwxr-xr-x 5 ubuntu ubuntu 4096 Sep 28 10:20 ..
-              <br />
-              -rw-r--r-- 1 ubuntu ubuntu 249 Sep 28 10:22 2026-W39.md
-            </div>
-            <div className="terminal-line">
-              <span className="terminal-prompt">ubuntu@sandbox:~/workspace$</span>
-              <span className="terminal-cursor">_</span>
-            </div>
-          </div>
+      {data.terminalPreview && (
+        <div className="computer-section">
+          <h3>终端预览</h3>
+          <pre className="terminal-preview">{data.terminalPreview}</pre>
         </div>
-      </div>
+      )}
 
-      <div className="section">
-        <h2 className="section-title">文件浏览器</h2>
-        <div className="file-browser">
-          <div className="file-tree">
-            <div className="file-item folder">
-              <span className="file-icon">📁</span>
-              <span className="file-name">workspace</span>
-            </div>
-            <div className="file-item folder indent">
-              <span className="file-icon">📁</span>
-              <span className="file-name">briefs</span>
-            </div>
-            <div className="file-item file indent-2">
-              <span className="file-icon">📄</span>
-              <span className="file-name">2026-W39.md</span>
-              <span className="file-size">249 B</span>
-            </div>
-            <div className="file-item folder indent">
-              <span className="file-icon">📁</span>
-              <span className="file-name">research</span>
-            </div>
-          </div>
-        </div>
+      <div className="computer-actions">
+        <button onClick={handleOpenWorkspace} className="btn-primary">
+          {copyFeedback ? '路径已复制 ✓' : '打开工作区'}
+        </button>
       </div>
     </div>
   );

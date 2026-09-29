@@ -379,27 +379,6 @@ function Connectors() {
         </div>
       </div>
 
-      <div className="section">
-        <h2 className="section-title">其他连接 (stub)</h2>
-        <div className="other-connectors">
-          <div className="connector-stub">
-            <div className="connector-icon">GH</div>
-            <span>GitHub</span>
-            <span className="coming-soon">敬请期待</span>
-          </div>
-          <div className="connector-stub">
-            <div className="connector-icon">SL</div>
-            <span>Slack</span>
-            <span className="coming-soon">敬请期待</span>
-          </div>
-          <div className="connector-stub">
-            <div className="connector-icon">DB</div>
-            <span>内部数仓</span>
-            <span className="coming-soon">敬请期待</span>
-          </div>
-        </div>
-      </div>
-
       <div className="connectors-footer">
         <p className="tip">
           💡 Tip: Gateway 审计仅记录 provider/model/latency/tokens，不记录 Key 或完整 messages。

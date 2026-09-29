@@ -48,61 +48,187 @@ const mockAgents: Agent[] = [
 ];
 
 function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [name, setName] = useState('');
-  const [role, setRole] = useState('');
+  const [selectedRole, setSelectedRole] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+  } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !role.trim()) return;
+  const roleTemplates = [
+    {
+      id: 'pm',
+      name: '产品经理',
+      description: '需求分析、竞品研究、PRD 编写',
+      icon: '产',
+    },
+    {
+      id: 'ops',
+      name: '运营专家',
+      description: '数据分析、用户增长、内容运营',
+      icon: '运',
+    },
+    {
+      id: 'dev',
+      name: '研发协作',
+      description: '代码审查、技术支持、API 集成',
+      icon: '研',
+    },
+    {
+      id: 'custom',
+      name: '自定义',
+      description: '自由定义角色和职责',
+      icon: '自',
+    },
+  ];
+
+  const handleNext = () => {
+    if (step < 3) {
+      setStep((step + 1) as 1 | 2 | 3);
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep((step - 1) as 1 | 2 | 3);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!name.trim() || !selectedRole) return;
 
     const newAgent: Agent = {
       id: Date.now().toString(),
       name: name.trim(),
-      role: role.trim(),
+      role: selectedRole.description,
       status: 'idle',
       avatar: name.charAt(0),
-      avatarClass: 'custom',
+      avatarClass: selectedRole.id,
     };
 
     onSave(newAgent);
     onClose();
   };
 
+  const canProceedStep1 = name.trim().length > 0;
+  const canProceedStep2 = selectedRole !== null;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h2>创建 Agent</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-field">
-            <label htmlFor="agent-name">Agent 名称</label>
-            <input
-              id="agent-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="例如：技术顾问"
-              autoFocus
-            />
+      <div className="modal-content wizard-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="wizard-header">
+          <h2>创建数字员工</h2>
+          <div className="wizard-steps">
+            <div className={`step-indicator ${step >= 1 ? 'active' : ''}`}>
+              <span className="step-number">1</span>
+              <span className="step-label">基本信息</span>
+            </div>
+            <div className="step-line" />
+            <div className={`step-indicator ${step >= 2 ? 'active' : ''}`}>
+              <span className="step-number">2</span>
+              <span className="step-label">角色模板</span>
+            </div>
+            <div className="step-line" />
+            <div className={`step-indicator ${step >= 3 ? 'active' : ''}`}>
+              <span className="step-number">3</span>
+              <span className="step-label">确认信息</span>
+            </div>
           </div>
-          <div className="form-field">
-            <label htmlFor="agent-role">角色描述</label>
-            <input
-              id="agent-role"
-              type="text"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              placeholder="例如：技术支持 · API 集成"
-            />
-          </div>
-          <div className="modal-actions">
-            <button type="button" onClick={onClose} className="cancel-btn">
-              取消
+        </div>
+
+        <div className="wizard-body">
+          {step === 1 && (
+            <div className="wizard-step">
+              <h3>输入员工名称</h3>
+              <p className="step-desc">为您的数字员工起一个名字</p>
+              <div className="form-field">
+                <label htmlFor="agent-name">名称</label>
+                <input
+                  id="agent-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="例如：技术顾问、市场分析师"
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="wizard-step">
+              <h3>选择角色模板</h3>
+              <p className="step-desc">选择一个适合的角色模板，或自定义</p>
+              <div className="role-templates">
+                {roleTemplates.map((role) => (
+                  <div
+                    key={role.id}
+                    className={`role-card ${selectedRole?.id === role.id ? 'selected' : ''}`}
+                    onClick={() => setSelectedRole(role)}
+                  >
+                    <div className="role-icon">{role.icon}</div>
+                    <div className="role-info">
+                      <div className="role-name">{role.name}</div>
+                      <div className="role-desc">{role.description}</div>
+                    </div>
+                    {selectedRole?.id === role.id && <div className="role-check">✓</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="wizard-step">
+              <h3>确认创建</h3>
+              <p className="step-desc">请确认以下信息</p>
+              <div className="confirm-info">
+                <div className="confirm-row">
+                  <span className="confirm-label">名称:</span>
+                  <span className="confirm-value">{name}</span>
+                </div>
+                <div className="confirm-row">
+                  <span className="confirm-label">角色:</span>
+                  <span className="confirm-value">{selectedRole?.name}</span>
+                </div>
+                <div className="confirm-row">
+                  <span className="confirm-label">职责:</span>
+                  <span className="confirm-value">{selectedRole?.description}</span>
+                </div>
+              </div>
+              <div className="confirm-note">
+                将创建本地演示 Agent (fixture)。完整的 Agent 管理功能将在未来版本中实现。
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-actions">
+          {step > 1 && (
+            <button type="button" onClick={handleBack} className="back-btn">
+              上一步
             </button>
-            <button type="submit" className="submit-btn" disabled={!name.trim() || !role.trim()}>
+          )}
+          {step < 3 ? (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="next-btn"
+              disabled={step === 1 ? !canProceedStep1 : !canProceedStep2}
+            >
+              下一步
+            </button>
+          ) : (
+            <button type="button" onClick={handleSubmit} className="submit-btn">
               创建
             </button>
-          </div>
-        </form>
+          )}
+          <button type="button" onClick={onClose} className="cancel-btn">
+            取消
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -72,7 +72,7 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
       const runtimeUrl = 'http://localhost:3003';
       let pollAttempts = 0;
       const maxPolls = 10;
-      const pollInterval = 1000; // 1 second
+      const pollInterval = 1000;
       let foundResult = false;
 
       while (pollAttempts < maxPolls) {
@@ -97,7 +97,7 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
               setDemoResponse(insightData);
               foundResult = true;
               setIsRunningDemo(false);
-              return; // Success exit
+              return;
             } else {
               throw new Error('任务完成但未通过审核 (reconcile_status: FAILED)');
             }
