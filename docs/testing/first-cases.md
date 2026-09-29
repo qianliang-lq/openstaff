@@ -1300,4 +1300,366 @@ The following are NOT covered (next slice or out of MVP scope):
 
 ---
 
+## One-Click Start Contract Tests (TC-051+)
+
+### Overview
+
+TC-051+ validates the one-click start contracts for both development and production deployments. These tests are **offline-friendly** and run by default in CI without requiring services to be running.
+
+**Coverage**:
+- TC-051: Justfile recipes exist
+- TC-052: Dev recipe configuration
+- TC-053: Prod compose structure
+- TC-054: Optional integration smoke tests
+
+### Test Location
+
+**File**: `crates/protocol/tests/one_click_contract.rs`
+
+All tests are offline contract/structure validation tests except TC-054a/b which are opt-in integration tests.
+
+---
+
+#### TC-051: Justfile Has Required Recipes
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/one_click_contract.rs`  
+**Function**: `tc_051_justfile_has_required_recipes()`
+
+**Purpose**: Validate that justfile contains all required recipes for dev and prod workflows.
+
+**Required Recipes**:
+- Dev: `dev-up`, `install`
+- Prod: `prod-up`, `prod-down`, `prod-health`, `prod-logs`
+
+**Validation**:
+- ✅ `dev-up` calls `scripts/dev-up.sh`
+- ✅ `prod-up` references `docker-compose.prod.yml`
+
+**Expected Result**: ✅ All recipes present with correct references
+
+**Command**:
+
+```bash
+cargo test tc_051 -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (file parsing only)
+
+---
+
+#### TC-052: Dev Recipe Configuration
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/one_click_contract.rs`  
+**Function**: `tc_052_dev_recipe_configuration()`
+
+**Purpose**: Validate that `scripts/dev-up.sh` starts all required services on correct ports.
+
+**Required Services**:
+- API: port 3000 (`cargo run -p openstaff-api`)
+- Gateway: port 3001 (`cargo run -p openstaff-gateway`)
+- Scheduler: port 3002 (`cargo run -p openstaff-scheduler`)
+- Runtime: port 3003 (`cargo run -p openstaff-runtime`)
+- Desktop: port 5173 (Vite dev server, optional)
+
+**Validation**:
+- ✅ Script starts all four backend services
+- ✅ Ports 3000-3003 and 5173 documented
+- ✅ Desktop frontend mentioned
+
+**Expected Result**: ✅ Dev script starts correct services on expected ports
+
+**Command**:
+
+```bash
+cargo test tc_052 -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (script parsing only)
+
+---
+
+#### TC-053: Prod Compose Structure
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/one_click_contract.rs`  
+**Function**: `tc_053_prod_compose_structure()`
+
+**Purpose**: Validate `docker-compose.prod.yml` has exactly 4 core services (gateway, api, runtime, scheduler) and **NO desktop service** per §9 contract (桌面永远本机连云).
+
+**Required Services**:
+- `gateway:` - port 3001, internal network only
+- `api:` - port 3000, exposed via Caddy
+- `runtime:` - port 3003, internal network only, mounts artifacts volume
+- `scheduler:` - port 3002, internal network only
+
+**Optional Services**:
+- `caddy:` - HTTPS reverse proxy, under `with-caddy` profile
+
+**Validation**:
+- ✅ All 4 core services present with correct container names
+- ✅ Correct port configuration (3000, 3001, 3002, 3003)
+- ✅ Runtime mounts artifacts volume
+- ✅ Health checks configured
+- ✅ **NO** `openstaff-desktop` service (per §9: 桌面永远本机连云)
+- ✅ Caddy is optional and profiled if present
+
+**Expected Result**: ✅ Compose file has 4 core services, no desktop
+
+**Command**:
+
+```bash
+cargo test tc_053_prod -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (YAML parsing only)
+
+---
+
+#### TC-053b: Prod Health Script Checks All Services
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/one_click_contract.rs`  
+**Function**: `tc_053b_prod_health_script_checks_all_services()`
+
+**Purpose**: Validate `just prod-health` checks all four backend services.
+
+**Validation**:
+- ✅ Checks `openstaff-api` on port 3000
+- ✅ Checks `openstaff-gateway` on port 3001
+- ✅ Checks `openstaff-scheduler` on port 3002
+- ✅ Checks `openstaff-runtime` on port 3003
+- ✅ Uses `docker exec` to check from inside containers
+
+**Expected Result**: ✅ Health script validates all four services
+
+**Command**:
+
+```bash
+cargo test tc_053b -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (justfile parsing only)
+
+---
+
+#### TC-053c: Docker Compose YAML Valid
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/one_click_contract.rs`  
+**Function**: `tc_053c_docker_compose_yaml_valid()`
+
+**Purpose**: Validate `docker-compose.prod.yml` has valid YAML structure (offline check, no Docker daemon required).
+
+**Validation**:
+- ✅ Has `services:`, `networks:`, `volumes:` sections
+- ✅ No tabs (YAML must use spaces)
+- ✅ Each service has `build:` or `image:` directive
+
+**Expected Result**: ✅ Valid YAML structure
+
+**Command**:
+
+```bash
+cargo test tc_053c -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (YAML structure check only)
+
+---
+
+#### TC-054a: Dev Stack Smoke Test (Optional)
+
+**Layer**: Integration  
+**File**: `crates/protocol/tests/one_click_contract.rs`  
+**Function**: `tc_054a_dev_stack_smoke_test()` (ignored by default)
+
+**Purpose**: Validate `just dev-up` successfully starts all services and they respond to health checks.
+
+**Requirements**:
+- ✅ Set `OPENSTAFF_SMOKE=1` environment variable
+- ✅ Services start within 30-60 seconds
+- ✅ All health endpoints return HTTP 200
+
+**Expected Result**: ✅ All services healthy after startup
+
+**Command**:
+
+```bash
+OPENSTAFF_SMOKE=1 cargo test tc_054a -p openstaff-protocol -- --ignored
+```
+
+**Offline**: ❌ No (requires service startup)  
+**CI Default**: ⏭️ Skipped (too heavy for default CI)
+
+**Manual Test**:
+
+```bash
+just dev-up && just health && Ctrl-C
+```
+
+---
+
+#### TC-054b: Prod Stack Smoke Test (Optional)
+
+**Layer**: Integration  
+**File**: `crates/protocol/tests/one_click_contract.rs`  
+**Function**: `tc_054b_prod_stack_smoke_test()` (ignored by default)
+
+**Purpose**: Validate `just prod-up` successfully starts all services and `just prod-health` reports all healthy.
+
+**Requirements**:
+- ✅ Set `OPENSTAFF_SMOKE=1` environment variable
+- ✅ Docker daemon running
+- ✅ `.env.prod` configured
+- ✅ Containers healthy within 60-90 seconds
+
+**Expected Result**: ✅ All production services healthy
+
+**Command**:
+
+```bash
+OPENSTAFF_SMOKE=1 cargo test tc_054b -p openstaff-protocol -- --ignored
+```
+
+**Offline**: ❌ No (requires Docker + service startup)  
+**CI Default**: ⏭️ Skipped (too heavy for default CI)
+
+**Manual Test**:
+
+```bash
+just prod-up && just prod-health && just prod-down
+```
+
+---
+
+#### TC-054c: Smoke Script Validates All Services
+
+**Layer**: Contract  
+**File**: `crates/protocol/tests/one_click_contract.rs`  
+**Function**: `tc_054c_smoke_script_validates_all_services()`
+
+**Purpose**: Validate `scripts/smoke.sh` checks all four backend services with HTTP 200 validation.
+
+**Validation**:
+- ✅ Checks API on port 3000
+- ✅ Checks Gateway on port 3001
+- ✅ Checks Scheduler on port 3002
+- ✅ Checks Runtime on port 3003
+- ✅ Verifies HTTP 200 responses
+
+**Expected Result**: ✅ Smoke script validates all services
+
+**Command**:
+
+```bash
+cargo test tc_054c -p openstaff-protocol
+```
+
+**Offline**: ✅ Yes (script parsing only)
+
+---
+
+### Running One-Click Contract Tests
+
+#### All One-Click Tests (Default CI)
+
+```bash
+cargo test -p openstaff-protocol --test one_click_contract
+```
+
+**Expected**: ✅ 6 tests pass (TC-051, TC-052, TC-053, TC-053b, TC-053c, TC-054c), 2 ignored (TC-054a, TC-054b)  
+**Time**: ~1 second  
+**Offline**: ✅ Yes (default tests are all offline)
+
+---
+
+#### Optional Integration Smoke Tests
+
+```bash
+# Requires services to be running
+OPENSTAFF_SMOKE=1 cargo test -p openstaff-protocol --test one_click_contract -- --ignored
+```
+
+**Expected**: ✅ 2 tests pass (TC-054a, TC-054b) if environment is ready  
+**Time**: ~60-120 seconds  
+**Offline**: ❌ No (requires service startup)
+
+**Note**: These tests are **NOT** run by default in CI to keep CI fast. They document the manual integration test contract.
+
+---
+
+### Test Coverage Summary (TC-051+)
+
+**Added Coverage**:
+
+1. **Justfile Contract**: TC-051 validates all required recipes exist
+2. **Dev Configuration**: TC-052 validates dev-up.sh starts correct services on expected ports
+3. **Prod Compose Structure**: TC-053, TC-053b, TC-053c validate compose file structure, no desktop service
+4. **Smoke Script Contract**: TC-054c validates smoke.sh structure
+5. **Optional Integration**: TC-054a/b document integration smoke test contracts (opt-in only)
+
+**Honesty Note**: Default CI stays offline/fast. TC-054a/b are documented contracts but skipped by default. Manual validation: `just dev-up && just health` for dev, `just prod-up && just prod-health` for prod.
+
+---
+
+## All Tests Summary (Updated for TC-051+)
+
+### Backend Tests (Rust)
+
+```bash
+# Run all backend tests (excludes openstaff-desktop)
+cargo test --workspace --exclude openstaff-desktop
+```
+
+**Expected**: ✅ 46+ tests pass
+- TC-001 through TC-020: Protocol + health endpoints (20 tests)
+- TC-028, TC-029: External insight schema + reconcile gate (2 tests)
+- TC-031 through TC-038: Demo-MVP contract tests (8 tests)
+- TC-043 through TC-045: Slice 2 runtime tests (3 tests, **known failures on main**)
+- TC-046 through TC-050: Slice 2 desktop tests (5 tests)
+- **TC-051 through TC-054c: One-click start contract tests (6 tests)** ⭐ **NEW**
+
+**Note**: TC-043, TC-044, TC-045 are known failures on main (a7f2dc4) - insights endpoint not fully implemented.
+
+### Frontend Tests (TypeScript)
+
+```bash
+# Desktop app tests
+cd apps/desktop && pnpm test
+
+# Web admin tests
+cd apps/web-admin && pnpm test
+
+# Run all frontend tests from root
+pnpm test
+```
+
+**Expected**: ✅ 15 test suites pass
+- TC-021 through TC-027: Shell UI (7 suites)
+- TC-030: External insight report card summary ≤ 3 (1 suite)
+- TC-039 through TC-042: Desktop fire handler (4 tests in 1 suite)
+- TC-046 through TC-050: Slice 2 desktop tests (5 tests in ChatStage suite)
+
+---
+
+## CI Default Test Gate
+
+```bash
+# Fast offline gate (default CI)
+cargo test --workspace --exclude openstaff-desktop
+
+# Plus frontend tests
+pnpm test
+```
+
+**Offline**: ✅ Yes (all default tests are offline)  
+**Time**: ~30 seconds total
+
+**Optional Heavy Tests** (not in default CI):
+- TC-054a/b: Integration smoke tests (require `OPENSTAFF_SMOKE=1`)
+
+---
+
 **Authoritative Status**: This document catalogs all implemented test cases (backend + frontend). Keep it updated when adding new tests.
