@@ -30,45 +30,88 @@ fn workspace_root() -> PathBuf {
 /// - Store on-device (OS keychain / Tauri secure storage)
 /// - MUST NOT use git / localStorage
 ///
-/// Offline check: Verify Connectors component exists and imports secure storage APIs
+/// **HARDENED**: This test FAILS if Connectors tab structure doesn't match sketch 18
 #[test]
 fn tc_060_connectors_key_page_structure() {
-    eprintln!("🔍 TC-060: Connectors Key page acceptance");
+    eprintln!("🔍 TC-060: Connectors Key page acceptance (HARDENED)");
 
     let desktop_main_stage = workspace_root().join("apps/desktop/src/components/MainStage.tsx");
+    let settings_tsx = workspace_root().join("apps/desktop/src/components/Settings.tsx");
+
+    let mut has_connectors_tab = false;
+    let mut connectors_properly_located = false;
 
     if desktop_main_stage.exists() {
         let content =
             fs::read_to_string(&desktop_main_stage).expect("Failed to read MainStage.tsx");
 
-        // Verify Connectors tab exists
-        assert!(
-            content.contains("connectors") || content.contains("Connectors"),
-            "MainStage should have Connectors tab"
-        );
+        // Check if Connectors tab exists in MainStage
+        if content.contains("connectors") || content.contains("Connectors") {
+            has_connectors_tab = true;
+            eprintln!("   ✅ Connectors tab mentioned in MainStage");
 
-        eprintln!("   ✅ Connectors tab found in MainStage");
-
-        // Check if Connectors component is stubbed or implemented
-        if content.contains("stub-page") && content.contains("Connectors") {
-            eprintln!("   ⚠️  Connectors currently stubbed (pending wiring)");
+            // Check if it's properly implemented (not just a stub)
+            if content.contains("stub-page") && content.contains("Connectors") {
+                eprintln!("   ❌ Connectors tab is only a stub (开发中)");
+                connectors_properly_located = false;
+            } else if content.contains("case 'connectors'")
+                || content.contains("activeTab === 'connectors'")
+            {
+                // Check if there's a real component (Settings, ConnectorsStage, etc.)
+                if content.contains("<Settings") || content.contains("<ConnectorsStage") {
+                    connectors_properly_located = true;
+                    eprintln!("   ✅ Connectors tab has real component");
+                } else {
+                    eprintln!("   ❌ Connectors tab exists but has no real component");
+                    connectors_properly_located = false;
+                }
+            }
         }
-    } else {
-        eprintln!("   ⚠️  Desktop source not found");
     }
 
-    // Acceptance criteria (to implement when wiring):
-    eprintln!("   📋 Acceptance checklist:");
-    eprintln!("      □ Qwen API Key input field");
-    eprintln!("      □ GLM API Key input field");
-    eprintln!("      □ Save button stores to secure storage (not localStorage)");
-    eprintln!("      □ Clear/Delete button per provider");
-    eprintln!("      □ Visual indicator when key is set (masked display)");
-    eprintln!("      □ Test connection button (optional)");
+    // Settings.tsx implements the functionality, but is it in the right place?
+    if settings_tsx.exists() {
+        eprintln!("   ⚠️  Settings.tsx exists (implements key storage)");
 
-    // Contract: No localStorage for keys (enforced by TC-059)
-    eprintln!("   🔒 Security: Keys MUST use Tauri secure storage API");
-    eprintln!("   🔒 Security: MUST NOT use localStorage (enforced by TC-059)");
+        // Check if it uses secure storage
+        let settings_content = fs::read_to_string(&settings_tsx).unwrap();
+        if settings_content.contains("invoke('get_provider_key')") {
+            eprintln!("   ✅ Uses Tauri secure storage (correct)");
+        }
+    }
+
+    // HONESTY CHECK: Fail if Connectors tab doesn't match sketch 18 requirements
+    if !has_connectors_tab {
+        panic!(
+            "TC-060 FAILED: Connectors tab not found in MainStage.\n\
+             \n\
+             Sketch 18 requires:\n\
+             - Separate 'Connectors' tab in MainStage navigation\n\
+             - Qwen API Key input field\n\
+             - GLM API Key input field\n\
+             - Keys stored via Tauri secure storage\n\
+             \n\
+             Current state: Settings.tsx implements key storage, but it's in Settings tab,\n\
+             not a dedicated Connectors tab as per sketch 18.\n\
+             \n\
+             验收口令: CANNOT PASS until Connectors tab matches sketch 18."
+        );
+    }
+
+    if !connectors_properly_located {
+        panic!(
+            "TC-060 FAILED: Connectors tab exists but is not properly structured.\n\
+             \n\
+             The tab must have:\n\
+             - Dedicated UI component for Connectors\n\
+             - Proper routing in MainStage (case 'connectors')\n\
+             - Separate Qwen/GLM key input fields\n\
+             \n\
+             验收口令: CANNOT PASS until structure matches sketch 18."
+        );
+    }
+
+    eprintln!("   ✅ TC-060 PASSED: Connectors tab matches sketch 18");
 }
 
 /// TC-061: Chat Empty State - No Key Configured
@@ -79,47 +122,86 @@ fn tc_060_connectors_key_page_structure() {
 /// - Chat input disabled until key present
 /// - Empty state illustration (optional)
 ///
-/// Offline check: Verify ChatStage component structure
+/// **HARDENED**: This test FAILS if UI doesn't match sketch 19 requirements
 #[test]
 fn tc_061_chat_empty_state_no_key() {
-    eprintln!("🔍 TC-061: Chat empty state (no key configured)");
+    eprintln!("🔍 TC-061: Chat empty state (no key configured) - HARDENED");
 
     let chat_stage_path = workspace_root().join("apps/desktop/src/components/stages/ChatStage.tsx");
 
-    if chat_stage_path.exists() {
-        let content = fs::read_to_string(&chat_stage_path).expect("Failed to read ChatStage.tsx");
-
-        // Check if ChatStage has conditional rendering
-        let has_conditional =
-            content.contains("if (") || content.contains("? ") || content.contains("&&");
-
-        if has_conditional {
-            eprintln!("   ✅ ChatStage has conditional rendering logic");
-        }
-
-        // Check for input/textarea elements
-        if content.contains("input") || content.contains("textarea") {
-            eprintln!("   ✅ ChatStage has input elements");
-        }
-
-        // Check if there's any key/config checking logic
-        if content.contains("key") || content.contains("Key") || content.contains("config") {
-            eprintln!("   ⚠️  Key-related logic found (check if it gates input)");
-        } else {
-            eprintln!("   ⚠️  No key checking logic yet (pending wiring)");
-        }
-    } else {
-        eprintln!("   ⚠️  ChatStage source not found");
+    if !chat_stage_path.exists() {
+        panic!("TC-061 FAILED: ChatStage.tsx not found");
     }
 
-    // Acceptance criteria (to implement when wiring):
-    eprintln!("   📋 Acceptance checklist:");
-    eprintln!("      □ Empty state card shown when no provider key configured");
-    eprintln!("      □ Guide text: '请先配置 API Key 以使用聊天功能'");
-    eprintln!("      □ CTA button: '去 Connectors 配置' (calls onTabChange('connectors'))");
-    eprintln!("      □ Chat input disabled (disabled={{!hasProviderKey}})");
-    eprintln!("      □ Send button disabled when no key");
-    eprintln!("      □ Empty state illustration (optional SVG/icon)");
+    let content = fs::read_to_string(&chat_stage_path).expect("Failed to read ChatStage.tsx");
+
+    // Check 1: Input must be disabled when no key
+    let has_input_disable_logic = content.contains("disabled=")
+        || content.contains("disabled:")
+        || content.contains("disabled ");
+
+    if !has_input_disable_logic {
+        eprintln!("   ❌ No input disable logic found");
+    } else {
+        eprintln!("   ⚠️  Input disable logic exists, checking if tied to key presence...");
+    }
+
+    // Check 2: Must have CTA to go to Connectors
+    let has_connectors_cta = content.contains("去 Connectors")
+        || content.contains("去配置")
+        || (content.contains("Connectors") && content.contains("button"));
+
+    if !has_connectors_cta {
+        eprintln!("   ❌ No CTA button to navigate to Connectors");
+    } else {
+        eprintln!("   ⚠️  Connectors CTA may exist, checking implementation...");
+    }
+
+    // Check 3: Must have guide text about configuring API key
+    let has_guide_text = content.contains("配置 API Key") || content.contains("请先在设置中配置");
+
+    if !has_guide_text {
+        eprintln!("   ❌ No guide text about API Key configuration");
+    } else {
+        eprintln!("   ✅ Guide text found about API Key");
+    }
+
+    // HONESTY CHECK: Current implementation
+    // ChatStage has:
+    // - Welcome message (good)
+    // - Error message when no key (good)
+    // But MISSING per sketch 19:
+    // - Input is NOT disabled based on key presence
+    // - No "去 Connectors 配置" CTA button
+    // - Welcome message is not the same as sketch 19's empty state card
+
+    // Check the actual implementation
+    let has_proper_empty_state = content.contains("去 Connectors 配置")
+        && content.contains("disabled")
+        && content.contains("hasProviderKey");
+
+    if !has_proper_empty_state {
+        panic!(
+            "TC-061 FAILED: Chat empty state doesn't match sketch 19.\n\
+             \n\
+             Sketch 19 requires:\n\
+             1. Empty state card shown when no provider key configured\n\
+             2. Guide text: '请先配置 API Key 以使用聊天功能'\n\
+             3. CTA button: '去 Connectors 配置' that calls onTabChange('connectors')\n\
+             4. Chat input DISABLED when no key (disabled={{!hasProviderKey}})\n\
+             5. Send button disabled when no key\n\
+             \n\
+             Current state:\n\
+             - Has welcome message: {}\n\
+             - Has Connectors CTA: {}\n\
+             - Has input disable: {}\n\
+             \n\
+             验收口令: CANNOT PASS until empty state matches sketch 19.",
+            has_guide_text, has_connectors_cta, has_input_disable_logic
+        );
+    }
+
+    eprintln!("   ✅ TC-061 PASSED: Chat empty state matches sketch 19");
 }
 
 /// TC-062: Chat Error State - Missing Key or 401
@@ -131,54 +213,102 @@ fn tc_061_chat_empty_state_no_key() {
 /// - Secondary action: "重试" button (retries request)
 /// - Error card dismissible (optional X button)
 ///
-/// Offline check: Verify error handling structure
+/// **HARDENED**: This test FAILS if error UI doesn't match sketch 20 requirements
 #[test]
 fn tc_062_chat_error_state_missing_key_or_401() {
-    eprintln!("🔍 TC-062: Chat error state (missing key / 401)");
+    eprintln!("🔍 TC-062: Chat error state (missing key / 401) - HARDENED");
 
     let chat_stage_path = workspace_root().join("apps/desktop/src/components/stages/ChatStage.tsx");
 
-    if chat_stage_path.exists() {
-        let content = fs::read_to_string(&chat_stage_path).expect("Failed to read ChatStage.tsx");
-
-        // Check for error handling patterns
-        let has_error_state = content.contains("error")
-            || content.contains("Error")
-            || content.contains("catch")
-            || content.contains("failed");
-
-        if has_error_state {
-            eprintln!("   ✅ ChatStage has error handling logic");
-        } else {
-            eprintln!("   ⚠️  No error handling yet (pending wiring)");
-        }
-
-        // Check for retry logic
-        if content.contains("retry") || content.contains("Retry") {
-            eprintln!("   ✅ Retry logic found");
-        }
-
-        // Check for navigation/tab change callbacks
-        if content.contains("onTabChange") || content.contains("navigate") {
-            eprintln!("   ✅ Navigation callbacks available");
-        }
-    } else {
-        eprintln!("   ⚠️  ChatStage source not found");
+    if !chat_stage_path.exists() {
+        panic!("TC-062 FAILED: ChatStage.tsx not found");
     }
 
-    // Acceptance criteria (to implement when wiring):
-    eprintln!("   📋 Acceptance checklist:");
-    eprintln!("      □ Error card rendered on chat request failure");
-    eprintln!("      □ Detect 401/403 HTTP status → show '认证失败：请检查 API Key'");
-    eprintln!("      □ Detect no key before request → show '缺少 API Key'");
-    eprintln!("      □ Error icon (⚠️ or red badge)");
-    eprintln!("      □ Primary button: '去配置' (calls onTabChange('connectors'))");
-    eprintln!("      □ Secondary button: '重试' (retries last request)");
-    eprintln!("      □ Error card dismissible (X button clears error state)");
+    let content = fs::read_to_string(&chat_stage_path).expect("Failed to read ChatStage.tsx");
 
-    // Contract alignment with TC-055:
-    eprintln!("   🔗 Alignment: TC-055 enforces gateway 401/403 → UI must render error card");
-    eprintln!("   🔗 Alignment: Error card MUST NOT show fake success (per TC-055 contract)");
+    // Check 1: Has error handling
+    let has_error_state =
+        content.contains("error") || content.contains("Error") || content.contains("errorMessage");
+
+    if !has_error_state {
+        panic!(
+            "TC-062 FAILED: No error state handling found in ChatStage.\n\
+             Sketch 20 requires error card for auth failures."
+        );
+    }
+    eprintln!("   ✅ Error state handling exists");
+
+    // Check 2: Error must be displayed as a card/component, not just a banner
+    let has_error_card = content.contains("error-card")
+        || content.contains("ErrorCard")
+        || (content.contains("error") && content.contains("card"));
+
+    if !has_error_card {
+        eprintln!("   ⚠️  No error card component found (only banner?)");
+    }
+
+    // Check 3: Must have "去配置" button
+    let has_config_button =
+        content.contains("去配置") || (content.contains("配置") && content.contains("button"));
+
+    if !has_config_button {
+        eprintln!("   ❌ No '去配置' button in error handling");
+    } else {
+        eprintln!("   ✅ '去配置' button may exist");
+    }
+
+    // Check 4: Must have "重试" button
+    let has_retry_button =
+        content.contains("重试") || content.contains("retry") || content.contains("Retry");
+
+    if !has_retry_button {
+        eprintln!("   ❌ No '重试' button in error handling");
+    } else {
+        eprintln!("   ✅ Retry functionality may exist");
+    }
+
+    // HONESTY CHECK: Current implementation
+    // ChatStage has:
+    // - errorMessage state (good)
+    // - Simple error banner display (not a card per sketch 20)
+    // Missing per sketch 20:
+    // - Error card component with icon
+    // - "去配置" button to navigate to Connectors
+    // - "重试" button to retry last request
+    // - Dismissible X button
+
+    // Check the actual implementation matches sketch 20
+    let has_proper_error_ui = (has_error_card || content.contains("className=\"error-card\""))
+        && has_config_button
+        && has_retry_button;
+
+    if !has_proper_error_ui {
+        panic!(
+            "TC-062 FAILED: Error UI doesn't match sketch 20.\n\
+             \n\
+             Sketch 20 requires:\n\
+             1. Error card component (not just banner)\n\
+             2. Error icon (⚠️ or ❌)\n\
+             3. Clear message: '认证失败：请检查 API Key' for 401/403\n\
+             4. Clear message: '缺少 API Key' when no key\n\
+             5. Primary button: '去配置' that calls onTabChange('connectors')\n\
+             6. Secondary button: '重试' that retries the request\n\
+             7. Dismissible X button (optional)\n\
+             \n\
+             Current state:\n\
+             - Has error state: {}\n\
+             - Has error card: {}\n\
+             - Has '去配置' button: {}\n\
+             - Has '重试' button: {}\n\
+             \n\
+             Current implementation only has error banner, not error card.\n\
+             \n\
+             验收口令: CANNOT PASS until error UI matches sketch 20.",
+            has_error_state, has_error_card, has_config_button, has_retry_button
+        );
+    }
+
+    eprintln!("   ✅ TC-062 PASSED: Error UI matches sketch 20");
 }
 
 /// TC-060-ui: Connectors Key Page UI Test (Vitest)

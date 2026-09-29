@@ -11,3 +11,6 @@ serde_json.workspace = true
 
 [dev-dependencies]
 walkdir = "2"
+tokio.workspace = true
+axum.workspace = true
+tower.workspace = true
