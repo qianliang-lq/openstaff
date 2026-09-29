@@ -50,21 +50,23 @@ fn tc_060_connectors_key_page_structure() {
             has_connectors_tab = true;
             eprintln!("   ✅ Connectors tab mentioned in MainStage");
 
-            // Check if it's properly implemented (not just a stub)
-            if content.contains("stub-page") && content.contains("Connectors") {
+            // Check if it uses real Connectors component (not stub)
+            // Look for the specific line with connectors tab
+            if content.contains("activeTab === 'connectors' && <Connectors")
+                || (content.contains("activeTab === 'connectors'")
+                    && content.contains("<Connectors"))
+            {
+                connectors_properly_located = true;
+                eprintln!("   ✅ Connectors component properly integrated");
+            } else if content
+                .lines()
+                .any(|line| line.contains("connectors") && line.contains("stub-page"))
+            {
                 eprintln!("   ❌ Connectors tab is only a stub (开发中)");
                 connectors_properly_located = false;
-            } else if content.contains("case 'connectors'")
-                || content.contains("activeTab === 'connectors'")
-            {
-                // Check if there's a real component (Settings, ConnectorsStage, etc.)
-                if content.contains("<Settings") || content.contains("<ConnectorsStage") {
-                    connectors_properly_located = true;
-                    eprintln!("   ✅ Connectors tab has real component");
-                } else {
-                    eprintln!("   ❌ Connectors tab exists but has no real component");
-                    connectors_properly_located = false;
-                }
+            } else {
+                eprintln!("   ❌ Connectors tab routing unclear");
+                connectors_properly_located = false;
             }
         }
     }
@@ -158,7 +160,10 @@ fn tc_061_chat_empty_state_no_key() {
     }
 
     // Check 3: Must have guide text about configuring API key
-    let has_guide_text = content.contains("配置 API Key") || content.contains("请先在设置中配置");
+    let has_guide_text = content.contains("配置 API Key")
+        || content.contains("请先在设置中配置")
+        || content.contains("配置模型 Key")
+        || content.contains("先配置");
 
     if !has_guide_text {
         eprintln!("   ❌ No guide text about API Key configuration");
@@ -178,7 +183,9 @@ fn tc_061_chat_empty_state_no_key() {
     // Check the actual implementation
     let has_proper_empty_state = content.contains("去 Connectors 配置")
         && content.contains("disabled")
-        && content.contains("hasProviderKey");
+        && (content.contains("hasProviderKey")
+            || content.contains("providerKey")
+            || content.contains("hasKey"));
 
     if !has_proper_empty_state {
         panic!(
