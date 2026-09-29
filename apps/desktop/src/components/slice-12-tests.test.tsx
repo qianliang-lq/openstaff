@@ -292,6 +292,42 @@ describe('TC-083: Validation gate card', () => {
       );
     }
   });
+  it('should show gate on real message stream without demo content', async () => {
+    // Verify gate is accessible even when showMockContent is hidden
+    render(<App />);
+
+    // Find and click the "隐藏演示内容" button to hide demo content
+    const toggleButton = screen.queryByText(/隐藏演示内容/i);
+    if (toggleButton) {
+      fireEvent.click(toggleButton);
+    }
+
+    // Gate should still be visible from real message stream
+    const gateCard = document.querySelector('.validation-gate-card');
+    expect(
+      gateCard,
+      'TC-083 real stream: Gate must be visible without demo content'
+    ).toBeInTheDocument();
+
+    // Should still have action buttons
+    const passButton = screen.queryByRole('button', { name: /通过|Pass/i });
+    expect(
+      passButton,
+      'TC-083 real stream: Pass button must work without demo content'
+    ).toBeInTheDocument();
+
+    // Click and verify bubble appears
+    if (passButton) {
+      fireEvent.click(passButton);
+      await waitFor(
+        () => {
+          const bubble = document.querySelector('.gate-result-bubble');
+          expect(bubble, 'TC-083 real stream: Bubble must appear after click').toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
+    }
+  });
 });
 
 /**
