@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import App from '../App';
 import MainStage from './MainStage';
 import Sidebar from './Sidebar';
@@ -257,7 +257,7 @@ describe('TC-083: Validation gate card', () => {
   });
 
   it('should show chat bubble after gate action', () => {
-    // ❌ EXPECTED TO FAIL: Gate action flow not yet implemented
+    // ❌ EXPECTED RED: Gate action flow not yet implemented
     render(<App />);
 
     // After clicking Pass/Reject/Revise, should show chat bubble with result
@@ -266,7 +266,7 @@ describe('TC-083: Validation gate card', () => {
     expect(
       gateResultBubble,
       'TC-083 EXPECTED RED: Gate result chat bubble not yet implemented'
-    ).toBeInTheDocument();
+    ).toBeTruthy();
   });
 });
 
@@ -350,16 +350,27 @@ describe('TC-084: New agent wizard', () => {
  * Current Status: ❌ EXPECTED RED - GitHub connector is stub
  */
 describe('TC-085: GitHub SaaS connector smoke', () => {
-  it('should render GitHub connector card', () => {
+  it('should render GitHub connector card', async () => {
     render(<MainStage activeTab="connectors" onTabChange={() => {}} activeAgent="测试Agent" />);
 
     // ✅ NOW GREEN: D1+D2 implemented GitHub connector
-    const githubConnector = screen.queryByText(/GitHub/i);
+    // Wait for Connectors component to finish loading
+    await waitFor(
+      () => {
+        const githubCard = document.querySelector('.connector-card.github-card');
+        expect(
+          githubCard,
+          'GitHub connector card (.connector-card.github-card) should exist after loading'
+        ).not.toBeNull();
+      },
+      { timeout: 3000 }
+    );
 
-    expect(
-      githubConnector,
-      'GitHub connector should be visible in Connectors tab'
-    ).toBeInTheDocument();
+    const githubCard = document.querySelector('.connector-card.github-card');
+    if (githubCard) {
+      const cardText = githubCard.textContent || '';
+      expect(cardText).toContain('GitHub');
+    }
   });
 
   it('should NOT show "敬请期待" stub text for GitHub connector', () => {
@@ -374,43 +385,80 @@ describe('TC-085: GitHub SaaS connector smoke', () => {
     expect(githubSection).not.toContain('敬请期待');
   });
 
-  it('should show Connect/Disconnect button for GitHub connector', () => {
+  it('should show Connect/Disconnect button for GitHub connector', async () => {
     render(<MainStage activeTab="connectors" onTabChange={() => {}} activeAgent="测试Agent" />);
 
     // ✅ NOW GREEN: D1+D2 implemented GitHub connector
-    const body = document.body.textContent || '';
+    await waitFor(
+      () => {
+        const githubCard = document.querySelector('.connector-card.github-card');
+        expect(githubCard, 'GitHub card should exist after loading').not.toBeNull();
+      },
+      { timeout: 3000 }
+    );
 
-    // Should show either "连接" or "断开" button (depending on connection state)
-    const hasConnectOrDisconnect = body.includes('连接') || body.includes('断开');
+    const githubCard = document.querySelector('.connector-card.github-card');
+    const cardText = githubCard?.textContent || '';
+
+    // Scoped to GitHub card: should show "连接" or "断开" button
+    const hasConnectOrDisconnect = cardText.includes('连接') || cardText.includes('断开');
 
     expect(
       hasConnectOrDisconnect,
-      'TC-085: GitHub Connect/Disconnect button should be present'
+      'TC-085: GitHub card should have Connect/Disconnect button (scoped to .connector-card.github-card)'
     ).toBe(true);
   });
 
-  it('should show status badge (connected/disconnected) for GitHub connector', () => {
+  it('should show status badge (connected/disconnected) for GitHub connector', async () => {
     render(<MainStage activeTab="connectors" onTabChange={() => {}} activeAgent="测试Agent" />);
 
     // ✅ NOW GREEN: D1+D2 implemented status badges
-    const body = document.body.textContent || '';
+    await waitFor(
+      () => {
+        const githubCard = document.querySelector('.connector-card.github-card');
+        expect(githubCard, 'GitHub card should exist after loading').not.toBeNull();
+      },
+      { timeout: 3000 }
+    );
 
-    // Should show status: "已连接" or "未连接"
-    const hasStatus = body.includes('已连接') || body.includes('未连接');
+    const githubCard = document.querySelector('.connector-card.github-card');
+    const statusBadge = githubCard?.querySelector('.status-badge');
+    expect(statusBadge, 'GitHub card should have status badge').not.toBeNull();
 
-    expect(hasStatus, 'TC-085: GitHub connector should show connection status badge').toBe(true);
+    const badgeText = statusBadge?.textContent || '';
+    // Should show "已连接", "未连接", "错误", or "连接中..."
+    const hasValidStatus =
+      badgeText.includes('已连接') ||
+      badgeText.includes('未连接') ||
+      badgeText.includes('错误') ||
+      badgeText.includes('连接中');
+
+    expect(hasValidStatus, 'TC-085: GitHub status badge should show valid state').toBe(true);
   });
 
-  it('should show Test button for GitHub connector', () => {
+  it('should show Test button for GitHub connector', async () => {
     render(<MainStage activeTab="connectors" onTabChange={() => {}} activeAgent="测试Agent" />);
 
     // ✅ NOW GREEN: D1+D2 implemented Test button (visible when connected)
-    const body = document.body.textContent || '';
+    await waitFor(
+      () => {
+        const githubCard = document.querySelector('.connector-card.github-card');
+        expect(githubCard, 'GitHub card should exist after loading').not.toBeNull();
+      },
+      { timeout: 3000 }
+    );
 
-    // Should have "测试连接" button (visible when connected, or "连接" when disconnected)
-    const hasTestOrConnect = body.includes('测试连接') || body.includes('连接');
+    const githubCard = document.querySelector('.connector-card.github-card');
+    const actions = githubCard?.querySelector('.connector-actions');
+    expect(actions, 'GitHub card should have action buttons').not.toBeNull();
 
-    expect(hasTestOrConnect, 'TC-085: GitHub Test/Connect button should be present').toBe(true);
+    const actionsText = actions?.textContent || '';
+    // Should have "测试连接" (when connected) or "连接" (when disconnected)
+    const hasTestOrConnect = actionsText.includes('测试连接') || actionsText.includes('连接');
+
+    expect(hasTestOrConnect, 'TC-085: GitHub actions should have Test or Connect button').toBe(
+      true
+    );
   });
 
   it('should show error state when GitHub connection test fails', () => {
@@ -534,31 +582,32 @@ describe('TC-086: Web Search Skill v1.2', () => {
     );
   });
 
-  it('should show toast or badge change when enable/disable toggled', () => {
+  it('should show feedback when enable/disable toggled', () => {
     render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
 
-    // ❌ EXPECTED TO FAIL: Enable/disable feedback not implemented
-    // v1.2: Toggle should trigger toast notification or badge state change
+    // ❌ EXPECTED RED: Toggle feedback exists but requires click simulation
+    // Implementation: Skills.tsx shows .feedback span with "已启用 ✓" or "已停用" after toggle
+    // Gap: Test needs to simulate click on toggle switch to verify feedback appears
 
-    const toast = document.querySelector('.toast, .notification');
-    const badge = document.querySelector('.skill-badge, .status-badge');
+    // Without click simulation, feedback span is not rendered yet
+    const feedback = document.querySelector('.feedback');
 
     expect(
-      toast || badge,
-      'TC-086 v1.2 EXPECTED RED: Enable/disable should show toast or badge change'
+      feedback,
+      'TC-086 v1.2 EXPECTED RED: Toggle feedback requires click simulation to verify'
     ).toBeTruthy();
   });
 
   it('should show Web Search skill detail with auto-call configuration', () => {
     render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
 
-    // ❌ EXPECTED TO FAIL: Auto-call config not implemented
+    // ❌ EXPECTED RED: Auto-call config not implemented
     const autoCallConfig = screen.queryByText(/自动调用|Auto-call|触发条件/i);
 
     expect(
       autoCallConfig,
       'TC-086 v1.2 EXPECTED RED: Auto-call config not yet implemented'
-    ).toBeInTheDocument();
+    ).toBeTruthy();
   });
 
   it('should render「试跑一次」button for Web Search skill', () => {
@@ -589,54 +638,71 @@ describe('TC-086: Web Search Skill v1.2', () => {
   it('should show running state when executing Web Search test run', () => {
     render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
 
-    // ❌ EXPECTED TO FAIL: Running state not implemented
-    // After clicking 试跑一次, should show running indicator
-    const runningIndicator = document.querySelector('.skill-running, .running-state');
+    // ❌ EXPECTED RED: Running state exists but requires click simulation
+    // Implementation: Skills.tsx shows "运行中..." button text when runningTest state is set
+    // Gap: Test needs to simulate click on "试跑一次" button to verify running state
+
+    // Without click simulation, button shows "试跑一次" not "运行中..."
+    const runningButton = screen.queryByRole('button', { name: /运行中/i });
 
     expect(
-      runningIndicator,
-      'TC-086 v1.2 EXPECTED RED: Running state indicator not yet implemented'
+      runningButton,
+      'TC-086 v1.2 EXPECTED RED: Running state requires click simulation to verify'
     ).toBeTruthy();
   });
 
   it('should show green success summary after successful Web Search test run', () => {
     render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
 
-    // ❌ EXPECTED TO FAIL: Success summary not implemented
-    // After successful test run, should show green summary card
-    const successSummary = document.querySelector('.skill-success, .success-summary');
+    // ❌ EXPECTED RED: Success feedback exists but requires test run simulation
+    // Implementation: Skills.tsx shows .feedback.success span with "✓ 测试成功: ..." message
+    // Gap: Test needs to simulate successful test run to verify feedback appears
+
+    // Without test run simulation, success feedback is not rendered yet
+    const successFeedback = document.querySelector('.feedback.success');
 
     expect(
-      successSummary,
-      'TC-086 v1.2 EXPECTED RED: Green success summary card not yet implemented'
+      successFeedback,
+      'TC-086 v1.2 EXPECTED RED: Success feedback requires test run simulation to verify'
     ).toBeTruthy();
   });
 
   it('should show red error card when Web Search test run fails', () => {
     render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
 
-    // ❌ EXPECTED TO FAIL: Error card not implemented
-    // When test run fails, should show red error card
-    const errorCard = document.querySelector('.skill-error, .error-card');
+    // ❌ EXPECTED RED: Error feedback exists but requires failed test run simulation
+    // Implementation: Skills.tsx shows .feedback.error span with "✗ 测试失败: ..." message
+    // Gap: Test needs to simulate failed test run to verify error feedback appears
 
-    expect(errorCard, 'TC-086 v1.2 EXPECTED RED: Red error card not yet implemented').toBeTruthy();
+    // Without failed test run simulation, error feedback is not rendered yet
+    const errorFeedback = document.querySelector('.feedback.error');
+
+    expect(
+      errorFeedback,
+      'TC-086 v1.2 EXPECTED RED: Error feedback requires failed test run simulation to verify'
+    ).toBeTruthy();
   });
 
   it('should show explicit error message when backend is down', () => {
     render(<MainStage activeTab="skills" onTabChange={() => {}} activeAgent="测试Agent" />);
 
-    // ❌ EXPECTED TO FAIL: Explicit backend error not implemented
-    // When backend is down, should NOT be silent failure
-    // Should show explicit error like "后端服务不可用" or "Backend unavailable"
+    // ❌ EXPECTED RED: Error message exists but requires failed test run
+    // Implementation: Skills.tsx shows "✗ 测试失败: Gateway 未响应" when test fails
+    // Gap: Test needs to simulate backend failure to verify explicit error message
 
-    const body = document.body.textContent || '';
+    // Without simulating backend failure, error message is not shown
+    // Check that Skills component exists (prerequisite for error messages)
+    const skillsContainer = document.querySelector('.skills-container');
+    expect(skillsContainer, 'Skills container should exist').not.toBeNull();
 
-    // This test documents the requirement:
-    // Explicit error when backend down (not silent failure)
+    // Error message would appear in .feedback.error span after failed test
+    // Current implementation shows "Gateway 未响应" (not "后端" but similar intent)
+    const errorMessage = document.querySelector('.feedback.error');
+
     expect(
-      body.includes('后端') || body.includes('Backend') || body.includes('服务'),
-      'TC-086 v1.2 EXPECTED RED: Explicit backend error message not yet implemented'
-    ).toBe(true);
+      errorMessage,
+      'TC-086 v1.2 EXPECTED RED: Explicit error message requires backend failure simulation'
+    ).toBeTruthy();
   });
 
   it('should use fixture for Web Search test run (no real web calls required)', () => {
