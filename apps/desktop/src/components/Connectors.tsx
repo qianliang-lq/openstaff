@@ -17,6 +17,15 @@ interface ProviderConfig {
   successMessage?: string;
 }
 
+interface GitHubConnector {
+  status: 'disconnected' | 'connected' | 'error' | 'connecting' | 'testing';
+  accountLabel?: string;
+  lastCheckedAt?: string;
+  token?: string;
+  error?: string;
+  successMessage?: string;
+}
+
 function Connectors() {
   const [qwenConfig, setQwenConfig] = useState<ProviderConfig>({
     provider: 'qwen',
@@ -34,10 +43,15 @@ function Connectors() {
 
   const [loading, setLoading] = useState(true);
   const [isTauri, setIsTauri] = useState(false);
+  const [githubConnector, setGithubConnector] = useState<GitHubConnector>({
+    status: 'disconnected',
+  });
+  const [githubToken, setGithubToken] = useState('');
 
   useEffect(() => {
     setIsTauri(isTauriEnvironment());
     loadKeys();
+    loadGitHubConnection();
   }, []);
 
   const loadKeys = async () => {
@@ -66,6 +80,21 @@ function Connectors() {
       console.error('Failed to load keys:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadGitHubConnection = async () => {
+    try {
+      const token = await getProviderKey('github');
+      if (token) {
+        setGithubConnector({
+          status: 'connected',
+          token,
+          lastCheckedAt: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load GitHub connection:', err);
     }
   };
 
@@ -109,6 +138,129 @@ function Connectors() {
       });
     } catch (err) {
       console.error('Failed to delete key:', err);
+    }
+  };
+
+  const handleGitHubConnect = async () => {
+    if (!githubToken.trim()) {
+      setGithubConnector((prev) => ({
+        ...prev,
+        error: 'Personal Access Token 不能为空',
+        status: 'error',
+      }));
+      return;
+    }
+
+    setGithubConnector((prev) => ({
+      ...prev,
+      status: 'connecting',
+      error: undefined,
+      successMessage: undefined,
+    }));
+
+    try {
+      // Test GitHub API with token
+      const response = await fetch('https://api.github.com/user', {
+        headers: {
+          Authorization: `token ${githubToken}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('GitHub Token 无效或已过期');
+      }
+
+      const userData = await response.json();
+      await saveProviderKey('github', githubToken);
+
+      setGithubConnector({
+        status: 'connected',
+        accountLabel: `@${userData.login}`,
+        lastCheckedAt: new Date().toISOString(),
+        token: githubToken,
+        successMessage: `已连接到 GitHub @${userData.login}`,
+      });
+      setGithubToken('');
+
+      setTimeout(() => {
+        setGithubConnector((prev) => ({
+          ...prev,
+          successMessage: undefined,
+        }));
+      }, 3000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '连接失败';
+      setGithubConnector((prev) => ({
+        ...prev,
+        status: 'error',
+        error: errorMessage,
+      }));
+    }
+  };
+
+  const handleGitHubDisconnect = async () => {
+    try {
+      await deleteProviderKey('github');
+      setGithubConnector({
+        status: 'disconnected',
+      });
+      setGithubToken('');
+    } catch (err) {
+      console.error('Failed to disconnect GitHub:', err);
+    }
+  };
+
+  const handleGitHubTest = async () => {
+    if (githubConnector.status !== 'connected' || !githubConnector.token) {
+      setGithubConnector((prev) => ({
+        ...prev,
+        error: '请先连接 GitHub',
+      }));
+      return;
+    }
+
+    setGithubConnector((prev) => ({
+      ...prev,
+      status: 'testing',
+      error: undefined,
+      successMessage: undefined,
+    }));
+
+    try {
+      const response = await fetch('https://api.github.com/user', {
+        headers: {
+          Authorization: `token ${githubConnector.token}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Token 已失效，请重新连接');
+      }
+
+      const userData = await response.json();
+      setGithubConnector((prev) => ({
+        ...prev,
+        status: 'connected',
+        accountLabel: `@${userData.login}`,
+        lastCheckedAt: new Date().toISOString(),
+        successMessage: '测试成功 ✓ GitHub 连接正常',
+      }));
+
+      setTimeout(() => {
+        setGithubConnector((prev) => ({
+          ...prev,
+          successMessage: undefined,
+        }));
+      }, 3000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '测试失败';
+      setGithubConnector((prev) => ({
+        ...prev,
+        status: 'connected',
+        error: errorMessage,
+      }));
     }
   };
 
@@ -376,6 +528,108 @@ function Connectors() {
         <div className="providers-grid">
           {renderProviderCard(qwenConfig, setQwenConfig)}
           {renderProviderCard(glmConfig, setGlmConfig)}
+        </div>
+      </div>
+
+      <div className="section">
+        <h2 className="section-title">SaaS Connectors</h2>
+        <p className="section-desc">连接外部服务，赋予 Agent 访问 GitHub、Slack 等平台的能力。</p>
+
+        <div className="connector-card github-card">
+          <div className="connector-header">
+            <div className="connector-icon-wrapper">
+              <div className="connector-icon github">GH</div>
+            </div>
+            <div className="connector-info">
+              <div className="connector-name">GitHub</div>
+              <div className="connector-desc">
+                MCP · Issues / PRs / contents · Scope: repo read-org
+              </div>
+            </div>
+            <div className="connector-status">
+              {githubConnector.status === 'connected' && (
+                <span className="status-badge connected">已连接</span>
+              )}
+              {githubConnector.status === 'disconnected' && (
+                <span className="status-badge disconnected">未连接</span>
+              )}
+              {githubConnector.status === 'error' && (
+                <span className="status-badge error">错误</span>
+              )}
+              {(githubConnector.status === 'connecting' ||
+                githubConnector.status === 'testing') && (
+                <span className="status-badge connecting">连接中...</span>
+              )}
+            </div>
+          </div>
+
+          {githubConnector.status === 'connected' && githubConnector.accountLabel && (
+            <div className="connector-account">
+              <span className="account-label">{githubConnector.accountLabel}</span>
+              {githubConnector.lastCheckedAt && (
+                <span className="last-checked">
+                  最后检查: {new Date(githubConnector.lastCheckedAt).toLocaleString('zh-CN')}
+                </span>
+              )}
+            </div>
+          )}
+
+          {githubConnector.status === 'disconnected' && (
+            <div className="connector-body">
+              <div className="form-group">
+                <label>Personal Access Token</label>
+                <input
+                  type="password"
+                  value={githubToken}
+                  onChange={(e) => setGithubToken(e.target.value)}
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                />
+                <div className="input-hint">
+                  需要权限: repo, read:org ·{' '}
+                  <a
+                    href="https://github.com/settings/tokens"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    生成 Token
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {githubConnector.successMessage && (
+            <div className="success-message">{githubConnector.successMessage}</div>
+          )}
+
+          {githubConnector.error && <div className="error-message">{githubConnector.error}</div>}
+
+          <div className="connector-actions">
+            {githubConnector.status === 'disconnected' && (
+              <button
+                onClick={handleGitHubConnect}
+                disabled={!githubToken.trim() || !isTauri}
+                className="btn-connect"
+                title={!isTauri ? '连接需要 Tauri 环境' : ''}
+              >
+                连接
+              </button>
+            )}
+            {githubConnector.status === 'connected' && (
+              <>
+                <button
+                  onClick={handleGitHubTest}
+                  disabled={githubConnector.status === 'testing'}
+                  className="btn-test"
+                >
+                  {githubConnector.status === 'testing' ? '测试中...' : '测试连接'}
+                </button>
+                <button onClick={handleGitHubDisconnect} className="btn-disconnect">
+                  断开
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

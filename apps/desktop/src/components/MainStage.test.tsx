@@ -7,7 +7,7 @@ describe('MainStage', () => {
   beforeEach(() => {
     // Mock scrollIntoView (not available in jsdom)
     Element.prototype.scrollIntoView = vi.fn();
-    
+
     // Reset fetch mock
     global.fetch = vi.fn();
   });
@@ -71,9 +71,10 @@ describe('MainStage', () => {
       // Find MainStage button specifically (in tabbar, not ChatStage)
       const tabbar = document.querySelector('.tabbar');
       expect(tabbar).toBeInTheDocument();
-      
-      const fireButton = Array.from(document.querySelectorAll('button'))
-        .find(btn => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo'));
+
+      const fireButton = Array.from(document.querySelectorAll('button')).find(
+        (btn) => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo')
+      );
       expect(fireButton).toBeTruthy();
       expect(fireButton).not.toBeDisabled();
 
@@ -103,8 +104,9 @@ describe('MainStage', () => {
       render(<MainStage activeTab="chat" onTabChange={onTabChange} activeAgent="测试员工" />);
 
       // Find MainStage button specifically
-      const fireButton = Array.from(document.querySelectorAll('button'))
-        .find(btn => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo'));
+      const fireButton = Array.from(document.querySelectorAll('button')).find(
+        (btn) => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo')
+      );
       expect(fireButton).toBeTruthy();
 
       await user.click(fireButton as HTMLElement);
@@ -114,10 +116,10 @@ describe('MainStage', () => {
         () => {
           const errorBanner = document.querySelector('.demo-error-banner');
           expect(errorBanner).toBeInTheDocument();
-          
+
           const errorIcon = document.querySelector('.error-icon');
           expect(errorIcon?.textContent).toContain('❌');
-          
+
           const errorText = document.querySelector('.error-text');
           expect(errorText?.textContent).toMatch(/Scheduler|服务|错误|后端/i);
         },
@@ -140,8 +142,9 @@ describe('MainStage', () => {
       render(<MainStage activeTab="chat" onTabChange={onTabChange} activeAgent="测试员工" />);
 
       // Find MainStage button specifically
-      const fireButton = Array.from(document.querySelectorAll('button'))
-        .find(btn => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo'));
+      const fireButton = Array.from(document.querySelectorAll('button')).find(
+        (btn) => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo')
+      );
       expect(fireButton).toBeTruthy();
 
       await user.click(fireButton as HTMLElement);
@@ -151,7 +154,7 @@ describe('MainStage', () => {
         () => {
           const errorBanner = document.querySelector('.demo-error-banner');
           expect(errorBanner).toBeInTheDocument();
-          
+
           const errorIcon = document.querySelector('.error-icon');
           expect(errorIcon?.textContent).toContain('❌');
         },
@@ -169,8 +172,9 @@ describe('MainStage', () => {
       render(<MainStage activeTab="chat" onTabChange={onTabChange} activeAgent="测试员工" />);
 
       // Find MainStage button specifically
-      const fireButton = Array.from(document.querySelectorAll('button'))
-        .find(btn => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo'));
+      const fireButton = Array.from(document.querySelectorAll('button')).find(
+        (btn) => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo')
+      );
       expect(fireButton).toBeTruthy();
 
       await user.click(fireButton as HTMLElement);
@@ -215,8 +219,9 @@ describe('MainStage', () => {
       render(<MainStage activeTab="chat" onTabChange={onTabChange} activeAgent="测试员工" />);
 
       // Find MainStage button specifically
-      const fireButton = Array.from(document.querySelectorAll('button'))
-        .find(btn => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo'));
+      const fireButton = Array.from(document.querySelectorAll('button')).find(
+        (btn) => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo')
+      );
       expect(fireButton).toBeTruthy();
 
       await user.click(fireButton as HTMLElement);
@@ -226,7 +231,7 @@ describe('MainStage', () => {
         () => {
           const errorBanner = document.querySelector('.demo-error-banner');
           expect(errorBanner).toBeInTheDocument();
-          
+
           const errorText = document.querySelector('.error-text');
           expect(errorText?.textContent).toMatch(/超时|timeout/i);
         },
@@ -261,8 +266,9 @@ describe('MainStage', () => {
       render(<MainStage activeTab="chat" onTabChange={onTabChange} activeAgent="测试员工" />);
 
       // Find MainStage button specifically
-      const fireButton = Array.from(document.querySelectorAll('button'))
-        .find(btn => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo'));
+      const fireButton = Array.from(document.querySelectorAll('button')).find(
+        (btn) => btn.textContent?.includes('立即跑一次') && !btn.textContent?.includes('Demo')
+      );
       expect(fireButton).toBeTruthy();
 
       await user.click(fireButton as HTMLElement);
@@ -273,7 +279,7 @@ describe('MainStage', () => {
         () => {
           const errorBanner = document.querySelector('.demo-error-banner');
           expect(errorBanner).toBeInTheDocument();
-          
+
           const errorText = document.querySelector('.error-text');
           // Error message will be timeout because reconcile error doesn't break the poll loop
           expect(errorText?.textContent).toMatch(/超时|timeout/i);

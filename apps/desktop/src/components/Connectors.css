@@ -321,3 +321,179 @@
   padding: 3rem;
   color: var(--g7);
 }
+
+/* GitHub Connector */
+.connector-card {
+  background: white;
+  border: 1px solid var(--g4);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.connector-card.github-card {
+  border-color: var(--g4);
+}
+
+.connector-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.connector-icon-wrapper {
+  flex-shrink: 0;
+}
+
+.connector-icon.github {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #24292e;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.connector-info {
+  flex: 1;
+}
+
+.connector-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--g10);
+  margin-bottom: 0.25rem;
+}
+
+.connector-desc {
+  font-size: 0.85rem;
+  color: var(--g7);
+}
+
+.connector-status {
+  flex-shrink: 0;
+}
+
+.status-badge.connected {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.status-badge.disconnected {
+  background: var(--g3);
+  color: var(--g7);
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.status-badge.error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.status-badge.connecting {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.connector-account {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--g2);
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.account-label {
+  font-weight: 600;
+  color: var(--g10);
+  font-size: 0.9rem;
+}
+
+.last-checked {
+  font-size: 0.8rem;
+  color: var(--g6);
+  margin-left: auto;
+}
+
+.connector-body {
+  margin-bottom: 1rem;
+}
+
+.connector-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-connect {
+  padding: 0.5rem 1rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-connect:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-connect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-disconnect {
+  padding: 0.5rem 1rem;
+  background: var(--g3);
+  color: var(--g8);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-disconnect:hover {
+  opacity: 0.8;
+}
+
+.input-hint {
+  font-size: 0.8rem;
+  color: var(--g6);
+  margin-top: 0.5rem;
+}
+
+.input-hint a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.input-hint a:hover {
+  text-decoration: underline;
+}
