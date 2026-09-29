@@ -233,7 +233,8 @@ function Connectors() {
           <div className="form-group">
             <label>默认模型</label>
             <div className="model-hint">
-              {config.provider === 'qwen' ? 'Qwen3.8 系列（API：qwen-plus）' : defaultModel} (可在对话时指定)
+              {config.provider === 'qwen' ? 'Qwen3.8 系列（API：qwen-plus）' : defaultModel}{' '}
+              (可在对话时指定)
             </div>
           </div>
 

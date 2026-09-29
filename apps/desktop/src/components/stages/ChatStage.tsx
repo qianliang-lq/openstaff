@@ -225,6 +225,15 @@ function ChatStage({
   const handleFireJob = async () => {
     setIsRunning(true);
     setLastError(null);
+    setReconcileStatus('PASS'); // Reset status
+
+    // Add user feedback message
+    const runningMessage: ChatMessage = {
+      role: 'assistant',
+      content: '⏳ 运行中...正在执行外部洞察搜索任务',
+    };
+    setMessages((prev) => [...prev, runningMessage]);
+
     try {
       const response = await fetch('http://localhost:3002/demo/fire', {
         method: 'POST',
@@ -239,19 +248,26 @@ function ChatStage({
       });
 
       if (!response.ok) {
-        throw new Error('Scheduler 服务未响应，请确保服务正在运行');
+        throw new Error('Scheduler 服务未响应，请确保服务正在运行 (http://localhost:3002)');
       }
 
+      // Remove running message before polling
+      setMessages((prev) => prev.filter((m) => m !== runningMessage));
       pollInsights();
     } catch (error) {
       console.error('Error firing job:', error);
+
+      // Remove running message
+      setMessages((prev) => prev.filter((m) => m !== runningMessage));
+
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: error instanceof Error ? error.message : '运行失败',
+        content: `❌ ${error instanceof Error ? error.message : '运行失败'}`,
         error: true,
         errorType: 'network',
       };
       setLastError(errorMessage);
+      setMessages((prev) => [...prev, errorMessage]);
       setIsRunning(false);
     }
   };
@@ -264,7 +280,7 @@ function ChatStage({
       try {
         const response = await fetch('http://localhost:3003/v1/insights/latest');
         if (!response.ok) {
-          throw new Error('Failed to fetch insights');
+          throw new Error('Runtime 服务未响应 (http://localhost:3003)');
         }
 
         const data = await response.json();
@@ -274,8 +290,25 @@ function ChatStage({
             setDisplayedFacts(data.facts);
             setReconcileStatus('PASS');
             setDisplayDate(data.timestamp || '2026-09-27');
+
+            // Add success feedback
+            const successMessage: ChatMessage = {
+              role: 'assistant',
+              content: `✅ 运行成功！已生成 ${data.facts.length} 条外部洞察`,
+            };
+            setMessages((prev) => [...prev, successMessage]);
           } else {
             setReconcileStatus('FAILED');
+
+            // Add failure feedback
+            const failureMessage: ChatMessage = {
+              role: 'assistant',
+              content: '❌ 任务完成但未通过审核 (reconcile_status: FAILED)',
+              error: true,
+              errorType: 'unknown',
+            };
+            setMessages((prev) => [...prev, failureMessage]);
+            setLastError(failureMessage);
           }
           setIsRunning(false);
           break;
@@ -284,10 +317,32 @@ function ChatStage({
         await new Promise((resolve) => setTimeout(resolve, pollInterval));
       } catch (error) {
         console.error('Error polling insights:', error);
+        setIsRunning(false);
+
+        const errorMessage: ChatMessage = {
+          role: 'assistant',
+          content: `❌ ${error instanceof Error ? error.message : '获取结果失败'}`,
+          error: true,
+          errorType: 'network',
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        setLastError(errorMessage);
+        break;
       }
     }
 
-    setIsRunning(false);
+    if (isRunning) {
+      // Timeout after max attempts
+      setIsRunning(false);
+      const timeoutMessage: ChatMessage = {
+        role: 'assistant',
+        content: '⏱️ 任务超时，请稍后重试或检查服务状态',
+        error: true,
+        errorType: 'unknown',
+      };
+      setMessages((prev) => [...prev, timeoutMessage]);
+      setLastError(timeoutMessage);
+    }
   };
 
   // Empty state: no keys configured
