@@ -1,8 +1,9 @@
 use crate::models::{
     Agent, AgentMcpResponse, AgentSkillResponse, ConnectorMeta, CreateAgentRequest,
-    CreateMessageRequest, ListAgentMcpResponse, ListAgentSkillsResponse, McpCatalog, Message,
-    SkillCatalog, TestMcpResponse, TrySkillResponse, UpdateAgentMcpRequest,
-    UpdateAgentRequest, UpdateAgentSkillRequest, UpdateConnectorMetaRequest,
+    CreateMessageRequest, CreatePeerMessageRequest, ListAgentMcpResponse,
+    ListAgentSkillsResponse, McpCatalog, Message, SkillCatalog, TestMcpResponse,
+    TrySkillResponse, UpdateAgentMcpRequest, UpdateAgentRequest, UpdateAgentSkillRequest,
+    UpdateConnectorMetaRequest,
 };
 use axum::{
     extract::{Path, State},
@@ -605,4 +606,92 @@ pub async fn test_agent_mcp(
         status: status.to_string(),
         message: message.to_string(),
     }))
+}
+
+// Peer message handler (agent-to-agent)
+
+pub async fn create_peer_message(
+    State(pool): State<SqlitePool>,
+    Path(from_agent_id): Path<String>,
+    Json(payload): Json<CreatePeerMessageRequest>,
+) -> Result<StatusCode, StatusCode> {
+    let now = Utc::now().to_rfc3339();
+
+    // Verify both agents exist
+    let from_exists = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM agents WHERE id = ?")
+        .bind(&from_agent_id)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to check from agent: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    if from_exists == 0 {
+        tracing::warn!("From agent not found: {}", from_agent_id);
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    let to_exists = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM agents WHERE id = ?")
+        .bind(&payload.to_agent_id)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to check to agent: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    if to_exists == 0 {
+        tracing::warn!("To agent not found: {}", payload.to_agent_id);
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    // Write two messages (double-sided storage):
+    // 1. Message in from_agent's inbox (peer = to_agent)
+    let from_msg_id = Uuid::new_v4().to_string();
+    sqlx::query(
+        r#"
+        INSERT INTO messages (id, agent_id, role, body, peer_agent_id, ts)
+        VALUES (?, ?, 'agent', ?, ?, ?)
+        "#,
+    )
+    .bind(&from_msg_id)
+    .bind(&from_agent_id)
+    .bind(&payload.body)
+    .bind(&payload.to_agent_id)
+    .bind(&now)
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to insert from message: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // 2. Message in to_agent's inbox (peer = from_agent)
+    let to_msg_id = Uuid::new_v4().to_string();
+    sqlx::query(
+        r#"
+        INSERT INTO messages (id, agent_id, role, body, peer_agent_id, ts)
+        VALUES (?, ?, 'agent', ?, ?, ?)
+        "#,
+    )
+    .bind(&to_msg_id)
+    .bind(&payload.to_agent_id)
+    .bind(&payload.body)
+    .bind(&from_agent_id)
+    .bind(&now)
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to insert to message: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    tracing::info!(
+        "✅ Peer message delivered: {} → {} (double-sided)",
+        from_agent_id,
+        payload.to_agent_id
+    );
+
+    Ok(StatusCode::CREATED)
 }

@@ -46,6 +46,12 @@ pub struct CreateMessageRequest {
     pub peer_agent_id: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreatePeerMessageRequest {
+    pub to_agent_id: String,
+    pub body: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ConnectorMeta {
     pub provider: String,

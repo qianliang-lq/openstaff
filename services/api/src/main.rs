@@ -64,6 +64,10 @@ async fn main() -> anyhow::Result<()> {
             get(handlers::list_messages).post(handlers::create_message),
         )
         .route(
+            "/v1/agents/:id/peer-messages",
+            post(handlers::create_peer_message),
+        )
+        .route(
             "/v1/connectors/meta",
             get(handlers::get_connector_meta).put(handlers::update_connector_meta),
         )

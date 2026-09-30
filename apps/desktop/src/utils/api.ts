@@ -249,3 +249,16 @@ export async function testAgentMcp(agentId: string, mcpId: string): Promise<Test
     method: 'POST',
   });
 }
+
+// Peer messages (agent-to-agent)
+
+export async function sendPeerMessage(
+  fromAgentId: string,
+  toAgentId: string,
+  body: string
+): Promise<void> {
+  await fetchApi<void>(`/v1/agents/${fromAgentId}/peer-messages`, {
+    method: 'POST',
+    body: JSON.stringify({ to_agent_id: toAgentId, body }),
+  });
+}
