@@ -82,6 +82,7 @@ function ChatStage({
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [selectedPeerAgent, setSelectedPeerAgent] = useState<string | null>(null);
   const [allAgents, setAllAgents] = useState<api.Agent[]>([]);
+  const [peerSuccessToast, setPeerSuccessToast] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     if (messagesEndRef.current?.scrollIntoView) {
@@ -180,18 +181,16 @@ function ChatStage({
         // Send peer message
         await api.sendPeerMessage(currentAgent.id, selectedPeerAgent, messageContent);
 
-        // Show success toast
-        const successMessage: ChatMessage = {
-          role: 'assistant',
-          content: `✅ 已投递给 ${peerAgent?.name || selectedPeerAgent}`,
-        };
-        setMessages((prev) => [...prev, successMessage]);
+        // Show success toast (独立生命周期，不被 reload 冲掉)
+        const successText = `✅ 已投递给 ${peerAgent?.name || selectedPeerAgent}`;
+        setPeerSuccessToast(successText);
+        setTimeout(() => setPeerSuccessToast(null), 3000);
 
         // Clear selection
         setSelectedPeerAgent(null);
         setShowAgentPicker(false);
 
-        // Reload messages
+        // Reload messages (不影响 toast)
         await loadMessagesFromApi();
       } catch (error) {
         console.error('Peer message error:', error);
@@ -745,6 +744,13 @@ function ChatStage({
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Independent Peer Success Toast */}
+      {peerSuccessToast && (
+        <div className="peer-success-toast">
+          {peerSuccessToast}
+        </div>
+      )}
 
       <div className="chat-input-area">
         <div className="input-toolbar">
