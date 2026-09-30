@@ -97,6 +97,11 @@ just dev-up
 # 访问 http://localhost:5173 使用 Desktop 界面
 # 按 Ctrl-C 停止所有服务
 
+# 或单独启动 Desktop（会自动启动后端服务）
+cd apps/desktop
+pnpm tauri:dev
+# 注意：首次启动需编译 Rust，可能需要 30-60 秒
+
 # 或使用传统方式启动后端服务（前台运行）
 just dev
 # 服务将在以下端口运行：

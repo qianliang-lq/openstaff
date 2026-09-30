@@ -1,0 +1,57 @@
+[
+  {
+    "bucket": "竞对",
+    "title": "Factory CLI v0.228.0 发布 /migrate 工作流",
+    "summary_zh": "Factory 发布新版本 CLI，支持代码库迁移工作流自动化，包含多仓库批量处理和增量同步功能。",
+    "url": "https://factory.dev/changelog/v0.228.0",
+    "tags": [
+      "TOP互联网/AI公司",
+      "软件工厂"
+    ]
+  },
+  {
+    "bucket": "组织提效",
+    "title": "GitHub Copilot 企业设置校验器上线",
+    "summary_zh": "GitHub 为企业客户推出设置校验器工具，可自动检测 Copilot 配置合规性和安全策略冲突。",
+    "url": "https://github.blog/changelog/2026-09-27-copilot-enterprise-validator",
+    "tags": [
+      "TOP互联网/AI公司",
+      "代码审查",
+      "协作工具"
+    ]
+  },
+  {
+    "bucket": "前沿模型",
+    "title": "iCoder-27B 工业编码模型发布",
+    "summary_zh": "上海交通大学等院校联合发布 iCoder-27B 工业级编码模型，支持多语言代码生成和修复，在 HumanEval 基准上达到 92.3% 通过率。",
+    "url": "https://arxiv.org/abs/2409.12345",
+    "tags": [
+      "学术研究",
+      "TOP学校",
+      "期刊论文"
+    ],
+    "pdf_url": "https://arxiv.org/pdf/2409.12345.pdf"
+  },
+  {
+    "bucket": "技术底座",
+    "title": "OpenClaw 0.14.0 支持跨容器工具编排",
+    "summary_zh": "OpenClaw 发布 0.14.0 版本，新增跨容器工具编排能力，支持在多个隔离环境中协同执行 Agent 任务。",
+    "url": "https://openclaw.dev/releases/v0.14.0",
+    "tags": [
+      "Agent框架",
+      "工具编排",
+      "开源项目"
+    ]
+  },
+  {
+    "bucket": "技术底座",
+    "title": "TypeSafe Jev 系统一号决策模型",
+    "summary_zh": "TypeSafe 推出 Jev System One 结构化决策模型，专注于 Choice/Score/Boolean 快速决策，可嵌入 Agent 工作流作为路由和审批门禁层。",
+    "url": "https://typesafe.ai/blog/jev-system-one",
+    "tags": [
+      "潮流初创",
+      "Agent决策",
+      "模型路由"
+    ]
+  }
+]
