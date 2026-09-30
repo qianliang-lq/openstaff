@@ -1,9 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use base64::{engine::general_purpose, Engine as _};
 use openstaff_protocol::Message;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use tauri::Manager;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct ProviderKey {
@@ -38,8 +40,9 @@ fn read_keystore(path: &PathBuf) -> Result<KeyStore, String> {
         fs::read_to_string(path).map_err(|e| format!("Failed to read keystore: {}", e))?;
 
     // Simple base64 encoding (MVP - not production-grade encryption)
-    let decoded =
-        base64::decode(&content).map_err(|e| format!("Failed to decode keystore: {}", e))?;
+    let decoded = general_purpose::STANDARD
+        .decode(&content)
+        .map_err(|e| format!("Failed to decode keystore: {}", e))?;
 
     let json_str =
         String::from_utf8(decoded).map_err(|e| format!("Invalid UTF-8 in keystore: {}", e))?;
@@ -55,7 +58,7 @@ fn write_keystore(path: &PathBuf, keystore: &KeyStore) -> Result<(), String> {
         .map_err(|e| format!("Failed to serialize keystore: {}", e))?;
 
     // Simple base64 encoding (MVP - not production-grade encryption)
-    let encoded = base64::encode(&json_str);
+    let encoded = general_purpose::STANDARD.encode(&json_str);
 
     fs::write(path, encoded).map_err(|e| format!("Failed to write keystore: {}", e))?;
 
