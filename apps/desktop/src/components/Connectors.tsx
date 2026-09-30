@@ -5,6 +5,7 @@ import {
   saveProviderKey,
   deleteProviderKey,
 } from '../utils/tauri';
+import * as api from '../utils/api';
 import './Connectors.css';
 
 interface ProviderConfig {

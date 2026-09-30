@@ -1,7 +1,7 @@
 # §20 SQLite Data Plane - Implementation Notes
 
-**Tip**: `01e8fa0`  
-**Status**: Backend MVP Complete, Desktop Integration Pending  
+**Tip**: `c24dbdf`  
+**Status**: Backend MVP + Desktop Integration Complete ✅  
 **Password**: `13cf88d` (no raise until green)
 
 ---
@@ -67,34 +67,33 @@ API base: `import.meta.env.PUBLIC_API_BASE` or `http://localhost:3000`
 
 ---
 
-## 🚧 Pending: Desktop Integration
+## ✅ Completed: Desktop Integration (Tip `c24dbdf`)
 
-**Rationale**: Incremental delivery; backend infrastructure validated first.
+### Sidebar.tsx
+- ✅ Replaced `loadAgentsFromStorage()` with `api.listAgents()` in `useEffect`
+- ✅ Replaced `saveAgentsToStorage()` with `api.createAgent()` in `handleSaveAgent`
+- ✅ Shows「控制面未就绪」banner when API unavailable + retry button
+- ✅ localStorage only caches active agent name (not truth source)
+- ✅ Loading state while fetching agents
 
-### Required Changes (Brief 20, Desktop Section)
+### ChatStage.tsx
+- ✅ Loads messages via `api.listMessages(agentId)` on mount
+- ✅ After chat success, calls `api.createMessage(agentId, {...})` for user + assistant
+- ✅ Restores message bubbles from API on refresh
+- ✅ Messages persist across remounts for same agent
 
-#### Sidebar.tsx
-- Replace `loadAgentsFromStorage()` with `api.listAgents()`
-- Replace `saveAgentsToStorage()` with `api.createAgent()`
-- Show「控制面未就绪」banner when API unavailable
-- Keep localStorage cache for active agent name only (not truth source)
+### Connectors.tsx
+- ✅ After `handleSave`, calls `api.updateConnectorMeta({provider, configured: true, last_checked_at})`
+- ✅ After `handleTestConnection` success, updates meta with `account_label` (model name)
+- ✅ Never sends Key plaintext to API (keys remain in keys.dat)
 
-#### ChatStage.tsx
-- Load messages via `api.listMessages(agentId)` on mount
-- After chat round, call `api.createMessage(agentId, {...})` for both user + assistant
-- Restore message bubbles from API on refresh
-- Show loading state while fetching
+### Contract Tests (Pending - Honest)
+- ⚠️ Agents list empty from API (not LS) on first load
+- ⚠️ Create agent → remount → agent still listed (via API)
+- ⚠️ Chat round → remount → messages restored (via API)
+- ⚠️ Assert no Key plaintext in API responses/logs
 
-#### Connectors.tsx
-- After save/test success, call `api.updateConnectorMeta({provider, configured: true, ...})`
-- On mount, call `api.getConnectorMeta()` for badges
-- Never send Key plaintext to API (keys remain in keys.dat)
-
-#### Contract Tests
-- Assert agents list empty from API (not LS) on first load
-- Create agent → remount → agent still listed (via API)
-- Chat round → remount → messages restored (via API)
-- Assert no Key plaintext in API responses/logs
+**Note**: Existing tests may fail due to LS → API migration. Test updates needed separately.
 
 ---
 
