@@ -63,7 +63,7 @@ function Connectors() {
         setQwenConfig((prev) => ({
           ...prev,
           hasKey: true,
-          apiKey: qwenKey,
+          apiKey: '', // Never store plaintext key in display state
           status: 'saved',
         }));
       }
@@ -72,7 +72,7 @@ function Connectors() {
         setGlmConfig((prev) => ({
           ...prev,
           hasKey: true,
-          apiKey: glmKey,
+          apiKey: '', // Never store plaintext key in display state
           status: 'saved',
         }));
       }
@@ -110,7 +110,13 @@ function Connectors() {
     try {
       await saveProviderKey(provider, config.apiKey);
 
-      setConfig((prev) => ({ ...prev, hasKey: true, status: 'saved', error: undefined }));
+      setConfig((prev) => ({
+        ...prev,
+        hasKey: true,
+        apiKey: '', // Clear plaintext from state after save
+        status: 'saved',
+        error: undefined,
+      }));
       setTimeout(() => {
         setConfig((prev) => ({ ...prev, status: 'saved' }));
       }, 2000);
@@ -139,6 +145,17 @@ function Connectors() {
     } catch (err) {
       console.error('Failed to delete key:', err);
     }
+  };
+
+  const handleChangeKey = (provider: 'qwen' | 'glm') => {
+    const setConfig = provider === 'qwen' ? setQwenConfig : setGlmConfig;
+    setConfig((prev) => ({
+      ...prev,
+      hasKey: false,
+      apiKey: '',
+      status: 'empty',
+      error: undefined,
+    }));
   };
 
   const handleGitHubConnect = async () => {
@@ -268,7 +285,23 @@ function Connectors() {
     const config = provider === 'qwen' ? qwenConfig : glmConfig;
     const setConfig = provider === 'qwen' ? setQwenConfig : setGlmConfig;
 
-    if (!config.hasKey && !config.apiKey.trim()) {
+    // For configured keys, we need to retrieve the actual key for testing
+    let testKey = config.apiKey;
+    if (config.hasKey && !testKey.trim()) {
+      try {
+        testKey = (await getProviderKey(provider)) || '';
+      } catch (err) {
+        setConfig((prev) => ({
+          ...prev,
+          error: '无法读取已保存的 Key',
+          status: 'test-error',
+          successMessage: undefined,
+        }));
+        return;
+      }
+    }
+
+    if (!testKey.trim()) {
       setConfig((prev) => ({
         ...prev,
         error: '请先填写 API Key',
@@ -291,7 +324,7 @@ function Connectors() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-OpenStaff-Provider-Key': config.apiKey,
+          'X-OpenStaff-Provider-Key': testKey,
         },
         body: JSON.stringify({
           provider,
@@ -370,15 +403,11 @@ function Connectors() {
           <div className="form-group">
             <label>API Key</label>
             <input
-              type={config.hasKey && !config.apiKey.startsWith('sk-') ? 'password' : 'text'}
-              value={
-                config.hasKey && !config.apiKey.startsWith('sk-')
-                  ? '••••••••••••••••'
-                  : config.apiKey
-              }
+              type={config.hasKey ? 'password' : 'text'}
+              value={config.apiKey}
               onChange={(e) => setConfig((prev) => ({ ...prev, apiKey: e.target.value }))}
-              placeholder="输入 API Key"
-              disabled={config.hasKey && !config.apiKey.startsWith('sk-')}
+              placeholder={config.hasKey ? '已配置（点击「更换」以修改）' : '输入 API Key'}
+              disabled={config.hasKey}
             />
           </div>
 
@@ -409,30 +438,46 @@ function Connectors() {
           {config.error && <div className="error-message">{config.error}</div>}
 
           <div className="provider-actions">
-            <button
-              onClick={() => handleTestConnection(config.provider)}
-              disabled={config.status === 'testing'}
-              className="btn-test"
-            >
-              {config.status === 'testing' ? '测试中...' : '测试连接'}
-            </button>
-            <button
-              onClick={() => handleSave(config.provider)}
-              disabled={config.status === 'testing' || !isTauri}
-              className="btn-save"
-              title={!isTauri ? '保存需要 Tauri 环境。请运行: pnpm tauri:dev' : ''}
-            >
-              保存
-            </button>
+            {!config.hasKey && (
+              <>
+                <button
+                  onClick={() => handleTestConnection(config.provider)}
+                  disabled={config.status === 'testing'}
+                  className="btn-test"
+                >
+                  {config.status === 'testing' ? '测试中...' : '测试连接'}
+                </button>
+                <button
+                  onClick={() => handleSave(config.provider)}
+                  disabled={config.status === 'testing' || !isTauri}
+                  className="btn-save"
+                  title={!isTauri ? '保存需要 Tauri 环境。请运行: pnpm tauri:dev' : ''}
+                >
+                  保存
+                </button>
+              </>
+            )}
             {config.hasKey && (
-              <button
-                onClick={() => handleClear(config.provider)}
-                disabled={!isTauri}
-                className="btn-clear"
-                title={!isTauri ? '清除需要 Tauri 环境。请运行: pnpm tauri:dev' : ''}
-              >
-                清除
-              </button>
+              <>
+                <button
+                  onClick={() => handleTestConnection(config.provider)}
+                  disabled={config.status === 'testing'}
+                  className="btn-test"
+                >
+                  {config.status === 'testing' ? '测试中...' : '测试连接'}
+                </button>
+                <button onClick={() => handleChangeKey(config.provider)} className="btn-change">
+                  更换
+                </button>
+                <button
+                  onClick={() => handleClear(config.provider)}
+                  disabled={!isTauri}
+                  className="btn-clear"
+                  title={!isTauri ? '清除需要 Tauri 环境。请运行: pnpm tauri:dev' : ''}
+                >
+                  清除
+                </button>
+              </>
             )}
           </div>
         </div>
