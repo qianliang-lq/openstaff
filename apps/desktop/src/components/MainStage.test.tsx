@@ -209,10 +209,10 @@ describe('MainStage', () => {
             json: async () => ({ accepted: true }),
           });
         }
-        // Mock insights to always return not ready
+        // Mock insights to always return empty/not ready (no reconcile_status or empty facts)
         return Promise.resolve({
           ok: true,
-          json: async () => ({ job_status: 'pending' }),
+          json: async () => ({ reconcile_status: null, facts: [] }),
         });
       });
 
@@ -244,7 +244,6 @@ describe('MainStage', () => {
       const onTabChange = () => {};
 
       // Mock scheduler fire to succeed and insights to return FAILED reconcile
-      // The reconcile error is caught in the polling loop and logged, but polling continues until timeout
       global.fetch = vi.fn().mockImplementation((url) => {
         if (url === 'http://localhost:3002/demo/fire') {
           return Promise.resolve({
@@ -252,11 +251,10 @@ describe('MainStage', () => {
             json: async () => ({ accepted: true }),
           });
         }
-        // Mock insights to return completed but FAILED reconcile
+        // Mock insights to return FAILED reconcile (should stop immediately)
         return Promise.resolve({
           ok: true,
           json: async () => ({
-            job_status: 'completed',
             reconcile_status: 'FAILED',
             facts: [],
           }),
@@ -273,19 +271,17 @@ describe('MainStage', () => {
 
       await user.click(fireButton as HTMLElement);
 
-      // Note: Reconcile failure is caught in polling loop but continues polling until timeout
-      // MUST show timeout error banner after max polls
+      // FAILED reconcile should show error immediately (not wait for timeout)
       await waitFor(
         () => {
           const errorBanner = document.querySelector('.demo-error-banner');
           expect(errorBanner).toBeInTheDocument();
 
           const errorText = document.querySelector('.error-text');
-          // Error message will be timeout because reconcile error doesn't break the poll loop
-          expect(errorText?.textContent).toMatch(/超时|timeout/i);
+          expect(errorText?.textContent).toMatch(/未通过审核|FAILED/i);
         },
-        { timeout: 12000 } // 10 polls * 1 second + buffer
+        { timeout: 5000 }
       );
-    }, 15000); // Test timeout: 15 seconds
+    }, 10000); // Test timeout: 15 seconds
   });
 });

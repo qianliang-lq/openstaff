@@ -102,32 +102,41 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
 
           const insightData = await insightResponse.json();
 
-          if (insightData.job_status === 'completed') {
-            if (
-              insightData.reconcile_status === 'PASS' &&
-              insightData.facts &&
-              insightData.facts.length > 0
-            ) {
-              setDemoResponse(insightData);
-              foundResult = true;
-              setIsRunningDemo(false);
-              return;
-            } else if (insightData.reconcile_status === 'FAILED') {
-              // FAILED: show error immediately
-              setDemoError('❌ 任务完成但未通过审核 (reconcile_status: FAILED)');
-              setIsRunningDemo(false);
-              return;
-            }
+          if (
+            insightData.reconcile_status === 'PASS' &&
+            insightData.facts &&
+            insightData.facts.length > 0
+          ) {
+            setDemoResponse(insightData);
+            foundResult = true;
+            setIsRunningDemo(false);
+            return;
+          } else if (insightData.reconcile_status === 'FAILED') {
+            setDemoError('❌ 任务完成但未通过审核 (reconcile_status: FAILED)');
+            setIsRunningDemo(false);
+            foundResult = true;
+            return;
           }
         } catch (error) {
           console.log('Polling attempt', pollAttempts + 1, 'failed:', error);
+          if (pollAttempts === maxPolls - 1) {
+            setDemoError(
+              `❌ 运行超时 (${maxPolls}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``
+            );
+            setIsRunningDemo(false);
+            foundResult = true;
+            return;
+          }
         }
 
         pollAttempts++;
       }
 
       if (!foundResult) {
-        throw new Error('⏱️ 任务超时: 已等待 10 秒仍未获取到结果');
+        setDemoError(
+          `❌ 运行超时 (${maxPolls}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``
+        );
+        setIsRunningDemo(false);
       }
     } catch (error) {
       console.error('Failed to fire job:', error);
