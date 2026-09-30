@@ -17,3 +17,6 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 openstaff-protocol.workspace = true
 reqwest.workspace = true
+sqlx.workspace = true
+chrono.workspace = true
+uuid.workspace = true
