@@ -120,9 +120,7 @@ function ChatStage({
       const apiMessages = await api.listMessages(currentAgent.id);
       const mappedMessages: ChatMessage[] = apiMessages.map((m) => ({
         role: m.role as 'user' | 'assistant',
-        content: m.peer_agent_id
-          ? `[@岗间消息 from ${m.peer_agent_id}] ${m.body}`
-          : m.body,
+        content: m.peer_agent_id ? `[@岗间消息 from ${m.peer_agent_id}] ${m.body}` : m.body,
       }));
       setMessages(mappedMessages);
     } catch (error) {
@@ -604,29 +602,49 @@ function ChatStage({
 
         {messages.map((msg, idx) => {
           if (msg.error) {
-            return (
-              <div key={idx} className="error-card">
-                <div className="error-header">
-                  <span className="error-icon">⚠️</span>
-                  <span className="error-title">未配置模型 Key</span>
-                  <span className="error-code">401</span>
-                </div>
-                <div className="error-body">
-                  <p>
-                    发送失败：Gateway 无法认证。请前往 Connectors 填写通义千问 (Qwen) 或智谱 AI
-                    (GLM) 的 API Key，或检查 Gateway / API 服务状态 (just health)。
-                  </p>
-                  <div className="error-actions">
-                    <button className="btn-goto-config" onClick={onNavigateToConnectors}>
-                      去配置
-                    </button>
-                    <button className="btn-retry" onClick={handleRetry}>
-                      重试
-                    </button>
+            if (msg.errorType === '401') {
+              return (
+                <div key={idx} className="error-card">
+                  <div className="error-header">
+                    <span className="error-icon">⚠️</span>
+                    <span className="error-title">未配置模型 Key</span>
+                    <span className="error-code">401</span>
+                  </div>
+                  <div className="error-body">
+                    <p>
+                      发送失败：Gateway 无法认证。请前往 Connectors 填写通义千问 (Qwen) 或智谱 AI
+                      (GLM) 的 API Key，或检查 Gateway / API 服务状态 (just health)。
+                    </p>
+                    <div className="error-actions">
+                      <button className="btn-goto-config" onClick={onNavigateToConnectors}>
+                        去配置
+                      </button>
+                      <button className="btn-retry" onClick={handleRetry}>
+                        重试
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
+              );
+            } else {
+              return (
+                <div key={idx} className="error-card">
+                  <div className="error-header">
+                    <span className="error-icon">⚠️</span>
+                    <span className="error-title">运行失败</span>
+                    {msg.errorType && <span className="error-code">{msg.errorType}</span>}
+                  </div>
+                  <div className="error-body">
+                    <p>{msg.content}</p>
+                    <div className="error-actions">
+                      <button className="btn-retry" onClick={handleRetry}>
+                        重试
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
           }
 
           if (msg.gateDecision) {
@@ -746,11 +764,7 @@ function ChatStage({
       </div>
 
       {/* Independent Peer Success Toast */}
-      {peerSuccessToast && (
-        <div className="peer-success-toast">
-          {peerSuccessToast}
-        </div>
-      )}
+      {peerSuccessToast && <div className="peer-success-toast">{peerSuccessToast}</div>}
 
       <div className="chat-input-area">
         <div className="input-toolbar">
