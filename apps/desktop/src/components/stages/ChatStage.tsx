@@ -432,6 +432,7 @@ function ChatStage({
   const pollInsights = async () => {
     const maxAttempts = 10;
     const pollInterval = 1000;
+    let foundResult = false;
 
     for (let i = 0; i < maxAttempts; i++) {
       try {
@@ -453,6 +454,7 @@ function ChatStage({
           };
           setMessages((prev) => [...prev, successMessage]);
           setIsRunning(false);
+          foundResult = true;
           return;
         } else if (data.reconcile_status === 'FAILED') {
           setReconcileStatus('FAILED');
@@ -466,35 +468,41 @@ function ChatStage({
           setMessages((prev) => [...prev, failureMessage]);
           setLastError(failureMessage);
           setIsRunning(false);
+          foundResult = true;
           return;
         }
 
         await new Promise((resolve) => setTimeout(resolve, pollInterval));
       } catch (error) {
         console.error('Error polling insights:', error);
-        setIsRunning(false);
 
-        const errorMessage: ChatMessage = {
-          role: 'assistant',
-          content: `❌ ${error instanceof Error ? error.message : '获取结果失败'}`,
-          error: true,
-          errorType: 'network',
-        };
-        setMessages((prev) => [...prev, errorMessage]);
-        setLastError(errorMessage);
-        break;
+        if (i === maxAttempts - 1) {
+          setIsRunning(false);
+          const errorMessage: ChatMessage = {
+            role: 'assistant',
+            content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``,
+            error: true,
+            errorType: 'network',
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+          setLastError(errorMessage);
+          foundResult = true;
+          return;
+        }
       }
     }
 
-    setIsRunning(false);
-    const timeoutMessage: ChatMessage = {
-      role: 'assistant',
-      content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``,
-      error: true,
-      errorType: 'network',
-    };
-    setMessages((prev) => [...prev, timeoutMessage]);
-    setLastError(timeoutMessage);
+    if (!foundResult) {
+      setIsRunning(false);
+      const timeoutMessage: ChatMessage = {
+        role: 'assistant',
+        content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``,
+        error: true,
+        errorType: 'network',
+      };
+      setMessages((prev) => [...prev, timeoutMessage]);
+      setLastError(timeoutMessage);
+    }
   };
 
   // Empty state: no agent created

@@ -182,7 +182,16 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
         >
           {isRunningDemo ? '运行中...' : '立即跑一次'}
         </button>
-        <div className="status-pill wait">
+        <div
+          className="status-pill wait"
+          onClick={() =>
+            alert(
+              '💡 审批功能\n\n这是演示状态显示。\n\n实际使用时：\n• 点击后会跳转到审批详情页\n• 可查看审批请求内容\n• 可进行通过/驳回操作\n\n当前版本：演示占位'
+            )
+          }
+          style={{ cursor: 'pointer' }}
+          title="点击查看审批功能说明"
+        >
           <span className="pulse"></span>
           等待审批 (1)
         </div>
