@@ -106,7 +106,9 @@ function ChatStage({
       const apiMessages = await api.listMessages(currentAgent.id);
       const mappedMessages: ChatMessage[] = apiMessages.map((m) => ({
         role: m.role as 'user' | 'assistant',
-        content: m.body,
+        content: m.peer_agent_id
+          ? `[@岗间消息 from ${m.peer_agent_id}] ${m.body}`
+          : m.body,
       }));
       setMessages(mappedMessages);
     } catch (error) {
