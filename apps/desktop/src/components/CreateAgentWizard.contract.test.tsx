@@ -15,20 +15,64 @@ import userEvent from '@testing-library/user-event';
 import App from '../App';
 import Sidebar from './Sidebar';
 
-// Mock fetch for API calls
-const mockFetch = vi.fn();
+// Stateful API mock
+let mockAgents: Array<{
+  id: string;
+  name: string;
+  template_id?: string;
+  duty?: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}> = [];
+
+const createStatefulFetchMock = () => {
+  return vi.fn((url: string, options?: RequestInit) => {
+    // GET /v1/agents - list agents
+    if (url.includes('/v1/agents') && (!options || !options.method || options.method === 'GET')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => [...mockAgents],
+      });
+    }
+
+    // POST /v1/agents - create agent
+    if (url.includes('/v1/agents') && options?.method === 'POST') {
+      const body = JSON.parse(options.body as string);
+      const newAgent = {
+        id: `agent-${Date.now()}-${Math.random()}`,
+        name: body.name,
+        template_id: body.template_id,
+        duty: body.duty,
+        status: 'idle',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      mockAgents.push(newAgent);
+      return Promise.resolve({
+        ok: true,
+        json: async () => newAgent,
+      });
+    }
+
+    // GET /v1/agents/:id/messages - list messages
+    if (url.includes('/messages')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => [],
+      });
+    }
+
+    return Promise.reject(new Error(`Unmocked fetch: ${url}`));
+  });
+};
 
 describe('Create Agent Wizard Contract Tests (§15)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    global.fetch = mockFetch;
-    
-    // Default: empty agents list from API
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    });
+    mockAgents = []; // Reset agent state
+    global.fetch = createStatefulFetchMock();
   });
 
   afterEach(() => {
@@ -39,12 +83,9 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
     it('should show empty state when API returns no agents', async () => {
       render(<Sidebar activeAgent="" onAgentChange={() => {}} />);
 
-      // Wait for API call to complete
+      // Wait for loading to complete and empty state to show
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('/v1/agents'),
-          expect.any(Object)
-        );
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
       });
 
       await waitFor(() => {
@@ -528,29 +569,6 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
 
     it('should show success toast after creation', async () => {
       const user = userEvent.setup();
-
-      // Mock API createAgent success
-      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-        if (url.includes('/v1/agents') && options?.method === 'POST') {
-          return Promise.resolve({
-            ok: true,
-            json: async () => ({
-              id: `agent-${Date.now()}`,
-              name: '产品经理数字员工',
-              template_id: 'pm',
-              duty: '需求挖掘、撰写 PRD',
-              status: 'idle',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }),
-          });
-        }
-        // List agents (empty initially)
-        return Promise.resolve({
-          ok: true,
-          json: async () => [],
-        });
-      });
 
       render(<App />);
 
