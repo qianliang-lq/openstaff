@@ -29,6 +29,7 @@ interface ChatStageProps {
   demoResponse?: DemoResponse | null;
   agentName?: string;
   onNavigateToConnectors?: () => void;
+  hasAgent?: boolean;
 }
 
 const mockFacts: ExternalInsightFact[] = [
@@ -64,6 +65,7 @@ function ChatStage({
   demoResponse,
   agentName = '产品经理数字员工',
   onNavigateToConnectors,
+  hasAgent = true,
 }: ChatStageProps) {
   const [displayedFacts, setDisplayedFacts] = useState<ExternalInsightFact[]>(mockFacts);
   const [reconcileStatus, setReconcileStatus] = useState<'PASS' | 'FAILED'>('PASS');
@@ -368,14 +370,74 @@ function ChatStage({
     }
   };
 
-  // Empty state: no keys configured
+  // Empty state: no agent created
+  if (!hasAgent) {
+    return (
+      <div className="chat-stage">
+        <div className="no-agent-banner">
+          <div className="banner-content">
+            <span className="banner-icon">🚀</span>
+            <span className="banner-text">先去 Connectors 配置模型 Key，再建岗开始对话</span>
+            <button className="btn-goto-connectors" onClick={onNavigateToConnectors}>
+              去 Connectors
+            </button>
+          </div>
+        </div>
+
+        <div className="chat-empty-state">
+          <div className="empty-steps">
+            <div className="step-item">
+              <div className="step-number">①</div>
+              <div className="step-content">
+                <div className="step-title">配置 BYOK</div>
+                <div className="step-desc">在 Connectors 填写通义千问或智谱 AI 的 API Key</div>
+              </div>
+            </div>
+            <div className="step-item">
+              <div className="step-number">②</div>
+              <div className="step-content">
+                <div className="step-title">创建数字员工</div>
+                <div className="step-desc">点击侧栏「+」选择角色模板，创建你的第一个 Agent</div>
+              </div>
+            </div>
+            <div className="step-item">
+              <div className="step-number">③</div>
+              <div className="step-content">
+                <div className="step-title">开始对话</div>
+                <div className="step-desc">与数字员工交流，完成工作任务</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="chat-input-area">
+          <div className="input-wrapper">
+            <input
+              type="text"
+              className="chat-input"
+              placeholder="请先配置 Key 并创建数字员工..."
+              disabled
+            />
+            <button className="send-btn" disabled>
+              发送
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state: has agent but no keys configured
   if (hasAnyKey === false && messages.length === 0) {
     return (
       <div className="chat-stage">
-        <div className="chat-toolbar">
-          <div className="status-pill no-key">
-            <span className="status-dot"></span>
-            未配置 Key
+        <div className="no-key-banner">
+          <div className="banner-content">
+            <span className="banner-icon">🔑</span>
+            <span className="banner-text">未配置模型 Key，无法开始对话</span>
+            <button className="btn-goto-connectors" onClick={onNavigateToConnectors}>
+              去 Connectors 配置
+            </button>
           </div>
         </div>
 

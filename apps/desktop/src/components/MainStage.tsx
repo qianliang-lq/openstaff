@@ -42,7 +42,9 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
   const [isRunningDemo, setIsRunningDemo] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
 
-  if (!activeAgent) {
+  // Special handling: Chat tab can show guide even without agent
+  // Other tabs require an agent
+  if (!activeAgent && activeTab !== 'chat') {
     return (
       <div className="main">
         <div className="empty-main-state">
@@ -192,6 +194,7 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
           <ChatStage
             demoResponse={demoResponse}
             agentName={activeAgent}
+            hasAgent={!!activeAgent}
             onNavigateToConnectors={() => onTabChange('connectors')}
           />
         )}

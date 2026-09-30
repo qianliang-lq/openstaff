@@ -357,3 +357,92 @@
   opacity: 0.8;
   font-style: italic;
 }
+
+/* No agent / No key banners */
+.no-agent-banner,
+.no-key-banner {
+  background: #fff3cd;
+  border-bottom: 1px solid #ffc107;
+  padding: 16px 24px;
+  flex-shrink: 0;
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.banner-icon {
+  font-size: 20px;
+}
+
+.banner-text {
+  flex: 1;
+  color: #856404;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.btn-goto-connectors {
+  padding: 8px 16px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-goto-connectors:hover {
+  opacity: 0.9;
+}
+
+/* Empty steps guide */
+.empty-steps {
+  max-width: 600px;
+  margin: 60px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.step-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.step-content {
+  flex: 1;
+  padding-top: 4px;
+}
+
+.step-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--g9);
+  margin-bottom: 6px;
+}
+
+.step-desc {
+  font-size: 14px;
+  color: var(--g7);
+  line-height: 1.5;
+}
