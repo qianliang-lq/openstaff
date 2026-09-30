@@ -110,6 +110,17 @@ function Connectors() {
     try {
       await saveProviderKey(provider, config.apiKey);
 
+      // Update connector metadata to API (no key plaintext)
+      try {
+        await api.updateConnectorMeta({
+          provider,
+          configured: true,
+          last_checked_at: new Date().toISOString(),
+        });
+      } catch (apiError) {
+        console.error('Failed to update connector meta:', apiError);
+      }
+
       setConfig((prev) => ({
         ...prev,
         hasKey: true,
@@ -336,6 +347,19 @@ function Connectors() {
       if (response.ok) {
         const data = await response.json();
         const modelName = data.model || config.model || 'qwen-plus';
+
+        // Update connector metadata after successful test
+        try {
+          await api.updateConnectorMeta({
+            provider,
+            configured: true,
+            last_checked_at: new Date().toISOString(),
+            account_label: modelName,
+          });
+        } catch (apiError) {
+          console.error('Failed to update connector meta:', apiError);
+        }
+
         setConfig((prev) => ({
           ...prev,
           status: 'test-success',

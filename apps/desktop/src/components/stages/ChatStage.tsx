@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { getProviderKey } from '../../utils/tauri';
 import ValidationGateWidget from '../ValidationGateWidget';
 import ExternalInsightReportCard, { type ExternalInsightFact } from '../ExternalInsightReportCard';
+import * as api from '../../utils/api';
 import './ChatStage.css';
 
 interface ChatMessage {
@@ -91,7 +92,27 @@ function ChatStage({
 
   useEffect(() => {
     checkKeys();
-  }, []);
+    loadMessagesFromApi();
+  }, [agentName]);
+
+  const loadMessagesFromApi = async () => {
+    if (!agentName || !hasAgent) return;
+
+    try {
+      const agents = await api.listAgents();
+      const currentAgent = agents.find((a) => a.name === agentName);
+      if (!currentAgent) return;
+
+      const apiMessages = await api.listMessages(currentAgent.id);
+      const mappedMessages: ChatMessage[] = apiMessages.map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.body,
+      }));
+      setMessages(mappedMessages);
+    } catch (error) {
+      console.error('Failed to load messages from API:', error);
+    }
+  };
 
   useEffect(() => {
     if (demoResponse && demoResponse.reconcile_status === 'PASS' && demoResponse.facts) {
@@ -181,6 +202,21 @@ function ChatStage({
       }
 
       const data = await response.json();
+
+      // Persist messages to API after successful chat
+      try {
+        const agents = await api.listAgents();
+        const currentAgent = agents.find((a) => a.name === agentName);
+        if (currentAgent) {
+          await api.createMessage(currentAgent.id, {
+            role: 'user',
+            body: userMessage.content,
+          });
+        }
+      } catch (apiError) {
+        console.error('Failed to persist user message:', apiError);
+      }
+
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: data.message.content,

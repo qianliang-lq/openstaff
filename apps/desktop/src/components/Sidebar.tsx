@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Sidebar.css';
+import * as api from '../utils/api';
 
-const STORAGE_KEY_AGENTS = 'openstaff_agents';
 const STORAGE_KEY_ACTIVE = 'openstaff_active_agent';
 
 interface Agent {
@@ -11,25 +11,9 @@ interface Agent {
   status: 'online' | 'busy' | 'idle';
   avatar: string;
   avatarClass: string;
+  template_id?: string;
+  duty?: string;
 }
-
-const loadAgentsFromStorage = (): Agent[] => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_AGENTS);
-    return stored ? JSON.parse(stored) : [];
-  } catch (error) {
-    console.error('Failed to load agents from storage:', error);
-    return [];
-  }
-};
-
-const saveAgentsToStorage = (agents: Agent[]) => {
-  try {
-    localStorage.setItem(STORAGE_KEY_AGENTS, JSON.stringify(agents));
-  } catch (error) {
-    console.error('Failed to save agents to storage:', error);
-  }
-};
 
 const saveActiveAgentToStorage = (agentName: string) => {
   try {
@@ -346,20 +330,74 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
 }
 
 function Sidebar({ activeAgent, onAgentChange }: SidebarProps) {
-  const [agents, setAgents] = useState<Agent[]>(() => loadAgentsFromStorage());
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [successToast, setSuccessToast] = useState<string>('');
+  const [apiError, setApiError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleSaveAgent = (newAgent: Agent) => {
-    console.log('Agent created (demo):', newAgent);
-    const updatedAgents = [...agents, newAgent];
-    setAgents(updatedAgents);
-    saveAgentsToStorage(updatedAgents);
-    setShowCreateModal(false);
-    onAgentChange(newAgent.name);
-    saveActiveAgentToStorage(newAgent.name);
-    setSuccessToast(`✅ 已创建 ${newAgent.name}`);
-    setTimeout(() => setSuccessToast(''), 3000);
+  useEffect(() => {
+    loadAgentsFromApi();
+  }, []);
+
+  const loadAgentsFromApi = async () => {
+    try {
+      setIsLoading(true);
+      setApiError('');
+      const apiAgents = await api.listAgents();
+      const mappedAgents: Agent[] = apiAgents.map((a) => ({
+        id: a.id,
+        name: a.name,
+        role: a.duty || a.template_id || '',
+        status: (a.status as 'online' | 'busy' | 'idle') || 'idle',
+        avatar: a.name.charAt(0),
+        avatarClass: a.template_id || 'blank',
+        template_id: a.template_id,
+        duty: a.duty,
+      }));
+      setAgents(mappedAgents);
+    } catch (error) {
+      if (error instanceof api.ApiError) {
+        setApiError(error.message);
+      } else {
+        setApiError('控制面未就绪 - 无法连接到服务器');
+      }
+      console.error('Failed to load agents from API:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveAgent = async (newAgent: Agent) => {
+    console.log('Agent created (via API):', newAgent);
+    try {
+      const created = await api.createAgent({
+        name: newAgent.name,
+        template_id: newAgent.avatarClass,
+        duty: newAgent.role,
+      });
+
+      const mappedAgent: Agent = {
+        id: created.id,
+        name: created.name,
+        role: created.duty || created.template_id || '',
+        status: 'idle',
+        avatar: created.name.charAt(0),
+        avatarClass: created.template_id || 'blank',
+        template_id: created.template_id,
+        duty: created.duty,
+      };
+
+      setAgents((prev) => [...prev, mappedAgent]);
+      setShowCreateModal(false);
+      onAgentChange(mappedAgent.name);
+      saveActiveAgentToStorage(mappedAgent.name);
+      setSuccessToast(`✅ 已创建 ${mappedAgent.name}`);
+      setTimeout(() => setSuccessToast(''), 3000);
+    } catch (error) {
+      console.error('Failed to create agent:', error);
+      setApiError(error instanceof api.ApiError ? error.message : '创建 Agent 失败');
+    }
   };
   return (
     <div className="sidebar">
@@ -383,8 +421,20 @@ function Sidebar({ activeAgent, onAgentChange }: SidebarProps) {
         </button>
       </div>
 
+      {apiError && (
+        <div className="api-error-banner">
+          <span>⚠️ {apiError}</span>
+          <button onClick={loadAgentsFromApi}>重试</button>
+        </div>
+      )}
+
       <div className="agent-list">
-        {agents.length === 0 ? (
+        {isLoading ? (
+          <div className="empty-state">
+            <div className="empty-icon">⏳</div>
+            <div className="empty-text">加载中...</div>
+          </div>
+        ) : agents.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">👤</div>
             <div className="empty-text">还没有数字员工</div>
