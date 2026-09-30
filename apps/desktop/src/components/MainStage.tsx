@@ -200,7 +200,7 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
         )}
         {activeTab === 'computer' && <Computer />}
         {activeTab === 'routines' && <Routines />}
-        {activeTab === 'skills' && <Skills />}
+        {activeTab === 'skills' && <Skills agentName={activeAgent} />}
         {activeTab === 'connectors' && <Connectors />}
         {activeTab === 'memory' && <Memory />}
       </div>
