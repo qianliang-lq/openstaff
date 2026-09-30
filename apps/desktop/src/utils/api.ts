@@ -27,7 +27,9 @@ export interface ConnectorMeta {
   account_label?: string;
 }
 
-const API_BASE = import.meta.env.PUBLIC_API_BASE || 'http://localhost:3000';
+const API_BASE =
+  (import.meta as { env?: { PUBLIC_API_BASE?: string } }).env?.PUBLIC_API_BASE ||
+  'http://localhost:3000';
 
 export class ApiError extends Error {
   constructor(
