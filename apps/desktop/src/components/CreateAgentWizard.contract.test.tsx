@@ -18,6 +18,7 @@ import Sidebar from './Sidebar';
 describe('Create Agent Wizard Contract Tests (§15)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   describe('Empty Sidebar (Cold Start)', () => {
@@ -373,10 +374,9 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
 
       await waitFor(
         () => {
-          const creatingButton = screen.queryByRole('button', { name: /创建中/i });
-          if (creatingButton) {
-            expect(creatingButton).toBeDisabled();
-          }
+          const creatingButton = screen.getByRole('button', { name: /创建中/i });
+          expect(creatingButton, '「创建中...」 button must be visible').toBeInTheDocument();
+          expect(creatingButton, '「创建中...」 button must be disabled').toBeDisabled();
         },
         { timeout: 500 }
       );
@@ -423,7 +423,16 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
       await waitFor(
         () => {
           const agentInSidebar = screen.getByText(testAgentName);
-          expect(agentInSidebar).toBeInTheDocument();
+          expect(agentInSidebar, 'New agent name must be visible in sidebar').toBeInTheDocument();
+
+          const activeAgentItem = document.querySelector('.agent-item.active');
+          expect(
+            activeAgentItem,
+            'New agent must be selected (.agent-item.active)'
+          ).toBeInTheDocument();
+          expect(activeAgentItem?.textContent, 'Active agent must have the created name').toContain(
+            testAgentName
+          );
 
           const emptyState = document.querySelector('.empty-state');
           expect(
@@ -517,9 +526,10 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
       await waitFor(
         () => {
           const successToast = document.querySelector('.success-toast');
-          if (successToast) {
-            expect(successToast.textContent).toContain('已创建');
-          }
+          expect(successToast, 'Success toast must be visible after creation').toBeInTheDocument();
+          expect(successToast?.textContent, 'Success toast must contain 已创建').toContain(
+            '已创建'
+          );
         },
         { timeout: 3000 }
       );
@@ -530,8 +540,9 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
     it('should show error banner on creation failure', async () => {
       const user = userEvent.setup();
 
-      const originalRandom = Math.random;
-      Math.random = () => 0.05;
+      (
+        window as unknown as { __OPENSTAFF_FORCE_CREATE_FAIL__?: boolean }
+      ).__OPENSTAFF_FORCE_CREATE_FAIL__ = true;
 
       render(<App />);
 
@@ -566,22 +577,29 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
       await waitFor(
         () => {
           const errorBanner = document.querySelector('.error-banner');
-          expect(errorBanner, 'Error banner must appear on failure').toBeInTheDocument();
+          expect(
+            errorBanner,
+            '.error-banner must appear on failure (injectable hook active)'
+          ).toBeInTheDocument();
+
+          const errorText = errorBanner?.textContent || '';
+          expect(errorText, 'Error banner must contain failure reason').toMatch(
+            /本地存储失败|失败|错误/
+          );
         },
         { timeout: 3000 }
       );
 
-      const errorBanner = document.querySelector('.error-banner');
-      expect(errorBanner?.textContent).toMatch(/失败|错误/);
-
-      Math.random = originalRandom;
+      delete (window as unknown as { __OPENSTAFF_FORCE_CREATE_FAIL__?: boolean })
+        .__OPENSTAFF_FORCE_CREATE_FAIL__;
     });
 
     it('should allow closing error banner', async () => {
       const user = userEvent.setup();
 
-      const originalRandom = Math.random;
-      Math.random = () => 0.05;
+      (
+        window as unknown as { __OPENSTAFF_FORCE_CREATE_FAIL__?: boolean }
+      ).__OPENSTAFF_FORCE_CREATE_FAIL__ = true;
 
       render(<App />);
 
@@ -634,14 +652,16 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
         expect(errorBanner).not.toBeInTheDocument();
       });
 
-      Math.random = originalRandom;
+      delete (window as unknown as { __OPENSTAFF_FORCE_CREATE_FAIL__?: boolean })
+        .__OPENSTAFF_FORCE_CREATE_FAIL__;
     });
 
     it('should NOT silently fail on error', async () => {
       const user = userEvent.setup();
 
-      const originalRandom = Math.random;
-      Math.random = () => 0.05;
+      (
+        window as unknown as { __OPENSTAFF_FORCE_CREATE_FAIL__?: boolean }
+      ).__OPENSTAFF_FORCE_CREATE_FAIL__ = true;
 
       render(<App />);
 
@@ -684,7 +704,24 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
         { timeout: 3000 }
       );
 
-      Math.random = originalRandom;
+      delete (window as unknown as { __OPENSTAFF_FORCE_CREATE_FAIL__?: boolean })
+        .__OPENSTAFF_FORCE_CREATE_FAIL__;
     });
   });
 });
+
+/**
+ * Manual Testing Hook Documentation
+ *
+ * To test the create agent failure path manually in browser console:
+ *
+ * 1. Set failure hook:
+ *    window.__OPENSTAFF_FORCE_CREATE_FAIL__ = true
+ *
+ * 2. Create an agent through the wizard (will fail with error banner)
+ *
+ * 3. Reset to normal behavior:
+ *    delete window.__OPENSTAFF_FORCE_CREATE_FAIL__
+ *
+ * Default behavior (hook not set): Create always succeeds
+ */

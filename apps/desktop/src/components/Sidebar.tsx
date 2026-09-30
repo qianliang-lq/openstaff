@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import './Sidebar.css';
 
+const STORAGE_KEY_AGENTS = 'openstaff_agents';
+const STORAGE_KEY_ACTIVE = 'openstaff_active_agent';
+
 interface Agent {
   id: string;
   name: string;
@@ -9,6 +12,36 @@ interface Agent {
   avatar: string;
   avatarClass: string;
 }
+
+const loadAgentsFromStorage = (): Agent[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_AGENTS);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Failed to load agents from storage:', error);
+    return [];
+  }
+};
+
+const saveAgentsToStorage = (agents: Agent[]) => {
+  try {
+    localStorage.setItem(STORAGE_KEY_AGENTS, JSON.stringify(agents));
+  } catch (error) {
+    console.error('Failed to save agents to storage:', error);
+  }
+};
+
+const saveActiveAgentToStorage = (agentName: string) => {
+  try {
+    if (agentName) {
+      localStorage.setItem(STORAGE_KEY_ACTIVE, agentName);
+    } else {
+      localStorage.removeItem(STORAGE_KEY_ACTIVE);
+    }
+  } catch (error) {
+    console.error('Failed to save active agent to storage:', error);
+  }
+};
 
 interface SidebarProps {
   activeAgent: string;
@@ -19,8 +52,6 @@ interface CreateAgentModalProps {
   onClose: () => void;
   onSave: (agent: Agent) => void;
 }
-
-const mockAgents: Agent[] = [];
 
 function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -99,10 +130,14 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
     try {
       await new Promise((resolve, reject) => {
         setTimeout(() => {
-          if (Math.random() >= 0.1) {
-            resolve(true);
-          } else {
+          const forceCreateFail = (
+            window as unknown as { __OPENSTAFF_FORCE_CREATE_FAIL__?: boolean }
+          ).__OPENSTAFF_FORCE_CREATE_FAIL__;
+
+          if (forceCreateFail) {
             reject(new Error('本地存储失败'));
+          } else {
+            resolve(true);
           }
         }, 800);
       });
@@ -311,15 +346,18 @@ function CreateAgentModal({ onClose, onSave }: CreateAgentModalProps) {
 }
 
 function Sidebar({ activeAgent, onAgentChange }: SidebarProps) {
-  const [agents, setAgents] = useState<Agent[]>(mockAgents);
+  const [agents, setAgents] = useState<Agent[]>(() => loadAgentsFromStorage());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [successToast, setSuccessToast] = useState<string>('');
 
   const handleSaveAgent = (newAgent: Agent) => {
     console.log('Agent created (demo):', newAgent);
-    setAgents((prev) => [...prev, newAgent]);
+    const updatedAgents = [...agents, newAgent];
+    setAgents(updatedAgents);
+    saveAgentsToStorage(updatedAgents);
     setShowCreateModal(false);
     onAgentChange(newAgent.name);
+    saveActiveAgentToStorage(newAgent.name);
     setSuccessToast(`✅ 已创建 ${newAgent.name}`);
     setTimeout(() => setSuccessToast(''), 3000);
   };
