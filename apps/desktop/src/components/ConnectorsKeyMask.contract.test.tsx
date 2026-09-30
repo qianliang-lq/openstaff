@@ -3,6 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Connectors from './Connectors';
 import * as tauriUtils from '../utils/tauri';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 describe('Connectors Key Mask Security Contracts', () => {
   beforeEach(() => {
@@ -15,43 +17,86 @@ describe('Connectors Key Mask Security Contracts', () => {
   });
 
   describe('TC-Scroll-01: Connectors content must be scrollable', () => {
-    it('must have connectors-container with correct structure', () => {
-      (window as unknown as { __TAURI__?: object }).__TAURI__ = {};
-      vi.spyOn(tauriUtils, 'isTauriEnvironment').mockReturnValue(true);
-      vi.spyOn(tauriUtils, 'getProviderKey').mockResolvedValue(null);
+    it('HARD: Connectors.css must have overflow-y auto and height 100% on .connectors-container', () => {
+      // Read CSS file and assert scroll rules exist
+      const connectorsCSS = readFileSync(resolve(__dirname, './Connectors.css'), 'utf-8');
 
-      const { container } = render(<Connectors />);
+      // Must find .connectors-container rule block with both overflow-y and height
+      const containerRuleMatch = connectorsCSS.match(/\.connectors-container\s*\{[^}]*\}/s);
+      expect(
+        containerRuleMatch,
+        'Connectors.css must contain .connectors-container rule block'
+      ).toBeTruthy();
 
-      // Find the connectors container
-      const connectorsContainer = container.querySelector('.connectors-container');
-      expect(connectorsContainer, 'Connectors container must exist').toBeInTheDocument();
+      const containerRule = containerRuleMatch![0];
 
-      // Verify CSS class is present (CSS rules will apply overflow-y: auto in real browser)
-      expect(connectorsContainer?.className).toContain('connectors-container');
+      // Hard assert: overflow-y: auto (or scroll) is present
+      expect(
+        /overflow-y:\s*(auto|scroll)/i.test(containerRule),
+        'Connectors.css .connectors-container must have overflow-y: auto or scroll'
+      ).toBe(true);
 
-      // In production, CSS rules ensure:
-      // .connectors-container { overflow-y: auto !important; height: 100%; }
-      // .stage > .connectors-container { overflow-y: auto !important; height: 100%; }
-
-      delete (window as unknown as { __TAURI__?: object }).__TAURI__;
+      // Hard assert: height constraint exists (100% or vh or fixed value)
+      expect(
+        /height:\s*(100%|100vh|\d+px)/i.test(containerRule),
+        'Connectors.css .connectors-container must have height constraint (100% or similar)'
+      ).toBe(true);
     });
 
-    it('must have stage wrapper with proper flex layout', () => {
-      (window as unknown as { __TAURI__?: object }).__TAURI__ = {};
-      vi.spyOn(tauriUtils, 'isTauriEnvironment').mockReturnValue(true);
-      vi.spyOn(tauriUtils, 'getProviderKey').mockResolvedValue(null);
+    it('HARD: MainStage.css must have overflow scroll override on .stage > .connectors-container', () => {
+      // Read MainStage CSS and assert parent-child scroll rule exists
+      const mainStageCSS = readFileSync(resolve(__dirname, './MainStage.css'), 'utf-8');
 
-      const { container } = render(<Connectors />);
+      // Must find .stage > .connectors-container rule with overflow-y
+      const stageChildRuleMatch = mainStageCSS.match(
+        /\.stage\s*>\s*\.connectors-container\s*\{[^}]*\}/s
+      );
+      expect(
+        stageChildRuleMatch,
+        'MainStage.css must contain .stage > .connectors-container rule block'
+      ).toBeTruthy();
 
-      // Verify container structure exists
-      const connectorsContainer = container.querySelector('.connectors-container');
-      expect(connectorsContainer).toBeInTheDocument();
+      const stageChildRule = stageChildRuleMatch![0];
 
-      // CSS ensures .stage { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-      // and .stage > .connectors-container { overflow-y: auto !important; height: 100%; }
-      // This combination allows Connectors to scroll within its constrained parent
+      // Hard assert: overflow-y: auto (or scroll) is present
+      expect(
+        /overflow-y:\s*(auto|scroll)/i.test(stageChildRule),
+        'MainStage.css .stage > .connectors-container must have overflow-y: auto or scroll'
+      ).toBe(true);
 
-      delete (window as unknown as { __TAURI__?: object }).__TAURI__;
+      // Hard assert: height constraint exists
+      expect(
+        /height:\s*(100%|100vh|\d+px)/i.test(stageChildRule),
+        'MainStage.css .stage > .connectors-container must have height constraint'
+      ).toBe(true);
+    });
+
+    it('HARD: .stage parent must constrain children for scroll containment', () => {
+      // Read MainStage CSS and verify .stage has flex + min-height: 0 + overflow: hidden
+      const mainStageCSS = readFileSync(resolve(__dirname, './MainStage.css'), 'utf-8');
+
+      const stageRuleMatch = mainStageCSS.match(/\.stage\s*\{[^}]*\}/s);
+      expect(stageRuleMatch, 'MainStage.css must contain .stage rule block').toBeTruthy();
+
+      const stageRule = stageRuleMatch![0];
+
+      // Hard assert: display: flex (enables flex children behavior)
+      expect(
+        /display:\s*flex/i.test(stageRule),
+        'MainStage.css .stage must have display: flex'
+      ).toBe(true);
+
+      // Hard assert: min-height: 0 (allows flex children to shrink below content size)
+      expect(
+        /min-height:\s*0/i.test(stageRule),
+        'MainStage.css .stage must have min-height: 0 for scroll containment'
+      ).toBe(true);
+
+      // Hard assert: overflow: hidden (clips content, forcing children to handle their own scroll)
+      expect(
+        /overflow:\s*hidden/i.test(stageRule),
+        'MainStage.css .stage must have overflow: hidden'
+      ).toBe(true);
     });
   });
 
