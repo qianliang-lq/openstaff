@@ -56,10 +56,7 @@ describe('§16 ChatKeyGuide Contract Tests', () => {
 
       // Must NOT show placeholder assistant bubbles
       const assistantBubbles = document.querySelectorAll('.message.assistant');
-      expect(
-        assistantBubbles.length,
-        'No placeholder assistant messages should exist'
-      ).toBe(0);
+      expect(assistantBubbles.length, 'No placeholder assistant messages should exist').toBe(0);
     });
   });
 
@@ -315,10 +312,7 @@ describe('§16 ChatKeyGuide Contract Tests', () => {
       await waitFor(
         () => {
           const errorCard = document.querySelector('.error-card');
-          expect(
-            errorCard,
-            'Error card must appear after failed request'
-          ).toBeInTheDocument();
+          expect(errorCard, 'Error card must appear after failed request').toBeInTheDocument();
 
           const errorText = screen.getByText(/请求失败|Invalid API key|错误/i);
           expect(errorText, 'Error message must be visible').toBeInTheDocument();

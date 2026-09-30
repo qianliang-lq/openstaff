@@ -93,17 +93,17 @@ describe('Skills/MCP Contract Tests (§24 + UUID)', () => {
       // Assert API calls use UUID not agent name
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/v1/agents/agent-uuid-123/skills'),
-        expect.anything(),
+        expect.anything()
       );
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/v1/agents/agent-uuid-123/mcp'),
-        expect.anything(),
+        expect.anything()
       );
 
       // Assert NO calls with agent display name in path
       const allCalls = mockFetch.mock.calls;
       const badCalls = allCalls.filter(
-        (call) => typeof call[0] === 'string' && call[0].includes('/v1/agents/test-agent/'),
+        (call) => typeof call[0] === 'string' && call[0].includes('/v1/agents/test-agent/')
       );
       expect(badCalls).toHaveLength(0);
     });
@@ -140,7 +140,10 @@ describe('Skills/MCP Contract Tests (§24 + UUID)', () => {
           });
         }
         // Mock PUT /v1/agents/:uuid/skills/:skill_id - MUST use UUID
-        if (url.includes('/v1/agents/agent-uuid-123/skills/web-search') && options?.method === 'PUT') {
+        if (
+          url.includes('/v1/agents/agent-uuid-123/skills/web-search') &&
+          options?.method === 'PUT'
+        ) {
           const body = JSON.parse(options.body as string);
           skillEnabled = body.enabled;
           return Promise.resolve({
@@ -176,7 +179,7 @@ describe('Skills/MCP Contract Tests (§24 + UUID)', () => {
           expect.objectContaining({
             method: 'PUT',
             body: JSON.stringify({ enabled: true }),
-          }),
+          })
         );
       });
 
@@ -188,7 +191,7 @@ describe('Skills/MCP Contract Tests (§24 + UUID)', () => {
       // Assert no calls with agent name in path
       const allCalls = mockFetch.mock.calls;
       const badCalls = allCalls.filter(
-        (call) => typeof call[0] === 'string' && call[0].includes('/v1/agents/test-agent/'),
+        (call) => typeof call[0] === 'string' && call[0].includes('/v1/agents/test-agent/')
       );
       expect(badCalls).toHaveLength(0);
     });
@@ -224,10 +227,16 @@ describe('Skills/MCP Contract Tests (§24 + UUID)', () => {
           });
         }
         // Mock POST /v1/agents/:uuid/skills/:skill_id/try - MUST use UUID
-        if (url.includes('/v1/agents/agent-uuid-123/skills/web-search/try') && options?.method === 'POST') {
+        if (
+          url.includes('/v1/agents/agent-uuid-123/skills/web-search/try') &&
+          options?.method === 'POST'
+        ) {
           return Promise.resolve({
             ok: true,
-            json: async () => ({ ok: true, message: '✅ Web search fixture: 找到 3 条结果 (模拟)' }),
+            json: async () => ({
+              ok: true,
+              message: '✅ Web search fixture: 找到 3 条结果 (模拟)',
+            }),
           });
         }
         // Mock GET /v1/agents/:uuid/mcp
@@ -253,7 +262,7 @@ describe('Skills/MCP Contract Tests (§24 + UUID)', () => {
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('/v1/agents/agent-uuid-123/skills/web-search/try'),
-          expect.objectContaining({ method: 'POST' }),
+          expect.objectContaining({ method: 'POST' })
         );
       });
 
@@ -315,7 +324,7 @@ describe('Skills/MCP Contract Tests (§24 + UUID)', () => {
       // Assert MCP API call uses UUID
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/v1/agents/agent-uuid-123/mcp'),
-        expect.anything(),
+        expect.anything()
       );
     });
   });
@@ -359,7 +368,10 @@ describe('Skills/MCP Contract Tests (§24 + UUID)', () => {
           });
         }
         // Mock POST /v1/agents/:uuid/mcp/:mcp_id/test - MUST use UUID
-        if (url.includes('/v1/agents/agent-uuid-123/mcp/github/test') && options?.method === 'POST') {
+        if (
+          url.includes('/v1/agents/agent-uuid-123/mcp/github/test') &&
+          options?.method === 'POST'
+        ) {
           connectionStatus = 'ok';
           return Promise.resolve({
             ok: true,
@@ -382,7 +394,7 @@ describe('Skills/MCP Contract Tests (§24 + UUID)', () => {
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('/v1/agents/agent-uuid-123/mcp/github/test'),
-          expect.objectContaining({ method: 'POST' }),
+          expect.objectContaining({ method: 'POST' })
         );
       });
 

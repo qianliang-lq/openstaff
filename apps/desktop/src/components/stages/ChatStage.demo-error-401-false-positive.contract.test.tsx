@@ -75,9 +75,7 @@ describe('TC-DEMO-ERROR-401-FALSE-POSITIVE: Demo fire 失败不误报 401 Key �
           });
         }
         if (url.includes('/demo/fire')) {
-          return Promise.reject(
-            new Error('Scheduler 服务未响应，请确保服务正在运行 (http://localhost:3002)')
-          );
+          return Promise.reject(new TypeError('Failed to fetch'));
         }
         return Promise.resolve({
           ok: false,

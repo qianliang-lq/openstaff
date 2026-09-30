@@ -365,7 +365,27 @@ function ChatStage({
       });
 
       if (!response.ok) {
-        throw new Error('Scheduler 服务未响应，请确保服务正在运行 (http://localhost:3002)');
+        let errorDetail = '';
+        try {
+          const errorData = await response.text();
+          errorDetail = errorData ? `: ${errorData}` : '';
+        } catch {
+          // Ignore parse errors
+        }
+
+        if (response.status === 502 || response.status === 503) {
+          throw new Error(
+            `Scheduler 已启动但下游服务未就绪 (HTTP ${response.status})。请确保 Runtime 服务正在运行 (http://localhost:3003)${errorDetail}`
+          );
+        } else if (response.status >= 500) {
+          throw new Error(`Scheduler 服务内部错误 (HTTP ${response.status})${errorDetail}`);
+        } else if (response.status >= 400) {
+          throw new Error(`请求错误 (HTTP ${response.status})${errorDetail}`);
+        } else {
+          throw new Error(
+            `Scheduler 请求失败 (HTTP ${response.status})。请运行 'just health' 检查所有服务${errorDetail}`
+          );
+        }
       }
 
       // Remove running message before polling
@@ -377,11 +397,31 @@ function ChatStage({
       // Remove running message
       setMessages((prev) => prev.filter((m) => m !== runningMessage));
 
+      let errorContent: string;
+      let errorType: '401' | 'network' | '502' | '503' | '500' | '400' = 'network';
+
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorContent =
+          '❌ 无法连接到 Scheduler 服务 (http://localhost:3002)。请确保后端服务已启动：\n\n• 运行 `pnpm tauri:dev` 会自动启动\n• 或手动运行 `just dev-up`\n• 检查服务状态：`just health`\n• 查看日志：`tail -f /tmp/openstaff-*.log`';
+        errorType = 'network';
+      } else if (error instanceof Error) {
+        errorContent = `❌ ${error.message}`;
+        if (error.message.includes('502') || error.message.includes('503')) {
+          errorType = error.message.includes('502') ? '502' : '503';
+        } else if (error.message.includes('500')) {
+          errorType = '500';
+        } else if (error.message.includes('400')) {
+          errorType = '400';
+        }
+      } else {
+        errorContent = '❌ 运行失败，请查看控制台日志';
+      }
+
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: `❌ ${error instanceof Error ? error.message : '运行失败'}`,
+        content: errorContent,
         error: true,
-        errorType: 'network',
+        errorType,
       };
       setLastError(errorMessage);
       setMessages((prev) => [...prev, errorMessage]);

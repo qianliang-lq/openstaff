@@ -26,7 +26,12 @@ describe('ChatStage - Peer Message Sending (§25 MVP)', () => {
     mockKeys = { qwen: 'test-qwen-key' };
 
     global.fetch = vi.fn((input: RequestInfo, init?: RequestInit) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url;
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : (input as Request).url;
       const method = (init?.method || 'GET').toUpperCase();
 
       console.log('[Mock Fetch]', method, url);
@@ -102,17 +107,15 @@ describe('ChatStage - Peer Message Sending (§25 MVP)', () => {
     const user = userEvent.setup();
 
     render(
-      <ChatStage
-        agentName="Alice"
-        mockFacts={mockFacts}
-        hasAgent={true}
-        onCreateAgent={() => {}}
-      />,
+      <ChatStage agentName="Alice" mockFacts={mockFacts} hasAgent={true} onCreateAgent={() => {}} />
     );
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('输入消息...')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByPlaceholderText('输入消息...')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
 
     await waitFor(() => {
       expect(screen.getByTitle('@ 选择其他岗位')).toBeInTheDocument();
@@ -131,17 +134,15 @@ describe('ChatStage - Peer Message Sending (§25 MVP)', () => {
     const user = userEvent.setup();
 
     render(
-      <ChatStage
-        agentName="Alice"
-        mockFacts={mockFacts}
-        hasAgent={true}
-        onCreateAgent={() => {}}
-      />,
+      <ChatStage agentName="Alice" mockFacts={mockFacts} hasAgent={true} onCreateAgent={() => {}} />
     );
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('输入消息...')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByPlaceholderText('输入消息...')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
 
     await waitFor(() => {
       expect(screen.getByTitle('@ 选择其他岗位')).toBeInTheDocument();
@@ -177,7 +178,7 @@ describe('ChatStage - Peer Message Sending (§25 MVP)', () => {
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ to_agent_id: 'agent-2', body: 'Hello Bob!' }),
-        }),
+        })
       );
     });
   });
@@ -186,17 +187,15 @@ describe('ChatStage - Peer Message Sending (§25 MVP)', () => {
     const user = userEvent.setup();
 
     render(
-      <ChatStage
-        agentName="Alice"
-        mockFacts={mockFacts}
-        hasAgent={true}
-        onCreateAgent={() => {}}
-      />,
+      <ChatStage agentName="Alice" mockFacts={mockFacts} hasAgent={true} onCreateAgent={() => {}} />
     );
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('输入消息...')).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByPlaceholderText('输入消息...')).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
 
     await waitFor(() => {
       expect(screen.getByTitle('@ 选择其他岗位')).toBeInTheDocument();
@@ -221,10 +220,13 @@ describe('ChatStage - Peer Message Sending (§25 MVP)', () => {
     await user.click(sendButton);
 
     // Check for success toast (message added to chat)
-    await waitFor(() => {
-      const successMsg = screen.queryByText(/已投递给/i);
-      expect(successMsg).toBeInTheDocument();
-      expect(successMsg?.textContent).toMatch(/Bob/);
-    }, { timeout: 8000 });
+    await waitFor(
+      () => {
+        const successMsg = screen.queryByText(/已投递给/i);
+        expect(successMsg).toBeInTheDocument();
+        expect(successMsg?.textContent).toMatch(/Bob/);
+      },
+      { timeout: 8000 }
+    );
   });
 });

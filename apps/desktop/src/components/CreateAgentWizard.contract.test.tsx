@@ -608,7 +608,10 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
       await waitFor(
         () => {
           const successToast = document.querySelector('.success-toast');
-          expect(successToast, 'Success toast must be visible after API creation').toBeInTheDocument();
+          expect(
+            successToast,
+            'Success toast must be visible after API creation'
+          ).toBeInTheDocument();
           expect(successToast?.textContent, 'Success toast must contain 已创建').toContain(
             '已创建'
           );

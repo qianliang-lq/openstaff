@@ -65,8 +65,8 @@ pub async fn fire_external_insight(
     match client.post(&runtime_endpoint).json(&payload).send().await {
         Ok(response) => {
             let status = response.status();
-            if status == 202 {
-                tracing::info!("✅ Job {} accepted by runtime", job_id);
+            if status.is_success() {
+                tracing::info!("✅ Job {} accepted by runtime (status: {})", job_id, status);
                 Ok(Json(FireResponse {
                     fired: true,
                     job_id: job_id.clone(),

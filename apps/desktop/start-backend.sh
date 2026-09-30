@@ -30,10 +30,10 @@ echo "  Starting Gateway (port 3001)..."
 cargo run -p openstaff-gateway > /tmp/openstaff-gateway.log 2>&1 &
 
 echo "  Starting Scheduler (port 3002)..."
-cargo run -p openstaff-scheduler > /tmp/openstaff-scheduler.log 2>&1 &
+nohup cargo run -p openstaff-scheduler > /tmp/openstaff-scheduler.log 2>&1 &
 
 echo "  Starting Runtime (port 3003)..."
-cargo run -p openstaff-runtime > /tmp/openstaff-runtime.log 2>&1 &
+nohup cargo run -p openstaff-runtime > /tmp/openstaff-runtime.log 2>&1 &
 
 echo ""
 echo "⏳ Waiting for services to start (max 60s)..."

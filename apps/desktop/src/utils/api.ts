@@ -41,10 +41,7 @@ export class ApiError extends Error {
   }
 }
 
-async function fetchApi<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
+async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
@@ -55,10 +52,7 @@ async function fetchApi<T>(
     });
 
     if (!response.ok) {
-      throw new ApiError(
-        response.status,
-        `API request failed: ${response.statusText}`
-      );
+      throw new ApiError(response.status, `API request failed: ${response.statusText}`);
     }
 
     return await response.json();
@@ -108,10 +102,7 @@ export async function deleteAgent(id: string): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      `Failed to delete agent: ${response.statusText}`
-    );
+    throw new ApiError(response.status, `Failed to delete agent: ${response.statusText}`);
   }
 
   // 204 No Content has empty body, don't call json()
@@ -197,10 +188,7 @@ export interface TrySkillResponse {
   message: string;
 }
 
-export async function tryAgentSkill(
-  agentId: string,
-  skillId: string
-): Promise<TrySkillResponse> {
+export async function tryAgentSkill(agentId: string, skillId: string): Promise<TrySkillResponse> {
   return fetchApi<TrySkillResponse>(`/v1/agents/${agentId}/skills/${skillId}/try`, {
     method: 'POST',
   });
