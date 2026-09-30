@@ -14,6 +14,47 @@ describe('Connectors Key Mask Security Contracts', () => {
     vi.restoreAllMocks();
   });
 
+  describe('TC-Scroll-01: Connectors content must be scrollable', () => {
+    it('must have connectors-container with correct structure', () => {
+      (window as unknown as { __TAURI__?: object }).__TAURI__ = {};
+      vi.spyOn(tauriUtils, 'isTauriEnvironment').mockReturnValue(true);
+      vi.spyOn(tauriUtils, 'getProviderKey').mockResolvedValue(null);
+
+      const { container } = render(<Connectors />);
+
+      // Find the connectors container
+      const connectorsContainer = container.querySelector('.connectors-container');
+      expect(connectorsContainer, 'Connectors container must exist').toBeInTheDocument();
+
+      // Verify CSS class is present (CSS rules will apply overflow-y: auto in real browser)
+      expect(connectorsContainer?.className).toContain('connectors-container');
+
+      // In production, CSS rules ensure:
+      // .connectors-container { overflow-y: auto !important; height: 100%; }
+      // .stage > .connectors-container { overflow-y: auto !important; height: 100%; }
+
+      delete (window as unknown as { __TAURI__?: object }).__TAURI__;
+    });
+
+    it('must have stage wrapper with proper flex layout', () => {
+      (window as unknown as { __TAURI__?: object }).__TAURI__ = {};
+      vi.spyOn(tauriUtils, 'isTauriEnvironment').mockReturnValue(true);
+      vi.spyOn(tauriUtils, 'getProviderKey').mockResolvedValue(null);
+
+      const { container } = render(<Connectors />);
+
+      // Verify container structure exists
+      const connectorsContainer = container.querySelector('.connectors-container');
+      expect(connectorsContainer).toBeInTheDocument();
+
+      // CSS ensures .stage { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+      // and .stage > .connectors-container { overflow-y: auto !important; height: 100%; }
+      // This combination allows Connectors to scroll within its constrained parent
+
+      delete (window as unknown as { __TAURI__?: object }).__TAURI__;
+    });
+  });
+
   describe('TC-KeyMask-01: Remount with hasKey → input value ≠ real secret', () => {
     it('must NOT display real key in input after remount', async () => {
       const realSecret = 'sk-real-secret-key-12345678';

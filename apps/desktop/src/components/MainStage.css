@@ -126,6 +126,11 @@
   overflow: hidden;
 }
 
+.stage > .connectors-container {
+  overflow-y: auto !important;
+  height: 100%;
+}
+
 .demo-error-banner {
   display: flex;
   align-items: center;

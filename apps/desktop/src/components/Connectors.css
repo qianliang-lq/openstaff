@@ -3,7 +3,10 @@
   max-width: 1000px;
   margin: 0 auto;
   background: var(--g1);
-  min-height: 100vh;
+  height: 100%;
+  overflow-y: auto !important;
+  display: flex;
+  flex-direction: column;
 }
 
 .connectors-header {
