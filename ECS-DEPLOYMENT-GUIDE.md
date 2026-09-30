@@ -17,17 +17,32 @@ git fetch origin
 git checkout main
 git pull origin main
 
-# 验证 tip (应为 4b02a5e 或更新)
+# 验证 tip
 git log --oneline -1
 ```
 
 ---
 
-## 2. 重启 API 服务
+## 2. 配置环境变量 (如未设置)
+
+```bash
+# systemd 配置文件: /etc/systemd/system/openstaff-api.service
+# 确保包含正确的 DATABASE_URL (相对路径或绝对路径)
+Environment="OPENSTAFF_DATABASE_URL=./data/openstaff.db"
+# 或绝对路径
+Environment="OPENSTAFF_DATABASE_URL=/opt/openstaff/data/openstaff.db"
+
+# 注意：URL 会自动追加 ?mode=rwc，无需手动添加
+```
+
+---
+
+## 3. 重启 API 服务
 
 ### 如果使用 systemd (四件套)
 
 ```bash
+sudo systemctl daemon-reload  # 如果修改了 service 文件
 sudo systemctl restart openstaff-api
 sudo systemctl status openstaff-api
 
@@ -48,9 +63,9 @@ docker-compose -f docker-compose.prod.yml logs -f api
 
 ---
 
-## 3. 验证部署
+## 4. 验证部署
 
-### 3.1 Health Check
+### 4.1 Health Check
 
 ```bash
 curl http://localhost:3000/health
@@ -61,7 +76,7 @@ curl http://localhost:3000/health
 {"status":"ok","service":"api"}
 ```
 
-### 3.2 数据库文件
+### 4.2 数据库文件
 
 ```bash
 ls -lh /opt/openstaff/data/openstaff.db
@@ -69,7 +84,7 @@ ls -lh /opt/openstaff/data/openstaff.db
 
 应显示文件存在。如首次运行，API 会自动创建表结构。
 
-### 3.3 Agents Endpoint (空列表)
+### 4.3 Agents Endpoint (空列表)
 
 ```bash
 curl http://localhost:3000/v1/agents
@@ -80,7 +95,7 @@ curl http://localhost:3000/v1/agents
 []
 ```
 
-### 3.4 创建测试 Agent
+### 4.4 创建测试 Agent
 
 ```bash
 curl -X POST http://localhost:3000/v1/agents \
@@ -106,7 +121,7 @@ curl -X POST http://localhost:3000/v1/agents \
 }
 ```
 
-### 3.5 验证创建成功
+### 4.5 验证创建成功
 
 ```bash
 curl http://localhost:3000/v1/agents
@@ -114,7 +129,7 @@ curl http://localhost:3000/v1/agents
 
 应返回包含刚创建的 agent 的数组。
 
-### 3.6 Messages Endpoint (空列表)
+### 4.6 Messages Endpoint (空列表)
 
 ```bash
 # 使用上一步返回的 agent id
@@ -127,7 +142,7 @@ curl "http://localhost:3000/v1/agents/$AGENT_ID/messages"
 []
 ```
 
-### 3.7 Connector Meta (空列表)
+### 4.7 Connector Meta (空列表)
 
 ```bash
 curl http://localhost:3000/v1/connectors/meta
@@ -140,7 +155,7 @@ curl http://localhost:3000/v1/connectors/meta
 
 ---
 
-## 4. 公网访问验证 (如已配置 PUBLIC_API_BASE)
+## 5. 公网访问验证 (如已配置 PUBLIC_API_BASE)
 
 从外部访问（替换为实际公网地址）:
 
@@ -151,9 +166,9 @@ curl http://123.57.167.155/openstaff/v1/agents
 
 ---
 
-## 5. 故障排查
+## 6. 故障排查
 
-### 5.1 API 服务无响应
+### 6.1 API 服务无响应
 
 ```bash
 # systemd
@@ -165,7 +180,7 @@ docker ps | grep openstaff-api
 docker logs openstaff-api --tail 50
 ```
 
-### 5.2 数据库权限问题
+### 6.2 数据库权限问题
 
 ```bash
 ls -l /opt/openstaff/data/
@@ -178,7 +193,7 @@ sudo chown openstaff:openstaff /opt/openstaff/data/openstaff.db
 docker exec openstaff-api ls -l /data/
 ```
 
-### 5.3 重置数据库 (谨慎!)
+### 6.3 重置数据库 (谨慎!)
 
 ```bash
 # 备份旧数据
@@ -195,7 +210,7 @@ docker-compose restart api
 
 ---
 
-## 6. Desktop 客户端配置
+## 7. Desktop 客户端配置
 
 桌面应用需要配置 `PUBLIC_API_BASE`:
 
@@ -216,9 +231,9 @@ PUBLIC_API_BASE=http://123.57.167.155/openstaff pnpm build
 
 ---
 
-## 7. 关键安全检查
+## 8. 关键安全检查
 
-### 7.1 Connector Meta 不含 Key 明文
+### 8.1 Connector Meta 不含 Key 明文
 
 ```bash
 curl http://localhost:3000/v1/connectors/meta
@@ -227,7 +242,7 @@ curl http://localhost:3000/v1/connectors/meta
 响应中 **绝对不应包含** `api_key`, `secret`, `token` 等字段。  
 只应有 `provider`, `configured`, `last_checked_at`, `account_label`。
 
-### 7.2 API 日志不含 Key 明文
+### 8.2 API 日志不含 Key 明文
 
 ```bash
 sudo journalctl -u openstaff-api -n 100 | grep -i "key"
@@ -239,19 +254,31 @@ docker logs openstaff-api | grep -i "key"
 
 ---
 
-## 8. 环境变量一览
+## 9. 环境变量一览
 
 API 服务需要的环境变量:
 
 ```bash
-# 必需
-OPENSTAFF_DATABASE_URL=sqlite:///opt/openstaff/data/openstaff.db
+# 必需 (支持相对路径或绝对路径)
+# 相对路径 (推荐 - 相对于 WorkingDirectory)
+OPENSTAFF_DATABASE_URL=./data/openstaff.db
+
+# 绝对路径
+OPENSTAFF_DATABASE_URL=/opt/openstaff/data/openstaff.db
 
 # 可选 (默认值)
 PORT=3000
 GATEWAY_URL=http://localhost:3001
 RUST_LOG=info
 ```
+
+**注意**: URL 格式支持：
+- `./data/openstaff.db` - 相对路径
+- `/opt/openstaff/data/openstaff.db` - 绝对路径
+- `sqlite:./data/openstaff.db` - 带 scheme 相对路径
+- `sqlite:///opt/openstaff/data/openstaff.db` - 带 scheme 绝对路径（三斜杠）
+
+所有格式会自动追加 `?mode=rwc`（如未提供 query 参数），确保数据库文件不存在时自动创建。
 
 ---
 
@@ -268,7 +295,7 @@ After=network.target
 Type=simple
 User=openstaff
 WorkingDirectory=/opt/openstaff
-Environment="OPENSTAFF_DATABASE_URL=sqlite:///opt/openstaff/data/openstaff.db"
+Environment="OPENSTAFF_DATABASE_URL=./data/openstaff.db"
 Environment="GATEWAY_URL=http://localhost:3001"
 Environment="PORT=3000"
 Environment="RUST_LOG=info"

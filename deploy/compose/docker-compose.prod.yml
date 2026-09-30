@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
     environment:
       - PORT=3000
-      - OPENSTAFF_DATABASE_URL=sqlite:///data/openstaff.db
+      - OPENSTAFF_DATABASE_URL=/data/openstaff.db
       - GATEWAY_URL=http://gateway:3001
     networks:
       - openstaff-network
