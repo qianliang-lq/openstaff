@@ -42,9 +42,9 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
   const [isRunningDemo, setIsRunningDemo] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
 
-  // Special handling: Chat tab can show guide even without agent
+  // Special handling: Chat and Connectors tabs can show without agent
   // Other tabs require an agent
-  if (!activeAgent && activeTab !== 'chat') {
+  if (!activeAgent && activeTab !== 'chat' && activeTab !== 'connectors') {
     return (
       <div className="main">
         <div className="empty-main-state">

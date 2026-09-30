@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
+import * as tauriUtils from '../utils/tauri';
 
 describe('§16 ChatKeyGuide Contract Tests', () => {
   beforeEach(() => {
@@ -65,54 +66,67 @@ describe('§16 ChatKeyGuide Contract Tests', () => {
   });
 
   describe('TC-16-02: Click "去 Connectors" → switches to Connectors tab', () => {
-    it.skip('should navigate to Connectors tab when clicking "去 Connectors"', async () => {
-      // Skip: requires agent to render MainStage tabs
-      // Tested manually - button correctly calls onNavigateToConnectors
+    it('should navigate to Connectors tab when clicking "去 Connectors"', async () => {
       const user = userEvent.setup();
       render(<App />);
 
+      // Click the "去 Connectors" button in no-agent banner
       const connectorsButton = screen.getByRole('button', { name: /去 Connectors/i });
+      expect(connectorsButton, '"去 Connectors" button must exist').toBeInTheDocument();
+
       await user.click(connectorsButton);
 
       await waitFor(
         () => {
+          // Check for Connectors tab being active
           const activeTab = document.querySelector('.tab.active');
+          expect(
+            activeTab,
+            'Active tab must exist after clicking "去 Connectors"'
+          ).toBeInTheDocument();
           expect(activeTab?.textContent, 'Connectors tab must be active').toContain('Connectors');
         },
         { timeout: 2000 }
       );
+
+      // Also verify Connectors content is visible
+      await waitFor(() => {
+        const connectorsTitle = screen.getByText(/模型 Key.*BYOK/i);
+        expect(connectorsTitle, 'Connectors content must be visible').toBeInTheDocument();
+      });
     });
   });
 
   describe('TC-16-03: Has agent + stub chat 200 → assistant bubble appears', () => {
-    it.skip('should send real chat request and show assistant response', async () => {
+    it('should send real chat request and show assistant response', async () => {
       const user = userEvent.setup();
 
-      // Mock Tauri __TAURI_INVOKE__
-      const mockTauriInvoke = vi.fn((cmd: string, args?: unknown) => {
-        if (cmd === 'get_provider_key') {
-          return Promise.resolve('sk-test-key-123');
-        }
-        if (cmd === 'save_provider_key') {
-          return Promise.resolve(null);
-        }
-        if (cmd === 'is_tauri_environment') {
-          return Promise.resolve(true);
-        }
-        return Promise.resolve(null);
-      });
+      // Directly write agent to localStorage (faster than wizard flow)
+      const testAgent = {
+        id: `test-agent-${Date.now()}`,
+        name: '测试产品经理',
+        role: '产品管理',
+        status: 'idle',
+        avatar: '产',
+        avatarClass: 'pm',
+      };
+      localStorage.setItem('openstaff_agents', JSON.stringify([testAgent]));
+      localStorage.setItem('openstaff_active_agent', testAgent.name);
 
-      (window as unknown as { __TAURI_INVOKE__?: typeof mockTauriInvoke }).__TAURI_INVOKE__ =
-        mockTauriInvoke;
+      // Mock Tauri environment and utils
+      (window as unknown as { __TAURI__?: object }).__TAURI__ = {};
 
-      // Mock fetch for chat
+      vi.spyOn(tauriUtils, 'isTauriEnvironment').mockReturnValue(true);
+      vi.spyOn(tauriUtils, 'getProviderKey').mockResolvedValue('sk-test-key-from-tauri');
+
+      // Mock fetch for chat API
       const mockFetch = vi.fn((url: string) => {
         if (url.includes('/v1/chat')) {
           return Promise.resolve({
             ok: true,
             json: async () => ({
               message: {
-                content: '这是一个测试回复',
+                content: 'REST 是 Representational State Transfer 的缩写，一种架构风格。',
               },
             }),
           });
@@ -124,102 +138,85 @@ describe('§16 ChatKeyGuide Contract Tests', () => {
 
       render(<App />);
 
-      // Create an agent first
-      const addButton = screen.getByRole('button', { name: /创建 Agent/i });
-      await user.click(addButton);
-
+      // Wait for agent to be active
       await waitFor(() => {
-        expect(screen.getByText('产品经理')).toBeInTheDocument();
+        const activeAgent = document.querySelector('.agent-item.active');
+        expect(activeAgent, 'Agent must be active').toBeInTheDocument();
       });
 
-      const pmCard = screen.getByText('产品经理').closest('.role-card');
-      await user.click(pmCard as HTMLElement);
-
-      let nextButton = screen.getByRole('button', { name: /^下一步$/i });
-      await user.click(nextButton);
-
-      await waitFor(() => {
-        nextButton = screen.getByRole('button', { name: /^下一步$/i });
-        expect(nextButton).toBeInTheDocument();
-      });
-
-      await user.click(nextButton);
-
-      await waitFor(() => {
-        const submitButton = screen.getByRole('button', { name: /创建并准备沙箱/i });
-        expect(submitButton).toBeInTheDocument();
-      });
-
-      const submitButton = screen.getByRole('button', { name: /创建并准备沙箱/i });
-      await user.click(submitButton);
-
-      await waitFor(
-        () => {
-          const agentItems = document.querySelectorAll('.agent-item');
-          expect(agentItems.length).toBeGreaterThan(0);
-        },
-        { timeout: 3000 }
-      );
-
-      // Now send a chat message
+      // Verify chat input is enabled
       const chatInput = document.querySelector('.chat-input') as HTMLInputElement;
-      expect(chatInput, 'Chat input must be enabled with agent').not.toBeDisabled();
+      expect(chatInput, 'Chat input must exist').toBeInTheDocument();
+      expect(chatInput?.disabled, 'Chat input must be enabled with agent + key').toBe(false);
 
+      // Type and send message
       await user.type(chatInput, '什么是 REST？');
       const sendButton = screen.getByRole('button', { name: /发送/i });
       await user.click(sendButton);
 
+      // Verify fetch was called with correct endpoint
       await waitFor(
         () => {
           expect(mockFetch, 'Must have called chat API').toHaveBeenCalled();
 
-          const callArgs = mockFetch.mock.calls[0];
-          expect(callArgs[0], 'Must call correct chat endpoint').toContain('/v1/chat');
+          const chatCalls = mockFetch.mock.calls.filter((call) =>
+            (call[0] as string).includes('/v1/chat')
+          );
+          expect(chatCalls.length, 'Must call /v1/chat endpoint').toBeGreaterThan(0);
         },
         { timeout: 3000 }
       );
 
+      // Verify assistant response appears
       await waitFor(
         () => {
-          const assistantMessage = screen.getByText('这是一个测试回复');
-          expect(assistantMessage, 'Assistant response must appear').toBeInTheDocument();
+          const assistantBubbles = document.querySelectorAll('.message.assistant');
+          expect(
+            assistantBubbles.length,
+            'Assistant bubble must appear after response'
+          ).toBeGreaterThan(0);
+
+          const responseText = screen.getByText(/REST 是 Representational State Transfer/i);
+          expect(responseText, 'Assistant response text must be visible').toBeInTheDocument();
         },
         { timeout: 3000 }
       );
 
-      delete (window as unknown as { __TAURI_INVOKE__?: typeof mockTauriInvoke }).__TAURI_INVOKE__;
+      delete (window as unknown as { __TAURI__?: object }).__TAURI__;
+      vi.clearAllMocks();
     });
   });
 
   describe('TC-16-04: Chat fails → error banner visible', () => {
-    it.skip('should show error card when chat request fails', async () => {
+    it('should show error card when chat request fails', async () => {
       const user = userEvent.setup();
 
-      // Mock Tauri
-      const mockTauriInvoke = vi.fn((cmd: string) => {
-        if (cmd === 'get_provider_key') {
-          return Promise.resolve('sk-test-key-123');
-        }
-        if (cmd === 'save_provider_key') {
-          return Promise.resolve(null);
-        }
-        if (cmd === 'is_tauri_environment') {
-          return Promise.resolve(true);
-        }
-        return Promise.resolve(null);
-      });
+      // Directly write agent to localStorage
+      const testAgent = {
+        id: `test-agent-fail-${Date.now()}`,
+        name: '测试运营专家',
+        role: '运营管理',
+        status: 'idle',
+        avatar: '运',
+        avatarClass: 'ops',
+      };
+      localStorage.setItem('openstaff_agents', JSON.stringify([testAgent]));
+      localStorage.setItem('openstaff_active_agent', testAgent.name);
 
-      (window as unknown as { __TAURI_INVOKE__?: typeof mockTauriInvoke }).__TAURI_INVOKE__ =
-        mockTauriInvoke;
+      // Mock Tauri environment and utils
+      (window as unknown as { __TAURI__?: object }).__TAURI__ = {};
 
-      // Mock fetch to fail
+      vi.spyOn(tauriUtils, 'isTauriEnvironment').mockReturnValue(true);
+      vi.spyOn(tauriUtils, 'getProviderKey').mockResolvedValue('sk-test-invalid-key');
+
+      // Mock fetch to return 401 error
       const mockFetch = vi.fn((url: string) => {
         if (url.includes('/v1/chat')) {
           return Promise.resolve({
             ok: false,
             status: 401,
             json: async () => ({
-              error: '未授权',
+              error: 'Invalid API key',
             }),
           });
         }
@@ -230,59 +227,39 @@ describe('§16 ChatKeyGuide Contract Tests', () => {
 
       render(<App />);
 
-      // Create agent
-      const addButton = screen.getByRole('button', { name: /创建 Agent/i });
-      await user.click(addButton);
-
+      // Wait for agent to be active
       await waitFor(() => {
-        expect(screen.getByText('产品经理')).toBeInTheDocument();
+        const activeAgent = document.querySelector('.agent-item.active');
+        expect(activeAgent, 'Agent must be active').toBeInTheDocument();
       });
 
-      const pmCard = screen.getByText('产品经理').closest('.role-card');
-      await user.click(pmCard as HTMLElement);
-
-      let nextButton = screen.getByRole('button', { name: /^下一步$/i });
-      await user.click(nextButton);
-
-      await waitFor(() => {
-        nextButton = screen.getByRole('button', { name: /^下一步$/i });
-        expect(nextButton).toBeInTheDocument();
-      });
-
-      await user.click(nextButton);
-
-      await waitFor(() => {
-        const submitButton = screen.getByRole('button', { name: /创建并准备沙箱/i });
-        expect(submitButton).toBeInTheDocument();
-      });
-
-      const submitButton = screen.getByRole('button', { name: /创建并准备沙箱/i });
-      await user.click(submitButton);
-
-      await waitFor(
-        () => {
-          const agentItems = document.querySelectorAll('.agent-item');
-          expect(agentItems.length).toBeGreaterThan(0);
-        },
-        { timeout: 3000 }
-      );
-
-      // Send message that will fail
+      // Type and send message
       const chatInput = document.querySelector('.chat-input') as HTMLInputElement;
-      await user.type(chatInput, '测试失败');
+      await user.type(chatInput, '测试错误处理');
 
       const sendButton = screen.getByRole('button', { name: /发送/i });
       await user.click(sendButton);
 
+      // Verify error card appears
       await waitFor(
         () => {
           const errorCard = document.querySelector('.error-card');
-          expect(errorCard, 'Error card must be visible on chat failure').toBeInTheDocument();
+          expect(
+            errorCard,
+            'Error card must be visible when chat request fails'
+          ).toBeInTheDocument();
+
+          // Verify error message contains relevant info
+          const errorText = errorCard?.textContent || '';
+          expect(errorText, 'Error card must contain error information').toMatch(
+            /未配置|失败|401|错误/i
+          );
         },
         { timeout: 3000 }
       );
 
-      delete (window as unknown as { __TAURI_INVOKE__?: typeof mockTauriInvoke }).__TAURI_INVOKE__;
+      delete (window as unknown as { __TAURI__?: object }).__TAURI__;
+      vi.clearAllMocks();
     });
   });
 

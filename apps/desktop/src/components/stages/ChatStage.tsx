@@ -71,20 +71,10 @@ function ChatStage({
   const [reconcileStatus, setReconcileStatus] = useState<'PASS' | 'FAILED'>('PASS');
   const [displayDate, setDisplayDate] = useState('2026-09-27');
   const [isRunning, setIsRunning] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'assistant',
-      content:
-        '我准备了一份周报草稿，包含以下内容：\n• 完成 3 个 PRD 文档编写\n• 参与 5 次需求评审会议\n• 更新产品路线图\n\n需要我执行数据库查询来获取更详细的指标数据吗？',
-      validationGate: {
-        status: 'pending',
-        prompt: '是否具备数据支撑的逻辑闭环？',
-      },
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showMockContent, setShowMockContent] = useState(true);
+  const [showMockContent, setShowMockContent] = useState(false);
   const [hasAnyKey, setHasAnyKey] = useState<boolean | null>(null);
   const [lastError, setLastError] = useState<ChatMessage | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -428,7 +418,7 @@ function ChatStage({
   }
 
   // Empty state: has agent but no keys configured
-  if (hasAnyKey === false && messages.length === 0) {
+  if (hasAgent && hasAnyKey === false) {
     return (
       <div className="chat-stage">
         <div className="no-key-banner">
