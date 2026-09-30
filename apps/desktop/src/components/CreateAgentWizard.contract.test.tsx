@@ -9,37 +9,67 @@
  * Brief: /workspace/briefs/openstaff/15-create-agent-path.md
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
 import Sidebar from './Sidebar';
 
+// Mock fetch for API calls
+const mockFetch = vi.fn();
+
 describe('Create Agent Wizard Contract Tests (§15)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    global.fetch = mockFetch;
+    
+    // Default: empty agents list from API
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('Empty Sidebar (Cold Start)', () => {
-    it('should show empty state when no agents exist', () => {
+    it('should show empty state when API returns no agents', async () => {
       render(<Sidebar activeAgent="" onAgentChange={() => {}} />);
 
-      expect(screen.getByText('还没有数字员工')).toBeInTheDocument();
+      // Wait for API call to complete
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/v1/agents'),
+          expect.any(Object)
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('还没有数字员工')).toBeInTheDocument();
+      });
+
       expect(screen.getByText(/点击上方.*创建/)).toBeInTheDocument();
 
       const emptyState = document.querySelector('.empty-state');
-      expect(emptyState, 'Must show empty state, not pre-seeded agents').toBeInTheDocument();
+      expect(emptyState, 'Must show empty state from API, not localStorage').toBeInTheDocument();
     });
 
-    it('should NOT have pre-seeded agents in sidebar', () => {
+    it('should NOT have pre-seeded agents in sidebar', async () => {
       render(<Sidebar activeAgent="" onAgentChange={() => {}} />);
+
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
 
       const preSeededNames = ['产品经理数字员工', '运营专家', '研发协作'];
       preSeededNames.forEach((name) => {
         expect(
           screen.queryByText(name),
-          `Must NOT pre-seed "${name}" - sidebar should start empty`
+          `Must NOT pre-seed "${name}" - sidebar should start empty from API`
         ).not.toBeInTheDocument();
       });
     });
@@ -49,6 +79,11 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
     it('should open wizard when clicking "+" button in sidebar', async () => {
       const user = userEvent.setup();
       render(<Sidebar activeAgent="" onAgentChange={() => {}} />);
+
+      // Wait for API load to complete
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
 
       const addButton = screen.getByRole('button', { name: /创建 Agent/i });
       expect(addButton).toBeInTheDocument();
@@ -493,7 +528,36 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
 
     it('should show success toast after creation', async () => {
       const user = userEvent.setup();
+
+      // Mock API createAgent success
+      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+        if (url.includes('/v1/agents') && options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              id: `agent-${Date.now()}`,
+              name: '产品经理数字员工',
+              template_id: 'pm',
+              duty: '需求挖掘、撰写 PRD',
+              status: 'idle',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }),
+          });
+        }
+        // List agents (empty initially)
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        });
+      });
+
       render(<App />);
+
+      // Wait for initial load
+      await waitFor(() => {
+        expect(screen.queryByText('加载中...')).not.toBeInTheDocument();
+      });
 
       const addButton = screen.getByRole('button', { name: /创建 Agent/i });
       await user.click(addButton);
@@ -526,7 +590,7 @@ describe('Create Agent Wizard Contract Tests (§15)', () => {
       await waitFor(
         () => {
           const successToast = document.querySelector('.success-toast');
-          expect(successToast, 'Success toast must be visible after creation').toBeInTheDocument();
+          expect(successToast, 'Success toast must be visible after API creation').toBeInTheDocument();
           expect(successToast?.textContent, 'Success toast must contain 已创建').toContain(
             '已创建'
           );

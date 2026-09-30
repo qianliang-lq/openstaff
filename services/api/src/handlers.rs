@@ -119,25 +119,58 @@ pub async fn delete_agent(
     State(pool): State<SqlitePool>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
-    let result = sqlx::query("DELETE FROM agents WHERE id = ?")
+    // Check if agent exists
+    let exists = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM agents WHERE id = ?")
         .bind(&id)
-        .execute(&pool)
+        .fetch_one(&pool)
         .await
         .map_err(|e| {
-            tracing::error!("Failed to delete agent: {}", e);
+            tracing::error!("Failed to check agent existence: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    if result.rows_affected() == 0 {
+    if exists == 0 {
         return Err(StatusCode::NOT_FOUND);
     }
 
+    // Delete in correct order to avoid FK constraint violations
+    // 1. Delete messages (FK to agents)
     sqlx::query("DELETE FROM messages WHERE agent_id = ?")
         .bind(&id)
         .execute(&pool)
         .await
         .map_err(|e| {
             tracing::error!("Failed to delete agent messages: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // 2. Delete agent_skills (FK to agents)
+    sqlx::query("DELETE FROM agent_skills WHERE agent_id = ?")
+        .bind(&id)
+        .execute(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to delete agent skills: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // 3. Delete agent_mcp (FK to agents)
+    sqlx::query("DELETE FROM agent_mcp WHERE agent_id = ?")
+        .bind(&id)
+        .execute(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to delete agent mcp: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // 4. Finally delete agent
+    sqlx::query("DELETE FROM agents WHERE id = ?")
+        .bind(&id)
+        .execute(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to delete agent: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 

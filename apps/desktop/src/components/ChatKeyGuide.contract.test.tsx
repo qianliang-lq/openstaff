@@ -101,16 +101,43 @@ describe('§16 ChatKeyGuide Contract Tests', () => {
     it('should send real chat request and show assistant response', async () => {
       const user = userEvent.setup();
 
-      // Directly write agent to localStorage (faster than wizard flow)
+      // Mock agent from API
       const testAgent = {
         id: `test-agent-${Date.now()}`,
         name: '测试产品经理',
-        role: '产品管理',
+        template_id: 'pm',
+        duty: '产品管理',
         status: 'idle',
-        avatar: '产',
-        avatarClass: 'pm',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
-      localStorage.setItem('openstaff_agents', JSON.stringify([testAgent]));
+
+      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+        if (url.includes('/v1/agents') && !options?.method) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [testAgent],
+          });
+        }
+        if (url.includes('/messages')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [],
+          });
+        }
+        if (url.includes('/v1/chat')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              message: {
+                content: 'REST 是 Representational State Transfer 的缩写，一种架构风格。',
+              },
+            }),
+          });
+        }
+        return Promise.reject(new Error('Unexpected fetch'));
+      });
+
       localStorage.setItem('openstaff_active_agent', testAgent.name);
 
       // Mock Tauri environment and utils

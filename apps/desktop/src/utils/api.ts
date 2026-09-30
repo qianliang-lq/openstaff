@@ -100,9 +100,29 @@ export async function updateAgent(
 }
 
 export async function deleteAgent(id: string): Promise<void> {
-  await fetchApi<void>(`/v1/agents/${id}`, {
+  const response = await fetch(`${API_BASE}/v1/agents/${id}`, {
     method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      `Failed to delete agent: ${response.statusText}`
+    );
+  }
+
+  // 204 No Content has empty body, don't call json()
+  if (response.status === 204) {
+    return;
+  }
+
+  // For other 2xx responses, try to parse JSON
+  if (response.headers.get('content-type')?.includes('application/json')) {
+    await response.json();
+  }
 }
 
 export async function listMessages(agentId: string): Promise<Message[]> {
