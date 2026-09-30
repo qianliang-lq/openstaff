@@ -42,6 +42,18 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
   const [isRunningDemo, setIsRunningDemo] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
 
+  if (!activeAgent) {
+    return (
+      <div className="main">
+        <div className="empty-main-state">
+          <div className="empty-main-icon">👈</div>
+          <div className="empty-main-text">请先创建数字员工</div>
+          <div className="empty-main-hint">点击左侧「+」开始</div>
+        </div>
+      </div>
+    );
+  }
+
   const runExternalInsightDemo = async () => {
     setIsRunningDemo(true);
     setDemoError(null);

@@ -6,6 +6,35 @@
   background: var(--g2);
 }
 
+.empty-main-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+  text-align: center;
+  background: #fff;
+}
+
+.empty-main-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
+  opacity: 0.3;
+}
+
+.empty-main-text {
+  font-size: 18px;
+  color: var(--g8);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.empty-main-hint {
+  font-size: 14px;
+  color: var(--g6);
+}
+
 .tabbar {
   height: var(--tabbar-h);
   background: #fff;

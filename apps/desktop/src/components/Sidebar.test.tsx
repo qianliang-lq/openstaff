@@ -3,21 +3,24 @@ import { render, screen } from '@testing-library/react';
 import Sidebar from './Sidebar';
 
 describe('Sidebar', () => {
-  it('should render multiple agents', () => {
+  it('should show empty state when no agents exist', () => {
     const onAgentChange = () => {};
-    render(<Sidebar activeAgent="产品经理数字员工" onAgentChange={onAgentChange} />);
+    render(<Sidebar activeAgent="" onAgentChange={onAgentChange} />);
 
-    expect(screen.getByText('产品经理数字员工')).toBeInTheDocument();
-    expect(screen.getByText('运营专家')).toBeInTheDocument();
-    expect(screen.getByText('研发协作')).toBeInTheDocument();
+    expect(screen.getByText('还没有数字员工')).toBeInTheDocument();
+    expect(screen.getByText(/点击上方.*创建/)).toBeInTheDocument();
+
+    const emptyState = document.querySelector('.empty-state');
+    expect(emptyState).toBeTruthy();
   });
 
-  it('should show active agent with active class', () => {
+  it('should NOT show pre-seeded agents by default', () => {
     const onAgentChange = () => {};
-    render(<Sidebar activeAgent="产品经理数字员工" onAgentChange={onAgentChange} />);
+    render(<Sidebar activeAgent="" onAgentChange={onAgentChange} />);
 
-    const activeItem = document.querySelector('.agent-item.active');
-    expect(activeItem).toBeInTheDocument();
-    expect(activeItem?.textContent).toContain('产品经理数字员工');
+    const preSeededAgents = ['产品经理数字员工', '运营专家', '研发协作'];
+    preSeededAgents.forEach((name) => {
+      expect(screen.queryByText(name)).not.toBeInTheDocument();
+    });
   });
 });
