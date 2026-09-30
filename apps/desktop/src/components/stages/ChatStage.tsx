@@ -442,33 +442,31 @@ function ChatStage({
 
         const data = await response.json();
 
-        if (data.job_status === 'completed') {
-          if (data.reconcile_status === 'PASS' && data.facts && data.facts.length > 0) {
-            setDisplayedFacts(data.facts);
-            setReconcileStatus('PASS');
-            setDisplayDate(data.timestamp || '2026-09-27');
+        if (data.reconcile_status === 'PASS' && data.facts && data.facts.length > 0) {
+          setDisplayedFacts(data.facts);
+          setReconcileStatus('PASS');
+          setDisplayDate(data.timestamp || '2026-09-27');
 
-            // Add success feedback
-            const successMessage: ChatMessage = {
-              role: 'assistant',
-              content: `✅ 运行成功！已生成 ${data.facts.length} 条外部洞察`,
-            };
-            setMessages((prev) => [...prev, successMessage]);
-          } else {
-            setReconcileStatus('FAILED');
-
-            // Add failure feedback
-            const failureMessage: ChatMessage = {
-              role: 'assistant',
-              content: '❌ 任务完成但未通过审核 (reconcile_status: FAILED)',
-              error: true,
-              errorType: 'unknown',
-            };
-            setMessages((prev) => [...prev, failureMessage]);
-            setLastError(failureMessage);
-          }
+          const successMessage: ChatMessage = {
+            role: 'assistant',
+            content: `✅ 运行成功！已生成 ${data.facts.length} 条外部洞察`,
+          };
+          setMessages((prev) => [...prev, successMessage]);
           setIsRunning(false);
-          break;
+          return;
+        } else if (data.reconcile_status === 'FAILED') {
+          setReconcileStatus('FAILED');
+
+          const failureMessage: ChatMessage = {
+            role: 'assistant',
+            content: '❌ 任务完成但未通过审核 (reconcile_status: FAILED)',
+            error: true,
+            errorType: 'unknown',
+          };
+          setMessages((prev) => [...prev, failureMessage]);
+          setLastError(failureMessage);
+          setIsRunning(false);
+          return;
         }
 
         await new Promise((resolve) => setTimeout(resolve, pollInterval));
@@ -488,18 +486,15 @@ function ChatStage({
       }
     }
 
-    if (isRunning) {
-      // Timeout after max attempts
-      setIsRunning(false);
-      const timeoutMessage: ChatMessage = {
-        role: 'assistant',
-        content: '⏱️ 任务超时，请稍后重试或检查服务状态',
-        error: true,
-        errorType: 'unknown',
-      };
-      setMessages((prev) => [...prev, timeoutMessage]);
-      setLastError(timeoutMessage);
-    }
+    setIsRunning(false);
+    const timeoutMessage: ChatMessage = {
+      role: 'assistant',
+      content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``,
+      error: true,
+      errorType: 'network',
+    };
+    setMessages((prev) => [...prev, timeoutMessage]);
+    setLastError(timeoutMessage);
   };
 
   // Empty state: no agent created
