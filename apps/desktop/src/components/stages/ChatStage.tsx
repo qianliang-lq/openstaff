@@ -79,6 +79,9 @@ function ChatStage({
   const [hasAnyKey, setHasAnyKey] = useState<boolean | null>(null);
   const [lastError, setLastError] = useState<ChatMessage | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const [selectedPeerAgent, setSelectedPeerAgent] = useState<string | null>(null);
+  const [allAgents, setAllAgents] = useState<api.Agent[]>([]);
 
   const scrollToBottom = () => {
     if (messagesEndRef.current?.scrollIntoView) {
@@ -93,7 +96,17 @@ function ChatStage({
   useEffect(() => {
     checkKeys();
     loadMessagesFromApi();
+    loadAllAgents();
   }, [agentName]);
+
+  const loadAllAgents = async () => {
+    try {
+      const agents = await api.listAgents();
+      setAllAgents(agents);
+    } catch (error) {
+      console.error('Failed to load agents:', error);
+    }
+  };
 
   const loadMessagesFromApi = async () => {
     if (!agentName || !hasAgent) return;
@@ -148,15 +161,60 @@ function ChatStage({
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading || !hasAnyKey) return;
 
-    const userMessage: ChatMessage = {
-      role: 'user',
-      content: inputValue.trim(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
+    const messageContent = inputValue.trim();
     setInputValue('');
     setIsLoading(true);
     setLastError(null);
+
+    // Check if this is a peer message (@ selected agent)
+    if (selectedPeerAgent) {
+      try {
+        const agents = await api.listAgents();
+        const currentAgent = agents.find((a) => a.name === agentName);
+        const peerAgent = agents.find((a) => a.id === selectedPeerAgent);
+
+        if (!currentAgent) {
+          throw new Error('找不到当前岗位');
+        }
+
+        // Send peer message
+        await api.sendPeerMessage(currentAgent.id, selectedPeerAgent, messageContent);
+
+        // Show success toast
+        const successMessage: ChatMessage = {
+          role: 'assistant',
+          content: `✅ 已投递给 ${peerAgent?.name || selectedPeerAgent}`,
+        };
+        setMessages((prev) => [...prev, successMessage]);
+
+        // Clear selection
+        setSelectedPeerAgent(null);
+        setShowAgentPicker(false);
+
+        // Reload messages
+        await loadMessagesFromApi();
+      } catch (error) {
+        console.error('Peer message error:', error);
+        const errorMessage: ChatMessage = {
+          role: 'assistant',
+          content: '发送岗间消息失败',
+          error: true,
+          errorType: 'unknown',
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Normal chat flow (with LLM)
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: messageContent,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
 
     try {
       let providerKey: string | null = null;
@@ -251,6 +309,15 @@ function ChatStage({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleToggleAgentPicker = () => {
+    setShowAgentPicker(!showAgentPicker);
+  };
+
+  const handleSelectPeerAgent = (agentId: string) => {
+    setSelectedPeerAgent(agentId);
+    setShowAgentPicker(false);
   };
 
   const handleRetry = () => {
@@ -680,11 +747,33 @@ function ChatStage({
       </div>
 
       <div className="chat-input-area">
+        <div className="input-toolbar">
+          <button
+            type="button"
+            className={`btn-at ${selectedPeerAgent ? 'active' : ''}`}
+            onClick={handleToggleAgentPicker}
+            disabled={!hasAnyKey || isLoading}
+            title="@ 选择其他岗位"
+          >
+            @
+            {selectedPeerAgent && (
+              <span className="selected-peer">
+                {allAgents.find((a) => a.id === selectedPeerAgent)?.name || '...'}
+              </span>
+            )}
+          </button>
+        </div>
         <div className="input-wrapper">
           <input
             type="text"
             className="chat-input"
-            placeholder={hasAnyKey ? '输入消息...' : '请先配置 Key...'}
+            placeholder={
+              selectedPeerAgent
+                ? `发送给 ${allAgents.find((a) => a.id === selectedPeerAgent)?.name}...`
+                : hasAnyKey
+                  ? '输入消息...'
+                  : '请先配置 Key...'
+            }
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -698,6 +787,28 @@ function ChatStage({
             {isLoading ? '发送中...' : '发送'}
           </button>
         </div>
+        {showAgentPicker && (
+          <div className="agent-picker">
+            <div className="picker-header">选择岗位</div>
+            <div className="picker-list">
+              {allAgents
+                .filter((a) => a.name !== agentName)
+                .map((agent) => (
+                  <div
+                    key={agent.id}
+                    className="picker-item"
+                    onClick={() => handleSelectPeerAgent(agent.id)}
+                  >
+                    <span className="picker-avatar">{agent.name.charAt(0)}</span>
+                    <span className="picker-name">{agent.name}</span>
+                  </div>
+                ))}
+              {allAgents.filter((a) => a.name !== agentName).length === 0 && (
+                <div className="picker-empty">暂无其他岗位</div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

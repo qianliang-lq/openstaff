@@ -12,6 +12,7 @@ export default function Skills({ agentName }: SkillsProps) {
   const [isLoadingSkills, setIsLoadingSkills] = useState(true);
   const [isLoadingMcp, setIsLoadingMcp] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [agentId, setAgentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!agentName) {
@@ -20,16 +21,32 @@ export default function Skills({ agentName }: SkillsProps) {
       return;
     }
 
-    loadSkills();
-    loadMcp();
+    loadAgentId();
   }, [agentName]);
 
-  const loadSkills = async () => {
+  const loadAgentId = async () => {
     if (!agentName) return;
 
+    try {
+      const agents = await api.listAgents();
+      const currentAgent = agents.find((a) => a.name === agentName);
+      if (currentAgent) {
+        setAgentId(currentAgent.id);
+        loadSkills(currentAgent.id);
+        loadMcp(currentAgent.id);
+      } else {
+        showToast('找不到当前岗位', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to load agent:', error);
+      showToast('加载岗位信息失败', 'error');
+    }
+  };
+
+  const loadSkills = async (id: string) => {
     setIsLoadingSkills(true);
     try {
-      const response = await api.listAgentSkills(agentName);
+      const response = await api.listAgentSkills(id);
       setSkills(response.items);
     } catch (error) {
       console.error('Failed to load skills:', error);
@@ -39,12 +56,10 @@ export default function Skills({ agentName }: SkillsProps) {
     }
   };
 
-  const loadMcp = async () => {
-    if (!agentName) return;
-
+  const loadMcp = async (id: string) => {
     setIsLoadingMcp(true);
     try {
-      const response = await api.listAgentMcp(agentName);
+      const response = await api.listAgentMcp(id);
       setMcps(response.items);
     } catch (error) {
       console.error('Failed to load MCP:', error);
@@ -60,11 +75,11 @@ export default function Skills({ agentName }: SkillsProps) {
   };
 
   const handleToggleSkill = async (skillId: string, currentEnabled: boolean) => {
-    if (!agentName) return;
+    if (!agentId) return;
 
     try {
-      await api.updateAgentSkill(agentName, skillId, !currentEnabled);
-      await loadSkills();
+      await api.updateAgentSkill(agentId, skillId, !currentEnabled);
+      await loadSkills(agentId);
       showToast(`Skill ${!currentEnabled ? '已启用' : '已禁用'}`, 'success');
     } catch (error) {
       console.error('Failed to toggle skill:', error);
@@ -73,10 +88,10 @@ export default function Skills({ agentName }: SkillsProps) {
   };
 
   const handleTrySkill = async (skillId: string) => {
-    if (!agentName) return;
+    if (!agentId) return;
 
     try {
-      const response = await api.tryAgentSkill(agentName, skillId);
+      const response = await api.tryAgentSkill(agentId, skillId);
       showToast(response.message, response.ok ? 'success' : 'error');
     } catch (error) {
       console.error('Failed to try skill:', error);
@@ -85,11 +100,11 @@ export default function Skills({ agentName }: SkillsProps) {
   };
 
   const handleToggleMcp = async (mcpId: string, currentEnabled: boolean) => {
-    if (!agentName) return;
+    if (!agentId) return;
 
     try {
-      await api.updateAgentMcp(agentName, mcpId, !currentEnabled);
-      await loadMcp();
+      await api.updateAgentMcp(agentId, mcpId, !currentEnabled);
+      await loadMcp(agentId);
       showToast(`MCP ${!currentEnabled ? '已启用' : '已禁用'}`, 'success');
     } catch (error) {
       console.error('Failed to toggle MCP:', error);
@@ -98,11 +113,11 @@ export default function Skills({ agentName }: SkillsProps) {
   };
 
   const handleTestMcp = async (mcpId: string) => {
-    if (!agentName) return;
+    if (!agentId) return;
 
     try {
-      const response = await api.testAgentMcp(agentName, mcpId);
-      await loadMcp();
+      const response = await api.testAgentMcp(agentId, mcpId);
+      await loadMcp(agentId);
       showToast(response.message, response.ok ? 'success' : 'error');
     } catch (error) {
       console.error('Failed to test MCP:', error);
