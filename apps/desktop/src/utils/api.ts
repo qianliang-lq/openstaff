@@ -161,3 +161,91 @@ export async function updateConnectorMeta(data: {
 export function isApiAvailable(): boolean {
   return !!API_BASE;
 }
+
+// Skills API
+
+export interface AgentSkill {
+  skill_id: string;
+  name: string;
+  version: string;
+  summary?: string;
+  enabled: boolean;
+}
+
+export interface ListAgentSkillsResponse {
+  agent_id: string;
+  items: AgentSkill[];
+}
+
+export async function listAgentSkills(agentId: string): Promise<ListAgentSkillsResponse> {
+  return fetchApi<ListAgentSkillsResponse>(`/v1/agents/${agentId}/skills`);
+}
+
+export async function updateAgentSkill(
+  agentId: string,
+  skillId: string,
+  enabled: boolean
+): Promise<void> {
+  await fetchApi<void>(`/v1/agents/${agentId}/skills/${skillId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export interface TrySkillResponse {
+  ok: boolean;
+  message: string;
+}
+
+export async function tryAgentSkill(
+  agentId: string,
+  skillId: string
+): Promise<TrySkillResponse> {
+  return fetchApi<TrySkillResponse>(`/v1/agents/${agentId}/skills/${skillId}/try`, {
+    method: 'POST',
+  });
+}
+
+// MCP API
+
+export interface AgentMcp {
+  mcp_id: string;
+  name: string;
+  summary?: string;
+  enabled: boolean;
+  status: string;
+  last_checked_at?: string;
+}
+
+export interface ListAgentMcpResponse {
+  agent_id: string;
+  items: AgentMcp[];
+}
+
+export async function listAgentMcp(agentId: string): Promise<ListAgentMcpResponse> {
+  return fetchApi<ListAgentMcpResponse>(`/v1/agents/${agentId}/mcp`);
+}
+
+export async function updateAgentMcp(
+  agentId: string,
+  mcpId: string,
+  enabled: boolean,
+  configJson?: string
+): Promise<void> {
+  await fetchApi<void>(`/v1/agents/${agentId}/mcp/${mcpId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ enabled, config_json: configJson }),
+  });
+}
+
+export interface TestMcpResponse {
+  ok: boolean;
+  status: string;
+  message: string;
+}
+
+export async function testAgentMcp(agentId: string, mcpId: string): Promise<TestMcpResponse> {
+  return fetchApi<TestMcpResponse>(`/v1/agents/${agentId}/mcp/${mcpId}/test`, {
+    method: 'POST',
+  });
+}

@@ -1,6 +1,8 @@
 use crate::models::{
-    Agent, ConnectorMeta, CreateAgentRequest, CreateMessageRequest, Message,
-    UpdateAgentRequest, UpdateConnectorMetaRequest,
+    Agent, AgentMcpResponse, AgentSkillResponse, ConnectorMeta, CreateAgentRequest,
+    CreateMessageRequest, ListAgentMcpResponse, ListAgentSkillsResponse, McpCatalog, Message,
+    SkillCatalog, TestMcpResponse, TrySkillResponse, UpdateAgentMcpRequest,
+    UpdateAgentRequest, UpdateAgentSkillRequest, UpdateConnectorMetaRequest,
 };
 use axum::{
     extract::{Path, State},
@@ -285,4 +287,322 @@ pub async fn update_connector_meta(
     tracing::info!("✅ Connector meta updated: {}", meta.provider);
 
     Ok(Json(meta))
+}
+
+// Skills handlers
+
+pub async fn get_skills_catalog(
+    State(pool): State<SqlitePool>,
+) -> Result<Json<Vec<SkillCatalog>>, StatusCode> {
+    let skills = sqlx::query_as::<_, SkillCatalog>("SELECT * FROM skill_catalog")
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to get skills catalog: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(Json(skills))
+}
+
+pub async fn list_agent_skills(
+    State(pool): State<SqlitePool>,
+    Path(agent_id): Path<String>,
+) -> Result<Json<ListAgentSkillsResponse>, StatusCode> {
+    // Get all skills from catalog and join with agent mounts
+    let skills = sqlx::query_as::<_, (String, String, String, Option<String>, Option<i64>)>(
+        r#"
+        SELECT 
+            sc.skill_id, sc.name, sc.version, sc.summary,
+            COALESCE(ags.enabled, 0) as enabled
+        FROM skill_catalog sc
+        LEFT JOIN agent_skills ags ON sc.skill_id = ags.skill_id AND ags.agent_id = ?
+        "#,
+    )
+    .bind(&agent_id)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to list agent skills: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let items = skills
+        .into_iter()
+        .map(|(skill_id, name, version, summary, enabled)| AgentSkillResponse {
+            skill_id,
+            name,
+            version,
+            summary,
+            enabled: enabled.unwrap_or(0) == 1,
+        })
+        .collect();
+
+    Ok(Json(ListAgentSkillsResponse { agent_id, items }))
+}
+
+pub async fn update_agent_skill(
+    State(pool): State<SqlitePool>,
+    Path((agent_id, skill_id)): Path<(String, String)>,
+    Json(payload): Json<UpdateAgentSkillRequest>,
+) -> Result<StatusCode, StatusCode> {
+    let now = Utc::now().to_rfc3339();
+    let enabled = if payload.enabled { 1 } else { 0 };
+
+    sqlx::query(
+        r#"
+        INSERT INTO agent_skills (agent_id, skill_id, enabled, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(agent_id, skill_id) DO UPDATE SET
+            enabled = excluded.enabled,
+            updated_at = excluded.updated_at
+        "#,
+    )
+    .bind(&agent_id)
+    .bind(&skill_id)
+    .bind(enabled)
+    .bind(&now)
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to update agent skill: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    tracing::info!(
+        "✅ Agent skill updated: {} / {} = {}",
+        agent_id,
+        skill_id,
+        enabled
+    );
+
+    Ok(StatusCode::OK)
+}
+
+pub async fn try_agent_skill(
+    State(pool): State<SqlitePool>,
+    Path((agent_id, skill_id)): Path<(String, String)>,
+) -> Result<Json<TrySkillResponse>, StatusCode> {
+    // Verify agent and skill exist
+    let agent_exists = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM agents WHERE id = ?")
+        .bind(&agent_id)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to check agent: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    if agent_exists == 0 {
+        return Ok(Json(TrySkillResponse {
+            ok: false,
+            message: format!("Agent {} not found", agent_id),
+        }));
+    }
+
+    let skill_exists =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM skill_catalog WHERE skill_id = ?")
+            .bind(&skill_id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to check skill: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+    if skill_exists == 0 {
+        return Ok(Json(TrySkillResponse {
+            ok: false,
+            message: format!("Skill {} not found", skill_id),
+        }));
+    }
+
+    // Fixture: simulate skill execution
+    let message = match skill_id.as_str() {
+        "web-search" => "✅ Web search fixture: 找到 3 条结果 (模拟)".to_string(),
+        "validation-gate" => "✅ Validation gate fixture: 审批卡已触发 (模拟)".to_string(),
+        "doc-brief" => "✅ Doc brief fixture: Markdown 大纲已生成 (模拟)".to_string(),
+        _ => format!("✅ Skill {} executed (fixture)", skill_id),
+    };
+
+    tracing::info!("🧪 Try skill: {} / {} → OK", agent_id, skill_id);
+
+    Ok(Json(TrySkillResponse { ok: true, message }))
+}
+
+// MCP handlers
+
+pub async fn get_mcp_catalog(
+    State(pool): State<SqlitePool>,
+) -> Result<Json<Vec<McpCatalog>>, StatusCode> {
+    let mcps = sqlx::query_as::<_, McpCatalog>("SELECT * FROM mcp_catalog")
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to get MCP catalog: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(Json(mcps))
+}
+
+pub async fn list_agent_mcp(
+    State(pool): State<SqlitePool>,
+    Path(agent_id): Path<String>,
+) -> Result<Json<ListAgentMcpResponse>, StatusCode> {
+    // Get all MCPs from catalog and join with agent mounts
+    let mcps = sqlx::query_as::<_, (
+        String,
+        String,
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+        Option<String>,
+    )>(
+        r#"
+        SELECT 
+            mc.mcp_id, mc.name, mc.summary,
+            agm.enabled, agm.status, agm.last_checked_at
+        FROM mcp_catalog mc
+        LEFT JOIN agent_mcp agm ON mc.mcp_id = agm.mcp_id AND agm.agent_id = ?
+        "#,
+    )
+    .bind(&agent_id)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to list agent MCP: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let items = mcps
+        .into_iter()
+        .map(
+            |(mcp_id, name, summary, enabled, status, last_checked_at)| AgentMcpResponse {
+                mcp_id,
+                name,
+                summary,
+                enabled: enabled.unwrap_or(0) == 1,
+                status: status.unwrap_or_else(|| "disconnected".to_string()),
+                last_checked_at,
+            },
+        )
+        .collect();
+
+    Ok(Json(ListAgentMcpResponse { agent_id, items }))
+}
+
+pub async fn update_agent_mcp(
+    State(pool): State<SqlitePool>,
+    Path((agent_id, mcp_id)): Path<(String, String)>,
+    Json(payload): Json<UpdateAgentMcpRequest>,
+) -> Result<StatusCode, StatusCode> {
+    let now = Utc::now().to_rfc3339();
+    let enabled = if payload.enabled { 1 } else { 0 };
+
+    sqlx::query(
+        r#"
+        INSERT INTO agent_mcp (agent_id, mcp_id, enabled, status, config_json, updated_at)
+        VALUES (?, ?, ?, 'disconnected', ?, ?)
+        ON CONFLICT(agent_id, mcp_id) DO UPDATE SET
+            enabled = excluded.enabled,
+            config_json = excluded.config_json,
+            updated_at = excluded.updated_at
+        "#,
+    )
+    .bind(&agent_id)
+    .bind(&mcp_id)
+    .bind(enabled)
+    .bind(&payload.config_json)
+    .bind(&now)
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to update agent MCP: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    tracing::info!("✅ Agent MCP updated: {} / {}", agent_id, mcp_id);
+
+    Ok(StatusCode::OK)
+}
+
+pub async fn test_agent_mcp(
+    State(pool): State<SqlitePool>,
+    Path((agent_id, mcp_id)): Path<(String, String)>,
+) -> Result<Json<TestMcpResponse>, StatusCode> {
+    let now = Utc::now().to_rfc3339();
+
+    // Verify agent and MCP exist
+    let agent_exists = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM agents WHERE id = ?")
+        .bind(&agent_id)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to check agent: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    if agent_exists == 0 {
+        return Ok(Json(TestMcpResponse {
+            ok: false,
+            status: "error".to_string(),
+            message: format!("Agent {} not found", agent_id),
+        }));
+    }
+
+    let mcp_exists =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM mcp_catalog WHERE mcp_id = ?")
+            .bind(&mcp_id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to check MCP: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+    if mcp_exists == 0 {
+        return Ok(Json(TestMcpResponse {
+            ok: false,
+            status: "error".to_string(),
+            message: format!("MCP {} not found", mcp_id),
+        }));
+    }
+
+    // Fixture: simulate MCP connection test
+    let (status, message) = match mcp_id.as_str() {
+        "github" => ("connected", "✅ GitHub MCP connected (fixture)"),
+        _ => ("connected", "✅ MCP connected (fixture)"),
+    };
+
+    // Update status in database
+    sqlx::query(
+        r#"
+        INSERT INTO agent_mcp (agent_id, mcp_id, enabled, status, last_checked_at, updated_at)
+        VALUES (?, ?, 0, ?, ?, ?)
+        ON CONFLICT(agent_id, mcp_id) DO UPDATE SET
+            status = excluded.status,
+            last_checked_at = excluded.last_checked_at,
+            updated_at = excluded.updated_at
+        "#,
+    )
+    .bind(&agent_id)
+    .bind(&mcp_id)
+    .bind(status)
+    .bind(&now)
+    .bind(&now)
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to update MCP status: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    tracing::info!("🧪 Test MCP: {} / {} → {}", agent_id, mcp_id, status);
+
+    Ok(Json(TestMcpResponse {
+        ok: true,
+        status: status.to_string(),
+        message: message.to_string(),
+    }))
 }

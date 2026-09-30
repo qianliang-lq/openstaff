@@ -132,14 +132,50 @@ pub async fn init_database(database_url: &str) -> Result<SqlitePool> {
     .execute(&pool)
     .await?;
 
+    // Create skill_catalog table (read-only seed data)
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS skill_catalog (
+            skill_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            version TEXT NOT NULL,
+            summary TEXT,
+            triggers_json TEXT,
+            updated_at TEXT NOT NULL
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    // Create mcp_catalog table
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS mcp_catalog (
+            mcp_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            summary TEXT,
+            updated_at TEXT NOT NULL
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    // Drop and recreate agent_skills with updated schema
+    sqlx::query("DROP TABLE IF EXISTS agent_skills")
+        .execute(&pool)
+        .await?;
+
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS agent_skills (
             agent_id TEXT NOT NULL,
             skill_id TEXT NOT NULL,
-            enabled INTEGER DEFAULT 1,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            updated_at TEXT NOT NULL,
             PRIMARY KEY (agent_id, skill_id),
-            FOREIGN KEY (agent_id) REFERENCES agents(id)
+            FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
         )
         "#,
     )
@@ -147,17 +183,65 @@ pub async fn init_database(database_url: &str) -> Result<SqlitePool> {
     .await?;
 
     sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_agent_skills_agent ON agent_skills(agent_id)",
+    )
+    .execute(&pool)
+    .await?;
+
+    // Drop and recreate agent_mcp with updated schema
+    sqlx::query("DROP TABLE IF EXISTS agent_mcp")
+        .execute(&pool)
+        .await?;
+
+    sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS agent_mcp (
             agent_id TEXT NOT NULL,
             mcp_id TEXT NOT NULL,
-            enabled INTEGER DEFAULT 1,
+            enabled INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'disconnected',
             config_json TEXT,
+            last_checked_at TEXT,
+            updated_at TEXT NOT NULL,
             PRIMARY KEY (agent_id, mcp_id),
-            FOREIGN KEY (agent_id) REFERENCES agents(id)
+            FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
         )
         "#,
     )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_agent_mcp_agent ON agent_mcp(agent_id)")
+        .execute(&pool)
+        .await?;
+
+    // Seed skill_catalog with initial skills
+    let now = chrono::Utc::now().to_rfc3339();
+
+    sqlx::query(
+        r#"
+        INSERT OR IGNORE INTO skill_catalog (skill_id, name, version, summary, triggers_json, updated_at)
+        VALUES 
+            ('web-search', 'Web Search / 智能检索', '1.2.0', '会话内即时检索，经 Gateway 出站不留日志。', NULL, ?),
+            ('validation-gate', 'Validation Gate / 触发审批', '0.4.1', 'Chat 内抛审卡 Widget，可拦截高风险操作。', NULL, ?),
+            ('doc-brief', 'doc-brief / 一页简介', '1.0.0', 'Agent 从 issue / 在线 url 萃取核心需求为一页 Markdown。', NULL, ?)
+        "#,
+    )
+    .bind(&now)
+    .bind(&now)
+    .bind(&now)
+    .execute(&pool)
+    .await?;
+
+    // Seed mcp_catalog with GitHub MCP
+    sqlx::query(
+        r#"
+        INSERT OR IGNORE INTO mcp_catalog (mcp_id, name, summary, updated_at)
+        VALUES 
+            ('github', 'GitHub MCP / issues·PR', '连接态 MCP，Agent 可 list/comment issue/PR。', ?)
+        "#,
+    )
+    .bind(&now)
     .execute(&pool)
     .await?;
 

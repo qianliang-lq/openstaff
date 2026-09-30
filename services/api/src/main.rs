@@ -67,6 +67,28 @@ async fn main() -> anyhow::Result<()> {
             "/v1/connectors/meta",
             get(handlers::get_connector_meta).put(handlers::update_connector_meta),
         )
+        // Skills routes
+        .route("/v1/skills/catalog", get(handlers::get_skills_catalog))
+        .route("/v1/agents/:id/skills", get(handlers::list_agent_skills))
+        .route(
+            "/v1/agents/:id/skills/:skill_id",
+            axum::routing::put(handlers::update_agent_skill),
+        )
+        .route(
+            "/v1/agents/:id/skills/:skill_id/try",
+            post(handlers::try_agent_skill),
+        )
+        // MCP routes
+        .route("/v1/mcp/catalog", get(handlers::get_mcp_catalog))
+        .route("/v1/agents/:id/mcp", get(handlers::list_agent_mcp))
+        .route(
+            "/v1/agents/:id/mcp/:mcp_id",
+            axum::routing::put(handlers::update_agent_mcp),
+        )
+        .route(
+            "/v1/agents/:id/mcp/:mcp_id/test",
+            post(handlers::test_agent_mcp),
+        )
         .with_state(pool)
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
