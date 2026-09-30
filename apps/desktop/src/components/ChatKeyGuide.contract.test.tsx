@@ -109,8 +109,14 @@ describe('§16 ChatKeyGuide Contract Tests', () => {
       const banner = document.querySelector('.no-key-banner');
       expect(banner, 'No-key banner must be visible').toBeInTheDocument();
 
-      const bannerText = screen.getByText(/需要去 Connectors 配置 Key/i);
+      // Verify actual UI text: "未配置模型 Key，无法开始对话"
+      const bannerText = screen.getByText(/未配置模型 Key.*无法开始对话/i);
       expect(bannerText, 'Banner must contain key prompt').toBeInTheDocument();
+
+      // Verify "去 Connectors 配置" button exists in the banner
+      const gotoButton = banner.querySelector('.btn-goto-connectors');
+      expect(gotoButton, 'Go to Connectors button must exist').toBeInTheDocument();
+      expect(gotoButton?.textContent, 'Button text must match UI').toMatch(/去 Connectors 配置/i);
     });
   });
 
