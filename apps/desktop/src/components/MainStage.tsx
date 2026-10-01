@@ -41,6 +41,9 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
   const [demoResponse, setDemoResponse] = useState<DemoResponse | null>(null);
   const [isRunningDemo, setIsRunningDemo] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
+  const [approvalCount, setApprovalCount] = useState(1);
+  const [showApprovalPanel, setShowApprovalPanel] = useState(false);
+  const [approvalFeedback, setApprovalFeedback] = useState<string | null>(null);
 
   // Special handling: Chat and Connectors tabs can show without agent
   // Other tabs require an agent
@@ -182,19 +185,21 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
         >
           {isRunningDemo ? '运行中...' : '立即跑一次'}
         </button>
-        <div
-          className="status-pill wait"
-          onClick={() =>
-            alert(
-              '💡 审批功能\n\n这是演示状态显示。\n\n实际使用时：\n• 点击后会跳转到审批详情页\n• 可查看审批请求内容\n• 可进行通过/驳回操作\n\n当前版本：演示占位'
-            )
-          }
-          style={{ cursor: 'pointer' }}
-          title="点击查看审批功能说明"
-        >
-          <span className="pulse"></span>
-          等待审批 (1)
-        </div>
+        {approvalCount > 0 ? (
+          <div
+            className="status-pill wait"
+            onClick={() => setShowApprovalPanel(!showApprovalPanel)}
+            style={{ cursor: 'pointer' }}
+            title="点击查看待审批事项"
+          >
+            <span className="pulse"></span>
+            等待审批 ({approvalCount})
+          </div>
+        ) : (
+          <div className="status-pill approved" title="无待审批">
+            ✓ 无待审批
+          </div>
+        )}
       </div>
 
       {demoError && (
@@ -204,6 +209,55 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
           <button className="error-close" onClick={() => setDemoError(null)}>
             ✕
           </button>
+        </div>
+      )}
+
+      {approvalFeedback && (
+        <div className="approval-feedback-toast">
+          <span>{approvalFeedback}</span>
+          <button onClick={() => setApprovalFeedback(null)}>✕</button>
+        </div>
+      )}
+
+      {showApprovalPanel && approvalCount > 0 && (
+        <div className="approval-panel">
+          <div className="approval-header">
+            <h3>待审批事项</h3>
+            <button onClick={() => setShowApprovalPanel(false)}>✕</button>
+          </div>
+          <div className="approval-item">
+            <div className="approval-content">
+              <div className="approval-title">Demo 外部洞察任务执行</div>
+              <div className="approval-desc">
+                演示：请求执行 external-insight-daily 任务，触发 Gateway 模型调用
+              </div>
+              <div className="approval-meta">触发者：系统 Demo | 时间：刚刚</div>
+            </div>
+            <div className="approval-actions">
+              <button
+                className="btn-approve"
+                onClick={() => {
+                  setApprovalCount(0);
+                  setShowApprovalPanel(false);
+                  setApprovalFeedback('✓ 已通过审批');
+                  setTimeout(() => setApprovalFeedback(null), 2000);
+                }}
+              >
+                通过
+              </button>
+              <button
+                className="btn-reject"
+                onClick={() => {
+                  setApprovalCount(0);
+                  setShowApprovalPanel(false);
+                  setApprovalFeedback('✗ 已驳回');
+                  setTimeout(() => setApprovalFeedback(null), 2000);
+                }}
+              >
+                驳回
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -217,3 +217,146 @@
 .error-close:hover {
   opacity: 1;
 }
+
+.status-pill.approved {
+  background: #dcfce7;
+  color: #16a34a;
+  cursor: default;
+}
+
+.approval-feedback-toast {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 1000;
+  animation: slideIn 0.2s ease;
+}
+
+.approval-feedback-toast button {
+  background: none;
+  border: none;
+  color: var(--g6);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 16px;
+}
+
+.approval-panel {
+  position: fixed;
+  top: 60px;
+  right: 24px;
+  width: 420px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideIn 0.2s ease;
+}
+
+.approval-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--g4);
+}
+
+.approval-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--g9);
+}
+
+.approval-header button {
+  background: none;
+  border: none;
+  color: var(--g6);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 18px;
+  border-radius: 4px;
+}
+
+.approval-header button:hover {
+  background: var(--g3);
+}
+
+.approval-item {
+  padding: 16px 20px;
+}
+
+.approval-content {
+  margin-bottom: 16px;
+}
+
+.approval-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--g9);
+  margin-bottom: 8px;
+}
+
+.approval-desc {
+  font-size: 13px;
+  color: var(--g7);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.approval-meta {
+  font-size: 12px;
+  color: var(--g5);
+}
+
+.approval-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.approval-actions button {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-approve {
+  background: #10b981;
+  color: white;
+}
+
+.btn-approve:hover {
+  background: #059669;
+}
+
+.btn-reject {
+  background: var(--g3);
+  color: var(--g9);
+}
+
+.btn-reject:hover {
+  background: var(--g4);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
