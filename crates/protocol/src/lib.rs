@@ -27,6 +27,8 @@ pub enum EventPayload {
         tool_name: String,
         args: serde_json::Value,
     },
+    // 私董会：工作台推进可以自动；投资/消费等高危必须本人确认，严禁跳过（见 docs/PRODUCT_POSITIONING.md）
+    // 高危动作须进独立确认队列，用户明确通过/驳回后才执行；禁止静默通过或倒计时代批
     ApprovalRequest {
         request_id: String,
         action: String,

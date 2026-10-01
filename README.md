@@ -43,8 +43,12 @@ openstaff/
 │   ├── protocol/        # 共享协议定义（Rust）
 │   └── runtime-agent/   # Agent 运行时库
 ├── packages/            # 共享前端包（规划中）
-└── docs/                # 完整计划文档
+└── docs/                # 完整计划文档与产品定位
 ```
+
+**重要文档**：
+- [产品定位（私董会）](docs/PRODUCT_POSITIONING.md) - 产品硬口径与设计原则
+- [完整架构文档](docs/architecture.md)
 
 ### 设计原则
 

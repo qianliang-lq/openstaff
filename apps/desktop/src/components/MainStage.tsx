@@ -41,6 +41,9 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
   const [demoResponse, setDemoResponse] = useState<DemoResponse | null>(null);
   const [isRunningDemo, setIsRunningDemo] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
+
+  // 私董会：工作台推进可以自动；投资/消费等高危必须本人确认，严禁跳过（见 docs/PRODUCT_POSITIONING.md）
+  // 注：当前为本地 demo state 演示审批流程，生产环境须对接真实审批队列与后端持久化
   const [approvalCount, setApprovalCount] = useState(1);
   const [showApprovalPanel, setShowApprovalPanel] = useState(false);
   const [approvalFeedback, setApprovalFeedback] = useState<string | null>(null);
@@ -185,6 +188,7 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
         >
           {isRunningDemo ? '运行中...' : '立即跑一次'}
         </button>
+        {/* 私董会：工作台推进可以自动；投资/消费等高危必须本人确认，严禁跳过（见 docs/PRODUCT_POSITIONING.md） */}
         {approvalCount > 0 ? (
           <div
             className="status-pill wait"
@@ -219,6 +223,8 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
         </div>
       )}
 
+      {/* 私董会：高危确认闸 — 独立确认层，展示要点与后果，用户明确通过/驳回后才执行（见 docs/PRODUCT_POSITIONING.md） */}
+      {/* 注：当前为本地 demo state，生产环境须对接后端审批队列，记录审计日志（谁、何时、对什么）；严禁一键静默通过或倒计时代批 */}
       {showApprovalPanel && approvalCount > 0 && (
         <div className="approval-panel">
           <div className="approval-header">
@@ -234,9 +240,11 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
               <div className="approval-meta">触发者：系统 Demo | 时间：刚刚</div>
             </div>
             <div className="approval-actions">
+              {/* 私董会：通过/驳回须本人明确点击；禁止自动勾选「以后都同意」或把确认埋进普通 Toast */}
               <button
                 className="btn-approve"
                 onClick={() => {
+                  // TODO: 生产环境须调用后端 API 记录审批决策（审计日志）
                   setApprovalCount(0);
                   setShowApprovalPanel(false);
                   setApprovalFeedback('✓ 已通过审批');
@@ -248,6 +256,7 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
               <button
                 className="btn-reject"
                 onClick={() => {
+                  // TODO: 生产环境须调用后端 API 记录驳回决策（审计日志）
                   setApprovalCount(0);
                   setShowApprovalPanel(false);
                   setApprovalFeedback('✗ 已驳回');
