@@ -27,9 +27,12 @@ export interface ConnectorMeta {
   account_label?: string;
 }
 
+const DEFAULT_CLOUD_API_BASE = 'http://123.57.167.155/openstaff';
+const DEFAULT_LOCAL_API_BASE = 'http://localhost:3000';
+
 const API_BASE =
   (import.meta as { env?: { PUBLIC_API_BASE?: string } }).env?.PUBLIC_API_BASE ||
-  'http://localhost:3000';
+  DEFAULT_CLOUD_API_BASE;
 
 export class ApiError extends Error {
   constructor(
@@ -41,17 +44,86 @@ export class ApiError extends Error {
   }
 }
 
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+let cachedApiBase: string | null = null;
+let cachedCloudApiKey: string | null = null;
+
+export async function getApiBase(): Promise<string> {
+  if (cachedApiBase) {
+    return cachedApiBase;
+  }
+
   try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    const { getProviderKey } = await import('./tauri');
+    const savedBase = await getProviderKey('openstaff_api_base');
+    cachedApiBase = savedBase || API_BASE;
+    return cachedApiBase;
+  } catch {
+    cachedApiBase = API_BASE;
+    return cachedApiBase;
+  }
+}
+
+export async function getCloudApiKey(): Promise<string | null> {
+  if (cachedCloudApiKey !== null) {
+    return cachedCloudApiKey;
+  }
+
+  try {
+    const { getProviderKey } = await import('./tauri');
+    const key = await getProviderKey('openstaff_cloud');
+    cachedCloudApiKey = key || null;
+    return cachedCloudApiKey;
+  } catch {
+    return null;
+  }
+}
+
+export function clearApiCache(): void {
+  cachedApiBase = null;
+  cachedCloudApiKey = null;
+}
+
+async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const method = options?.method?.toUpperCase() || 'GET';
+  const needsAuth = method !== 'GET' && method !== 'HEAD';
+
+  if (needsAuth) {
+    const cloudKey = await getCloudApiKey();
+    const envKey = import.meta.env.OPENSTAFF_API_KEY;
+    const apiKey = cloudKey || envKey;
+
+    if (!apiKey) {
+      throw new ApiError(
+        401,
+        '云鉴权未配置 - 请在设置中配置云 API Key 或使用本地开发环境'
+      );
+    }
+  }
+
+  const base = await getApiBase();
+  const cloudKey = await getCloudApiKey();
+  const envKey = import.meta.env.OPENSTAFF_API_KEY;
+  const apiKey = needsAuth ? cloudKey || envKey : null;
+
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    };
+
+    if (apiKey && needsAuth) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
+    const response = await fetch(`${base}${endpoint}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new ApiError(401, '云鉴权失败 - 请检查云 API Key 配置');
+      }
       throw new ApiError(response.status, `API request failed: ${response.statusText}`);
     }
 
@@ -151,6 +223,14 @@ export async function updateConnectorMeta(data: {
 
 export function isApiAvailable(): boolean {
   return !!API_BASE;
+}
+
+export function getDefaultCloudApiBase(): string {
+  return DEFAULT_CLOUD_API_BASE;
+}
+
+export function getDefaultLocalApiBase(): string {
+  return DEFAULT_LOCAL_API_BASE;
 }
 
 // Skills API
