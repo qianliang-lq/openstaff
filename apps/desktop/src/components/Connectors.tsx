@@ -477,53 +477,41 @@ function Connectors() {
 
     try {
       // Test by calling a simple chat request
-      const response = await fetch('http://localhost:3000/v1/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-OpenStaff-Provider-Key': testKey,
-        },
-        body: JSON.stringify({
+      const chatRequest: api.ChatRequest = {
+        provider,
+        messages: [{ role: 'user', content: '测试连接' }],
+        stream: false,
+      };
+
+      const data = await api.sendChatMessage(chatRequest, testKey);
+      const modelName = data.model || config.model || 'qwen-plus';
+
+      // Update connector metadata after successful test
+      try {
+        await api.updateConnectorMeta({
           provider,
-          messages: [{ role: 'user', content: '测试连接' }],
-          stream: false,
-        }),
-      });
+          configured: true,
+          last_checked_at: new Date().toISOString(),
+          account_label: modelName,
+        });
+      } catch (apiError) {
+        console.error('Failed to update connector meta:', apiError);
+      }
 
-      if (response.ok) {
-        const data = await response.json();
-        const modelName = data.model || config.model || 'qwen-plus';
-
-        // Update connector metadata after successful test
-        try {
-          await api.updateConnectorMeta({
-            provider,
-            configured: true,
-            last_checked_at: new Date().toISOString(),
-            account_label: modelName,
-          });
-        } catch (apiError) {
-          console.error('Failed to update connector meta:', apiError);
-        }
-
+      setConfig((prev) => ({
+        ...prev,
+        status: 'test-success',
+        error: undefined,
+        successMessage: `连接成功 ✓ 模型: ${modelName}`,
+      }));
+      // Auto-clear success message after 5 seconds
+      setTimeout(() => {
         setConfig((prev) => ({
           ...prev,
-          status: 'test-success',
-          error: undefined,
-          successMessage: `连接成功 ✓ 模型: ${modelName}`,
+          status: prev.hasKey ? 'saved' : 'empty',
+          successMessage: undefined,
         }));
-        // Auto-clear success message after 5 seconds
-        setTimeout(() => {
-          setConfig((prev) => ({
-            ...prev,
-            status: prev.hasKey ? 'saved' : 'empty',
-            successMessage: undefined,
-          }));
-        }, 5000);
-      } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
+      }, 5000);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '连接测试失败';
       setConfig((prev) => ({

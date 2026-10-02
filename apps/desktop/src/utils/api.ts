@@ -375,3 +375,55 @@ export interface Insight {
 export async function getLatestInsight(): Promise<Insight> {
   return fetchApi<Insight>('/v1/insights/latest');
 }
+
+// Chat (Gateway - uses Slot B provider keys, not Slot A)
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface ChatRequest {
+  provider: string;
+  messages: ChatMessage[];
+  stream?: boolean;
+}
+
+export interface ChatResponse {
+  message: {
+    role: string;
+    content: string;
+  };
+  model?: string;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
+export async function sendChatMessage(
+  request: ChatRequest,
+  providerKey: string
+): Promise<ChatResponse> {
+  const base = await getApiBase();
+
+  const response = await fetch(`${base}/v1/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-OpenStaff-Provider-Key': providerKey,
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new ApiError(
+      response.status,
+      errorData.error || `Chat request failed: ${response.statusText}`
+    );
+  }
+
+  return await response.json();
+}

@@ -234,31 +234,18 @@ function ChatStage({
         throw new Error('401:未配置 Key');
       }
 
-      const systemPrompt: ChatMessage = {
+      const systemPrompt: api.ChatMessage = {
         role: 'system',
         content: `你是${agentName}，请帮助用户完成工作任务。`,
       };
 
-      const response = await fetch('http://localhost:3000/v1/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-OpenStaff-Provider-Key': providerKey,
-        },
-        body: JSON.stringify({
-          provider,
-          messages: [systemPrompt, ...messages.filter((m) => !m.error), userMessage],
-          stream: false,
-        }),
-      });
+      const chatRequest: api.ChatRequest = {
+        provider,
+        messages: [systemPrompt, ...messages.filter((m) => !m.error), userMessage],
+        stream: false,
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        const statusCode = response.status;
-        throw new Error(`${statusCode}:${errorData.error || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
+      const data = await api.sendChatMessage(chatRequest, providerKey);
 
       // Persist messages to API after successful chat
       try {
@@ -283,20 +270,38 @@ function ChatStage({
     } catch (error) {
       console.error('Chat error:', error);
 
-      const errorMsg = error instanceof Error ? error.message : '发送消息失败';
-      let errorType: '401' | '403' | 'network' | 'unknown' = 'unknown';
+      let errorContent: string;
+      let errorType: '401' | '403' | 'network' | 'unknown' | '400' | '500' = 'unknown';
 
-      if (errorMsg.includes('401')) {
-        errorType = '401';
-      } else if (errorMsg.includes('403')) {
-        errorType = '403';
-      } else if (errorMsg.includes('fetch') || errorMsg.includes('network')) {
-        errorType = 'network';
+      if (error instanceof api.ApiError) {
+        errorContent = error.message;
+        if (error.status === 401) {
+          errorType = '401';
+        } else if (error.status === 403) {
+          errorType = '403';
+        } else if (error.status >= 500) {
+          errorType = '500';
+        } else if (error.status >= 400) {
+          errorType = '400';
+        } else if (error.status === 0) {
+          errorType = 'network';
+        }
+      } else if (error instanceof Error) {
+        errorContent = error.message;
+        if (error.message.includes('401')) {
+          errorType = '401';
+        } else if (error.message.includes('403')) {
+          errorType = '403';
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          errorType = 'network';
+        }
+      } else {
+        errorContent = '发送消息失败';
       }
 
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: errorMsg,
+        content: errorContent,
         error: true,
         errorType,
       };
