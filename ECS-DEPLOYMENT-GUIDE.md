@@ -25,6 +25,8 @@ git log --oneline -1
 
 ## 2. 配置环境变量 (如未设置)
 
+### 2.1 数据库配置
+
 ```bash
 # systemd 配置文件: /etc/systemd/system/openstaff-api.service
 # 确保包含正确的 DATABASE_URL (相对路径或绝对路径)
@@ -34,6 +36,32 @@ Environment="OPENSTAFF_DATABASE_URL=/opt/openstaff/data/openstaff.db"
 
 # 注意：URL 会自动追加 ?mode=rwc，无需手动添加
 ```
+
+### 2.2 API 认证配置 (生产环境必需)
+
+⚠️ **重要**: 生产环境必须设置 API 密钥以保护写操作。
+
+```bash
+# 生成安全的 API 密钥
+openssl rand -hex 32
+
+# 将密钥添加到 systemd 服务配置或环境文件
+# /etc/systemd/system/openstaff-api.service
+Environment="OPENSTAFF_API_KEY=your-generated-key-here"
+
+# 或在 /etc/openstaff.env 中设置
+OPENSTAFF_API_KEY=your-generated-key-here
+```
+
+**认证策略**:
+- **无需认证**: `GET /health`, `GET /v1/agents` 等只读端点保持公开
+- **需要认证**: `POST`, `PUT`, `PATCH`, `DELETE` 所有写操作需要 API 密钥
+- **请求头格式**: 
+  - `Authorization: Bearer <your-key>` 或
+  - `X-Api-Key: <your-key>`
+
+**Desktop 客户端配置**:
+在桌面应用设置中配置 API 密钥，所有写操作会自动附带认证头。
 
 ---
 
@@ -95,9 +123,32 @@ curl http://localhost:3000/v1/agents
 []
 ```
 
-### 4.4 创建测试 Agent
+### 4.4 创建测试 Agent (需要认证)
+
+⚠️ **如果配置了 OPENSTAFF_API_KEY，写操作需要认证头**:
 
 ```bash
+# 方式 1: 使用 Authorization: Bearer header
+curl -X POST http://localhost:3000/v1/agents \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key-here" \
+  -d '{
+    "name": "测试数字员工",
+    "template_id": "pm",
+    "duty": "产品经理职责测试"
+  }'
+
+# 方式 2: 使用 X-Api-Key header
+curl -X POST http://localhost:3000/v1/agents \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: your-api-key-here" \
+  -d '{
+    "name": "测试数字员工",
+    "template_id": "pm",
+    "duty": "产品经理职责测试"
+  }'
+
+# 无认证测试 (应返回 401 Unauthorized)
 curl -X POST http://localhost:3000/v1/agents \
   -H "Content-Type: application/json" \
   -d '{
@@ -231,9 +282,80 @@ PUBLIC_API_BASE=http://123.57.167.155/openstaff pnpm build
 
 ---
 
-## 8. 关键安全检查
+## 8. 移除 Nginx 写限制 (配置 API 认证后)
 
-### 8.1 Connector Meta 不含 Key 明文
+⚠️ **重要**: 只有在成功部署 API 认证后才能执行此操作。
+
+### 8.1 当前 Nginx 配置 (写保护)
+
+```nginx
+location /openstaff/ {
+    limit_except GET HEAD {
+        deny all;
+    }
+    proxy_pass http://localhost:3000/;
+}
+```
+
+### 8.2 启用认证后的配置
+
+设置 `OPENSTAFF_API_KEY` 并重启 API 服务后，移除 nginx 的写限制：
+
+```nginx
+location /openstaff/ {
+    # limit_except GET HEAD {
+    #     deny all;
+    # }  # 已移除 - 现在由 API 层认证保护
+    proxy_pass http://localhost:3000/;
+}
+```
+
+### 8.3 重载 Nginx
+
+```bash
+# 测试配置
+sudo nginx -t
+
+# 重载配置
+sudo systemctl reload nginx
+```
+
+### 8.4 验证认证工作正常
+
+```bash
+# 测试 1: 无认证的 POST 应返回 401
+curl -X POST http://123.57.167.155/openstaff/v1/agents \
+  -H "Content-Type: application/json" \
+  -d '{"name":"test"}' \
+  -w "\nHTTP Status: %{http_code}\n"
+# 预期: HTTP Status: 401
+
+# 测试 2: 有认证的 POST 应成功
+curl -X POST http://123.57.167.155/openstaff/v1/agents \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{"name":"test","template_id":"pm"}' \
+  -w "\nHTTP Status: %{http_code}\n"
+# 预期: HTTP Status: 200 并返回创建的 agent
+
+# 测试 3: GET 仍然公开
+curl http://123.57.167.155/openstaff/health
+# 预期: {"status":"ok","service":"api"}
+```
+
+---
+
+## 9. 关键安全检查
+
+### 9.1 API 认证已启用
+
+```bash
+# 检查 API 日志确认认证已启用
+sudo journalctl -u openstaff-api -n 20 | grep "API authentication"
+# 预期输出: "🔒 API authentication enabled"
+```
+
+### 9.2 Connector Meta 不含 Key 明文
 
 ```bash
 curl http://localhost:3000/v1/connectors/meta
@@ -242,7 +364,7 @@ curl http://localhost:3000/v1/connectors/meta
 响应中 **绝对不应包含** `api_key`, `secret`, `token` 等字段。  
 只应有 `provider`, `configured`, `last_checked_at`, `account_label`。
 
-### 8.2 API 日志不含 Key 明文
+### 9.3 API 日志不含 Key 明文
 
 ```bash
 sudo journalctl -u openstaff-api -n 100 | grep -i "key"
@@ -252,9 +374,21 @@ docker logs openstaff-api | grep -i "key"
 
 不应看到完整的 API Key 字符串（如 `sk-xxx`）。
 
+### 9.4 OPENSTAFF_API_KEY 在环境中设置
+
+```bash
+# 检查环境变量 (systemd)
+sudo systemctl show openstaff-api -p Environment | grep OPENSTAFF_API_KEY
+# 预期: Environment=OPENSTAFF_API_KEY=*** (值应被遮盖或显示)
+
+# 或检查进程环境
+ps aux | grep openstaff-api
+cat /proc/<pid>/environ | tr '\0' '\n' | grep OPENSTAFF_API_KEY
+```
+
 ---
 
-## 9. 环境变量一览
+## 10. 环境变量一览
 
 API 服务需要的环境变量:
 
@@ -265,6 +399,9 @@ OPENSTAFF_DATABASE_URL=./data/openstaff.db
 
 # 绝对路径
 OPENSTAFF_DATABASE_URL=/opt/openstaff/data/openstaff.db
+
+# 生产环境必需 - API 认证密钥
+OPENSTAFF_API_KEY=<your-secure-random-key>
 
 # 可选 (默认值)
 PORT=3000
@@ -296,6 +433,7 @@ Type=simple
 User=openstaff
 WorkingDirectory=/opt/openstaff
 Environment="OPENSTAFF_DATABASE_URL=./data/openstaff.db"
+Environment="OPENSTAFF_API_KEY=your-secure-api-key-here"
 Environment="GATEWAY_URL=http://localhost:3001"
 Environment="PORT=3000"
 Environment="RUST_LOG=info"

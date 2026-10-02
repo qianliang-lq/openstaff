@@ -89,6 +89,7 @@ pub struct McpCatalog {
 }
 
 // Agent skill mount
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct AgentSkill {
     pub agent_id: String,
@@ -98,6 +99,7 @@ pub struct AgentSkill {
 }
 
 // Agent MCP mount
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct AgentMcp {
     pub agent_id: String,

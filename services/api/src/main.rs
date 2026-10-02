@@ -1,9 +1,11 @@
+mod auth;
 mod chat;
 mod db;
 mod handlers;
 mod models;
 
 use axum::{
+    middleware,
     routing::{get, patch, post},
     Json, Router,
 };
@@ -44,17 +46,32 @@ async fn main() -> anyhow::Result<()> {
         .compact()
         .init();
 
-    let database_url =
-        std::env::var("OPENSTAFF_DATABASE_URL").unwrap_or_else(|_| "./data/openstaff.db".to_string());
+    let database_url = std::env::var("OPENSTAFF_DATABASE_URL")
+        .unwrap_or_else(|_| "./data/openstaff.db".to_string());
 
     let pool = db::init_database(&database_url).await?;
+
+    // Check if API key is configured
+    let api_key_configured = std::env::var("OPENSTAFF_API_KEY").is_ok();
+    if api_key_configured {
+        tracing::info!("🔒 API authentication enabled (OPENSTAFF_API_KEY configured)");
+        tracing::info!("   - Mutating methods (POST/PUT/PATCH/DELETE) require API key");
+        tracing::info!("   - Read-only methods (GET/HEAD) remain public");
+    } else {
+        tracing::warn!("⚠️  OPENSTAFF_API_KEY not set - API running without authentication");
+        tracing::warn!("   - All mutating operations are PUBLIC (insecure for production)");
+        tracing::warn!("   - Set OPENSTAFF_API_KEY to enable authentication");
+    }
 
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health_check))
         .route("/api/v1/echo", post(echo_handler))
         .route("/v1/chat", post(chat::chat_handler))
-        .route("/v1/agents", get(handlers::list_agents).post(handlers::create_agent))
+        .route(
+            "/v1/agents",
+            get(handlers::list_agents).post(handlers::create_agent),
+        )
         .route(
             "/v1/agents/:id",
             patch(handlers::update_agent).delete(handlers::delete_agent),
@@ -94,6 +111,7 @@ async fn main() -> anyhow::Result<()> {
             post(handlers::test_agent_mcp),
         )
         .with_state(pool)
+        .layer(middleware::from_fn(auth::require_api_key_for_writes))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
 
