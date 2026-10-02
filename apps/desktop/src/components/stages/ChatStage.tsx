@@ -100,6 +100,13 @@ function ChatStage({
       setIsCloudApiBase(isCloudBase(base));
     };
     checkApiBase();
+
+    // 红点③：监听 Base 切换，立即刷新 Demo 禁用态
+    const unsubscribe = api.onApiBaseChange(() => {
+      checkApiBase();
+    });
+
+    return unsubscribe;
   }, []);
 
   const scrollToBottom = () => {
@@ -633,7 +640,22 @@ function ChatStage({
       )}
 
       <div className="chat-toolbar">
-        <button className="fire-job-btn" onClick={handleFireJob} disabled={isRunning}>
+        <button
+          className="fire-job-btn"
+          onClick={handleFireJob}
+          disabled={isRunning || isCloudApiBase}
+          title={
+            isCloudApiBase
+              ? 'Demo 仅本机四服可用 - 请在 Settings 切换到 127.0.0.1:3000'
+              : isRunning
+                ? '运行中...'
+                : '点火 Demo 任务'
+          }
+          style={{
+            cursor: isRunning || isCloudApiBase ? 'not-allowed' : 'pointer',
+            opacity: isRunning || isCloudApiBase ? 0.6 : 1,
+          }}
+        >
           {isRunning ? '运行中...' : '立即跑一次 (Demo)'}
         </button>
         <button className="toggle-demo-btn" onClick={() => setShowMockContent(!showMockContent)}>

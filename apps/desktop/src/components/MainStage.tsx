@@ -65,6 +65,13 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
       setIsCloudApiBase(isCloudBase(base));
     };
     checkApiBase();
+
+    // 红点③：监听 Base 切换，立即刷新 Demo 禁用态
+    const unsubscribe = api.onApiBaseChange(() => {
+      checkApiBase();
+    });
+
+    return unsubscribe;
   }, []);
 
   // Special handling: Chat and Connectors tabs can show without agent

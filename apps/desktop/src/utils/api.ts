@@ -34,7 +34,7 @@ const API_BASE =
   (import.meta as { env?: { PUBLIC_API_BASE?: string } }).env?.PUBLIC_API_BASE ||
   DEFAULT_CLOUD_API_BASE;
 
-function isLocalBase(base: string): boolean {
+export function isLocalBase(base: string): boolean {
   return (
     base.includes('127.0.0.1') ||
     base.includes('localhost') ||
@@ -55,6 +55,24 @@ export class ApiError extends Error {
 
 let cachedApiBase: string | null = null;
 let cachedCloudApiKey: string | null = null;
+
+// 红点③：Base 切换通知机制
+type BaseChangeListener = () => void;
+const baseChangeListeners: BaseChangeListener[] = [];
+
+export function onApiBaseChange(listener: BaseChangeListener): () => void {
+  baseChangeListeners.push(listener);
+  return () => {
+    const index = baseChangeListeners.indexOf(listener);
+    if (index > -1) {
+      baseChangeListeners.splice(index, 1);
+    }
+  };
+}
+
+function notifyBaseChange(): void {
+  baseChangeListeners.forEach((listener) => listener());
+}
 
 export async function getApiBase(): Promise<string> {
   if (cachedApiBase) {
@@ -90,6 +108,8 @@ export async function getCloudApiKey(): Promise<string | null> {
 export function clearApiCache(): void {
   cachedApiBase = null;
   cachedCloudApiKey = null;
+  // 红点③：通知所有监听器 Base 已变化
+  notifyBaseChange();
 }
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {

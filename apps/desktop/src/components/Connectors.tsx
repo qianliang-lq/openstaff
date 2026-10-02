@@ -69,12 +69,21 @@ function Connectors() {
     status: 'disconnected',
   });
   const [githubToken, setGithubToken] = useState('');
+  const [isCloudApiBase, setIsCloudApiBase] = useState(false);
 
   useEffect(() => {
     setIsTauri(isTauriEnvironment());
     loadKeys();
     loadGitHubConnection();
   }, []);
+
+  useEffect(() => {
+    const checkBase = async () => {
+      const currentBase = await api.getApiBase();
+      setIsCloudApiBase(!api.isLocalBase(currentBase));
+    };
+    checkBase();
+  }, [cloudConfig.apiBase]);
 
   const loadKeys = async () => {
     try {
@@ -165,6 +174,10 @@ function Connectors() {
         error: undefined,
         successMessage: '云 API 配置已保存',
       }));
+
+      // 立即刷新 Demo 禁用态（红点③）
+      const currentBase = await api.getApiBase();
+      setIsCloudApiBase(!api.isLocalBase(currentBase));
 
       setTimeout(() => {
         setCloudConfig((prev) => ({ ...prev, successMessage: undefined }));
@@ -665,6 +678,57 @@ function Connectors() {
           认证层。请勿在公共设备保存。
         </div>
       </div>
+
+      {/* Demo 可用性警示条（红点②） */}
+      {isCloudApiBase ? (
+        <div
+          style={{
+            backgroundColor: '#fef3c7',
+            border: '1px solid #fcd34d',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ fontSize: '20px' }}>❌</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, color: '#92400e', marginBottom: '4px' }}>
+              连云已禁用 - Demo 仅本机四服可用
+            </div>
+            <div style={{ fontSize: '14px', color: '#92400e' }}>
+              当前连接到云端 Base ({cloudConfig.apiBase})，Demo 功能不可用。公网 Nginx 不反代
+              scheduler/insights 服务。如需测试 Demo，请切换到本机 Base (127.0.0.1:3000)。
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            backgroundColor: '#d1fae5',
+            border: '1px solid #10b981',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ fontSize: '20px' }}>✅</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '4px' }}>
+              本机模式 - Demo 可用
+            </div>
+            <div style={{ fontSize: '14px', color: '#065f46' }}>
+              当前连接到本机 Base ({cloudConfig.apiBase})，Demo 功能可用。可在 Chat / Computer
+              页面点火 Demo 任务。
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isTauri && (
         <div
