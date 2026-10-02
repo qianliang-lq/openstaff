@@ -679,12 +679,12 @@ function Connectors() {
         </div>
       </div>
 
-      {/* Demo 可用性警示条（红点②） */}
+      {/* Demo 可用性提示条（正刀：BFF 就位） */}
       {isCloudApiBase ? (
         <div
           style={{
-            backgroundColor: '#fef3c7',
-            border: '1px solid #fcd34d',
+            backgroundColor: '#dbeafe',
+            border: '1px solid #3b82f6',
             borderRadius: '8px',
             padding: '12px 16px',
             marginBottom: '20px',
@@ -693,14 +693,14 @@ function Connectors() {
             gap: '12px',
           }}
         >
-          <div style={{ fontSize: '20px' }}>❌</div>
+          <div style={{ fontSize: '20px' }}>🔗</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, color: '#92400e', marginBottom: '4px' }}>
-              连云已禁用 - Demo 仅本机四服可用
+            <div style={{ fontWeight: 600, color: '#1e40af', marginBottom: '4px' }}>
+              连云 Demo 经 API BFF
             </div>
-            <div style={{ fontSize: '14px', color: '#92400e' }}>
-              当前连接到云端 Base ({cloudConfig.apiBase})，Demo 功能不可用。公网 Nginx 不反代
-              scheduler/insights 服务。如需测试 Demo，请切换到本机 Base (127.0.0.1:3000)。
+            <div style={{ fontSize: '14px', color: '#1e40af' }}>
+              当前连接到云端 Base ({cloudConfig.apiBase})。Demo 通过 API 内部转发到
+              scheduler/runtime（docs/24-demo-insights-bff.md）。
             </div>
           </div>
         </div>

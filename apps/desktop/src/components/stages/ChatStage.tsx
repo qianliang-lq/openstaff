@@ -5,15 +5,6 @@ import ExternalInsightReportCard, { type ExternalInsightFact } from '../External
 import * as api from '../../utils/api';
 import './ChatStage.css';
 
-function isCloudBase(base: string): boolean {
-  return !(
-    base.includes('127.0.0.1') ||
-    base.includes('localhost') ||
-    base.startsWith('http://localhost:') ||
-    base.startsWith('http://127.0.0.1:')
-  );
-}
-
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -87,27 +78,11 @@ function ChatStage({
   const [showMockContent, setShowMockContent] = useState(false);
   const [hasAnyKey, setHasAnyKey] = useState<boolean | null>(null);
   const [lastError, setLastError] = useState<ChatMessage | null>(null);
-  const [isCloudApiBase, setIsCloudApiBase] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [selectedPeerAgent, setSelectedPeerAgent] = useState<string | null>(null);
   const [allAgents, setAllAgents] = useState<api.Agent[]>([]);
   const [peerSuccessToast, setPeerSuccessToast] = useState<string | null>(null);
-
-  useEffect(() => {
-    const checkApiBase = async () => {
-      const base = await api.getApiBase();
-      setIsCloudApiBase(isCloudBase(base));
-    };
-    checkApiBase();
-
-    // 红点③：监听 Base 切换，立即刷新 Demo 禁用态
-    const unsubscribe = api.onApiBaseChange(() => {
-      checkApiBase();
-    });
-
-    return unsubscribe;
-  }, []);
 
   const scrollToBottom = () => {
     if (messagesEndRef.current?.scrollIntoView) {
@@ -370,20 +345,6 @@ function ChatStage({
   };
 
   const handleFireJob = async () => {
-    // 云端 Base 不支持 Demo - 公网 nginx 不反代 scheduler/insights
-    if (isCloudApiBase) {
-      const errorMessage: ChatMessage = {
-        role: 'assistant',
-        content:
-          '❌ Demo 功能仅本机四服可用。连云时请在 Settings 切换到本机 Base (127.0.0.1:3000)。',
-        error: true,
-        errorType: 'unknown',
-      };
-      setLastError(errorMessage);
-      setMessages((prev) => [...prev, errorMessage]);
-      return;
-    }
-
     setIsRunning(true);
     setLastError(null);
     setReconcileStatus('PASS'); // Reset status
@@ -643,17 +604,11 @@ function ChatStage({
         <button
           className="fire-job-btn"
           onClick={handleFireJob}
-          disabled={isRunning || isCloudApiBase}
-          title={
-            isCloudApiBase
-              ? 'Demo 仅本机四服可用 - 请在 Settings 切换到 127.0.0.1:3000'
-              : isRunning
-                ? '运行中...'
-                : '点火 Demo 任务'
-          }
+          disabled={isRunning}
+          title={isRunning ? '运行中...' : '点火 Demo 任务'}
           style={{
-            cursor: isRunning || isCloudApiBase ? 'not-allowed' : 'pointer',
-            opacity: isRunning || isCloudApiBase ? 0.6 : 1,
+            cursor: isRunning ? 'not-allowed' : 'pointer',
+            opacity: isRunning ? 0.6 : 1,
           }}
         >
           {isRunning ? '运行中...' : '立即跑一次 (Demo)'}
