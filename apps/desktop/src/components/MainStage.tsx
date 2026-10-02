@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TabType } from '../App';
 import ChatStage from './stages/ChatStage';
 import Computer from './pages/Computer';
@@ -9,6 +9,15 @@ import Memory from './pages/Memory';
 import { ExternalInsightFact } from './ExternalInsightReportCard';
 import * as api from '../utils/api';
 import './MainStage.css';
+
+function isCloudBase(base: string): boolean {
+  return !(
+    base.includes('127.0.0.1') ||
+    base.includes('localhost') ||
+    base.startsWith('http://localhost:') ||
+    base.startsWith('http://127.0.0.1:')
+  );
+}
 
 interface MainStageProps {
   activeTab: TabType;
@@ -42,12 +51,21 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
   const [demoResponse, setDemoResponse] = useState<DemoResponse | null>(null);
   const [isRunningDemo, setIsRunningDemo] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
+  const [isCloudApiBase, setIsCloudApiBase] = useState(false);
 
   // 私董会：工作台推进可以自动；投资/消费等高危必须本人确认，严禁跳过（见 docs/PRODUCT_POSITIONING.md）
   // 注：当前为本地 demo state 演示审批流程，生产环境须对接真实审批队列与后端持久化
   const [approvalCount, setApprovalCount] = useState(1);
   const [showApprovalPanel, setShowApprovalPanel] = useState(false);
   const [approvalFeedback, setApprovalFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkApiBase = async () => {
+      const base = await api.getApiBase();
+      setIsCloudApiBase(isCloudBase(base));
+    };
+    checkApiBase();
+  }, []);
 
   // Special handling: Chat and Connectors tabs can show without agent
   // Other tabs require an agent
@@ -64,6 +82,12 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
   }
 
   const runExternalInsightDemo = async () => {
+    // 云端 Base 不支持 Demo - 公网 nginx 不反代 scheduler/insights
+    if (isCloudApiBase) {
+      setDemoError('❌ Demo 功能仅本机四服可用。连云时请切换到本机 Base (127.0.0.1:3000)');
+      return;
+    }
+
     setIsRunningDemo(true);
     setDemoError(null);
     setDemoResponse(null);
@@ -159,21 +183,28 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
         <div className="tab-spacer"></div>
         <button
           onClick={runExternalInsightDemo}
-          disabled={isRunningDemo}
+          disabled={isRunningDemo || isCloudApiBase}
           className="demo-btn"
+          title={
+            isCloudApiBase
+              ? 'Demo 功能仅本机四服可用 - 请在 Settings 切换到 127.0.0.1:3000'
+              : isRunningDemo
+                ? '运行中...'
+                : '立即跑一次 Demo 任务'
+          }
           style={{
             padding: '6px 12px',
-            background: isRunningDemo ? '#9ca3af' : '#e11d48',
+            background: isRunningDemo || isCloudApiBase ? '#9ca3af' : '#e11d48',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: isRunningDemo ? 'not-allowed' : 'pointer',
+            cursor: isRunningDemo || isCloudApiBase ? 'not-allowed' : 'pointer',
             fontSize: '13px',
             fontWeight: '500',
             marginRight: '8px',
           }}
         >
-          {isRunningDemo ? '运行中...' : '立即跑一次'}
+          {isCloudApiBase ? '仅本机可用' : isRunningDemo ? '运行中...' : '立即跑一次'}
         </button>
         {/* 私董会：工作台推进可以自动；投资/消费等高危必须本人确认，严禁跳过（见 docs/PRODUCT_POSITIONING.md） */}
         {approvalCount > 0 ? (
