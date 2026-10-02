@@ -16,8 +16,8 @@ Desktop ──PUBLIC_API_BASE──► nginx /openstaff/ ──► api:3000
                                                     │
                          ✗ 公网无 :3002/:3003        │ 正刀：API 内网代发
                                                     ▼
-                              scheduler:3002  POST …/jobs/fire（或既有 fire 契约）
-                              runtime:3003    GET  …/insights/latest（或既有路径）
+                              scheduler:3002  POST /demo/fire
+                              runtime:3003    GET  /v1/insights/latest
 ```
 
 - 公网 `GET /v1/insights/latest` → **404**（API 无此路由 / 未反代 runtime）。

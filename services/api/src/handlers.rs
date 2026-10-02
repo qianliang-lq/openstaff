@@ -729,9 +729,8 @@ pub async fn demo_fire(
     let scheduler_url = std::env::var("OPENSTAFF_SCHEDULER_URL")
         .unwrap_or_else(|_| "http://127.0.0.1:3002".to_string());
 
-    // Forward to scheduler's fire endpoint
-    // Path alignment with scheduler contract (check existing scheduler implementation)
-    let fire_url = format!("{}/jobs/fire", scheduler_url);
+    // Forward to scheduler's fire endpoint (verified path: /demo/fire)
+    let fire_url = format!("{}/demo/fire", scheduler_url);
 
     let client = reqwest::Client::new();
     let response = client
@@ -779,9 +778,8 @@ pub async fn insights_latest() -> Result<axum::response::Response, StatusCode> {
     let runtime_url = std::env::var("OPENSTAFF_RUNTIME_URL")
         .unwrap_or_else(|_| "http://127.0.0.1:3003".to_string());
 
-    // Forward to runtime's insights endpoint
-    // Path alignment with runtime contract (check existing runtime implementation)
-    let insights_url = format!("{}/insights/latest", runtime_url);
+    // Forward to runtime's insights endpoint (verified path: /v1/insights/latest)
+    let insights_url = format!("{}/v1/insights/latest", runtime_url);
 
     let client = reqwest::Client::new();
     let response = client
