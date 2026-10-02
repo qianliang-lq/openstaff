@@ -4,19 +4,19 @@ use std::path::Path;
 use tracing::info;
 
 /// Parse SQLite URL and return (connection_url, file_path)
+///
 /// Handles:
 /// - `sqlite:./data/db.sqlite` -> relative path
 /// - `sqlite:///absolute/path/db.sqlite` -> absolute path (3 slashes)
 /// - `./data/db.sqlite` -> bare relative path
 /// - `/absolute/path/db.sqlite` -> bare absolute path
+///
 /// Automatically appends `?mode=rwc` if no query params present
 fn parse_sqlite_url(input: &str) -> Result<(String, String)> {
     let input = input.trim();
 
     // Check if it starts with sqlite: scheme
-    if input.starts_with("sqlite:") {
-        let after_scheme = &input[7..]; // Skip "sqlite:"
-
+    if let Some(after_scheme) = input.strip_prefix("sqlite:") {
         // Extract path and query
         let (path_part, query_part) = if let Some(q_idx) = after_scheme.find('?') {
             (&after_scheme[..q_idx], Some(&after_scheme[q_idx..]))
@@ -182,11 +182,9 @@ pub async fn init_database(database_url: &str) -> Result<SqlitePool> {
     .execute(&pool)
     .await?;
 
-    sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_agent_skills_agent ON agent_skills(agent_id)",
-    )
-    .execute(&pool)
-    .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_agent_skills_agent ON agent_skills(agent_id)")
+        .execute(&pool)
+        .await?;
 
     // Drop and recreate agent_mcp with updated schema
     sqlx::query("DROP TABLE IF EXISTS agent_mcp")

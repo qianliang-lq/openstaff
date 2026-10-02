@@ -1,9 +1,8 @@
 use crate::models::{
     Agent, AgentMcpResponse, AgentSkillResponse, ConnectorMeta, CreateAgentRequest,
-    CreateMessageRequest, CreatePeerMessageRequest, ListAgentMcpResponse,
-    ListAgentSkillsResponse, McpCatalog, Message, SkillCatalog, TestMcpResponse,
-    TrySkillResponse, UpdateAgentMcpRequest, UpdateAgentRequest, UpdateAgentSkillRequest,
-    UpdateConnectorMetaRequest,
+    CreateMessageRequest, CreatePeerMessageRequest, ListAgentMcpResponse, ListAgentSkillsResponse,
+    McpCatalog, Message, SkillCatalog, TestMcpResponse, TrySkillResponse, UpdateAgentMcpRequest,
+    UpdateAgentRequest, UpdateAgentSkillRequest, UpdateConnectorMetaRequest,
 };
 use axum::{
     extract::{Path, State},
@@ -186,16 +185,15 @@ pub async fn list_messages(
     State(pool): State<SqlitePool>,
     Path(agent_id): Path<String>,
 ) -> Result<Json<Vec<Message>>, StatusCode> {
-    let messages = sqlx::query_as::<_, Message>(
-        "SELECT * FROM messages WHERE agent_id = ? ORDER BY ts ASC",
-    )
-    .bind(&agent_id)
-    .fetch_all(&pool)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to list messages: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let messages =
+        sqlx::query_as::<_, Message>("SELECT * FROM messages WHERE agent_id = ? ORDER BY ts ASC")
+            .bind(&agent_id)
+            .fetch_all(&pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to list messages: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
 
     Ok(Json(messages))
 }
@@ -330,13 +328,15 @@ pub async fn list_agent_skills(
 
     let items = skills
         .into_iter()
-        .map(|(skill_id, name, version, summary, enabled)| AgentSkillResponse {
-            skill_id,
-            name,
-            version,
-            summary,
-            enabled: enabled.unwrap_or(0) == 1,
-        })
+        .map(
+            |(skill_id, name, version, summary, enabled)| AgentSkillResponse {
+                skill_id,
+                name,
+                version,
+                summary,
+                enabled: enabled.unwrap_or(0) == 1,
+            },
+        )
         .collect();
 
     Ok(Json(ListAgentSkillsResponse { agent_id, items }))
@@ -452,14 +452,17 @@ pub async fn list_agent_mcp(
     Path(agent_id): Path<String>,
 ) -> Result<Json<ListAgentMcpResponse>, StatusCode> {
     // Get all MCPs from catalog and join with agent mounts
-    let mcps = sqlx::query_as::<_, (
-        String,
-        String,
-        Option<String>,
-        Option<i64>,
-        Option<String>,
-        Option<String>,
-    )>(
+    let mcps = sqlx::query_as::<
+        _,
+        (
+            String,
+            String,
+            Option<String>,
+            Option<i64>,
+            Option<String>,
+            Option<String>,
+        ),
+    >(
         r#"
         SELECT 
             mc.mcp_id, mc.name, mc.summary,
