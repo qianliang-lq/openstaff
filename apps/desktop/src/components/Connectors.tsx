@@ -667,9 +667,7 @@ function Connectors() {
     <div className="connectors-container">
       <div className="connectors-header">
         <h1>连接与密钥</h1>
-        <p className="connectors-subtitle">
-          连接 · 鉴权密钥 (Connectors / 实例云鉴权 · 模型推理)
-        </p>
+        <p className="connectors-subtitle">连接 · 鉴权密钥 (Connectors / 实例云鉴权 · 模型推理)</p>
       </div>
 
       <div className="security-banner">
@@ -791,9 +789,7 @@ function Connectors() {
                       setCloudConfig((prev) => ({ ...prev, apiKey: e.target.value }))
                     }
                     placeholder={
-                      cloudConfig.hasKey
-                        ? '已配置（点击「更换」以修改）'
-                        : '输入云 API Key'
+                      cloudConfig.hasKey ? '已配置（点击「更换」以修改）' : '输入云 API Key'
                     }
                     disabled={cloudConfig.hasKey}
                   />

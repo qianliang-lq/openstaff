@@ -93,10 +93,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
     const apiKey = cloudKey || envKey;
 
     if (!apiKey) {
-      throw new ApiError(
-        401,
-        '云鉴权未配置 - 请在设置中配置云 API Key 或使用本地开发环境'
-      );
+      throw new ApiError(401, '云鉴权未配置 - 请在设置中配置云 API Key 或使用本地开发环境');
     }
   }
 
