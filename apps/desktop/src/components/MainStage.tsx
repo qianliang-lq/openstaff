@@ -181,16 +181,33 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
           </button>
         ))}
         <div className="tab-spacer"></div>
+        {isCloudApiBase && (
+          <span
+            style={{
+              padding: '4px 10px',
+              background: '#fef3c7',
+              color: '#92400e',
+              border: '1px solid #fcd34d',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: '500',
+              marginRight: '8px',
+            }}
+            title="Demo 仅本机四服可用 - 公网不反代 scheduler/insights"
+          >
+            ❌ 连云已禁用
+          </span>
+        )}
         <button
           onClick={runExternalInsightDemo}
           disabled={isRunningDemo || isCloudApiBase}
           className="demo-btn"
           title={
             isCloudApiBase
-              ? 'Demo 功能仅本机四服可用 - 请在 Settings 切换到 127.0.0.1:3000'
+              ? 'Demo 仅本机四服可用 - 请在 Settings 切换到 127.0.0.1:3000'
               : isRunningDemo
                 ? '运行中...'
-                : '立即跑一次 Demo 任务'
+                : '点火 Demo 任务'
           }
           style={{
             padding: '6px 12px',
@@ -204,7 +221,7 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
             marginRight: '8px',
           }}
         >
-          {isCloudApiBase ? '仅本机可用' : isRunningDemo ? '运行中...' : '立即跑一次'}
+          {isRunningDemo ? '运行中...' : '点火 Demo'}
         </button>
         {/* 私董会：工作台推进可以自动；投资/消费等高危必须本人确认，严禁跳过（见 docs/PRODUCT_POSITIONING.md） */}
         {approvalCount > 0 ? (
