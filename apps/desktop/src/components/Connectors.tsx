@@ -737,8 +737,8 @@ function Connectors() {
                 marginBottom: '1.5rem',
               }}
             >
-              连接到 OpenStaff 云端控制面。云 API Key 仅用于写操作鉴权，与模型推理（Slot B）独立。带
-              Key 今朝，不储存明文。惊蛰 Keychain / keys.dat。
+              连接到 OpenStaff 云端控制面。云 API Key 仅用于写操作鉴权，与模型推理（Slot
+              B）独立。Key 存储于 OS Keychain / Tauri secure store，不存明文。
             </p>
 
             <div className="provider-card">
@@ -858,7 +858,7 @@ function Connectors() {
                 marginBottom: '1.5rem',
               }}
             >
-              用于 LLM 对话，与 Slot A 勿混淆。为自己的 API Key（BYOK），Gateway 今朝转发。
+              用于 LLM 对话，与 Slot A 独立分槽。自带 API Key（BYOK），Gateway 转发不记录明文。
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

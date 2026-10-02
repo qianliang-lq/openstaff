@@ -28,11 +28,20 @@ export interface ConnectorMeta {
 }
 
 const DEFAULT_CLOUD_API_BASE = 'http://123.57.167.155/openstaff';
-const DEFAULT_LOCAL_API_BASE = 'http://localhost:3000';
+const DEFAULT_LOCAL_API_BASE = 'http://127.0.0.1:3000';
 
 const API_BASE =
   (import.meta as { env?: { PUBLIC_API_BASE?: string } }).env?.PUBLIC_API_BASE ||
   DEFAULT_CLOUD_API_BASE;
+
+function isLocalBase(base: string): boolean {
+  return (
+    base.includes('127.0.0.1') ||
+    base.includes('localhost') ||
+    base.startsWith('http://localhost:') ||
+    base.startsWith('http://127.0.0.1:')
+  );
+}
 
 export class ApiError extends Error {
   constructor(
@@ -84,23 +93,19 @@ export function clearApiCache(): void {
 }
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const base = await getApiBase();
   const method = options?.method?.toUpperCase() || 'GET';
   const needsAuth = method !== 'GET' && method !== 'HEAD';
+  const isLocal = isLocalBase(base);
 
-  if (needsAuth) {
-    const cloudKey = await getCloudApiKey();
-    const envKey = import.meta.env.OPENSTAFF_API_KEY;
-    const apiKey = cloudKey || envKey;
-
-    if (!apiKey) {
-      throw new ApiError(401, '云鉴权未配置 - 请在设置中配置云 API Key 或使用本地开发环境');
-    }
-  }
-
-  const base = await getApiBase();
   const cloudKey = await getCloudApiKey();
   const envKey = import.meta.env.OPENSTAFF_API_KEY;
-  const apiKey = needsAuth ? cloudKey || envKey : null;
+  const apiKey = cloudKey || envKey;
+
+  // Only require auth for write operations to cloud base
+  if (needsAuth && !isLocal && !apiKey) {
+    throw new ApiError(401, '云鉴权未配置 - 请在设置中配置云 API Key 或切换到本地开发环境');
+  }
 
   try {
     const headers: Record<string, string> = {
@@ -108,6 +113,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
       ...options?.headers,
     };
 
+    // Add Bearer token if available (for both cloud and local with auth enabled)
     if (apiKey && needsAuth) {
       headers['Authorization'] = `Bearer ${apiKey}`;
     }
