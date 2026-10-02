@@ -4,6 +4,11 @@ import {
   getProviderKey,
   saveProviderKey,
   deleteProviderKey,
+  getCloudApiKey,
+  saveCloudApiKey,
+  deleteCloudApiKey,
+  getCloudApiBase,
+  saveCloudApiBase,
 } from '../utils/tauri';
 import * as api from '../utils/api';
 import './Connectors.css';
@@ -27,7 +32,23 @@ interface GitHubConnector {
   successMessage?: string;
 }
 
+interface CloudApiConfig {
+  apiBase: string;
+  hasKey: boolean;
+  apiKey: string;
+  status: 'empty' | 'saved' | 'error' | 'success';
+  error?: string;
+  successMessage?: string;
+}
+
 function Connectors() {
+  const [cloudConfig, setCloudConfig] = useState<CloudApiConfig>({
+    apiBase: api.getDefaultCloudApiBase(),
+    hasKey: false,
+    apiKey: '',
+    status: 'empty',
+  });
+
   const [qwenConfig, setQwenConfig] = useState<ProviderConfig>({
     provider: 'qwen',
     hasKey: false,
@@ -48,6 +69,7 @@ function Connectors() {
     status: 'disconnected',
   });
   const [githubToken, setGithubToken] = useState('');
+  const [isCloudApiBase, setIsCloudApiBase] = useState(false);
 
   useEffect(() => {
     setIsTauri(isTauriEnvironment());
@@ -55,8 +77,34 @@ function Connectors() {
     loadGitHubConnection();
   }, []);
 
+  useEffect(() => {
+    const checkBase = async () => {
+      const currentBase = await api.getApiBase();
+      setIsCloudApiBase(!api.isLocalBase(currentBase));
+    };
+    checkBase();
+  }, [cloudConfig.apiBase]);
+
   const loadKeys = async () => {
     try {
+      const cloudKey = await getCloudApiKey();
+      const savedBase = await getCloudApiBase();
+
+      if (cloudKey) {
+        setCloudConfig((prev) => ({
+          ...prev,
+          hasKey: true,
+          apiKey: '',
+          status: 'saved',
+          apiBase: savedBase || api.getDefaultCloudApiBase(),
+        }));
+      } else if (savedBase) {
+        setCloudConfig((prev) => ({
+          ...prev,
+          apiBase: savedBase,
+        }));
+      }
+
       const qwenKey = await getProviderKey('qwen');
       const glmKey = await getProviderKey('glm');
 
@@ -96,6 +144,116 @@ function Connectors() {
       }
     } catch (err) {
       console.error('Failed to load GitHub connection:', err);
+    }
+  };
+
+  const handleCloudApiSave = async () => {
+    if (!cloudConfig.apiBase.trim()) {
+      setCloudConfig((prev) => ({
+        ...prev,
+        error: 'API Base 不能为空',
+        status: 'error',
+      }));
+      return;
+    }
+
+    try {
+      await saveCloudApiBase(cloudConfig.apiBase);
+
+      if (cloudConfig.apiKey.trim()) {
+        await saveCloudApiKey(cloudConfig.apiKey);
+      }
+
+      api.clearApiCache();
+
+      setCloudConfig((prev) => ({
+        ...prev,
+        hasKey: !!cloudConfig.apiKey.trim() || prev.hasKey,
+        apiKey: '',
+        status: 'saved',
+        error: undefined,
+        successMessage: '云 API 配置已保存',
+      }));
+
+      // 立即刷新 Demo 禁用态（红点③）
+      const currentBase = await api.getApiBase();
+      setIsCloudApiBase(!api.isLocalBase(currentBase));
+
+      setTimeout(() => {
+        setCloudConfig((prev) => ({ ...prev, successMessage: undefined }));
+      }, 3000);
+    } catch (err) {
+      console.error('Failed to save cloud API config:', err);
+      setCloudConfig((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : '保存失败',
+        status: 'error',
+      }));
+    }
+  };
+
+  const handleCloudApiClear = async () => {
+    try {
+      await deleteCloudApiKey();
+      api.clearApiCache();
+
+      setCloudConfig((prev) => ({
+        ...prev,
+        hasKey: false,
+        apiKey: '',
+        status: 'empty',
+        error: undefined,
+      }));
+    } catch (err) {
+      console.error('Failed to clear cloud API key:', err);
+    }
+  };
+
+  const handleCloudApiChangeKey = () => {
+    setCloudConfig((prev) => ({
+      ...prev,
+      hasKey: false,
+      apiKey: '',
+      status: 'empty',
+      error: undefined,
+    }));
+  };
+
+  const handleCloudApiBaseReset = async () => {
+    try {
+      await saveCloudApiBase(api.getDefaultCloudApiBase());
+      api.clearApiCache();
+
+      setCloudConfig((prev) => ({
+        ...prev,
+        apiBase: api.getDefaultCloudApiBase(),
+        successMessage: '已重置为默认云 API Base',
+      }));
+
+      setTimeout(() => {
+        setCloudConfig((prev) => ({ ...prev, successMessage: undefined }));
+      }, 3000);
+    } catch (err) {
+      console.error('Failed to reset API base:', err);
+    }
+  };
+
+  const handleCloudApiBaseLocal = async () => {
+    try {
+      await saveCloudApiBase(api.getDefaultLocalApiBase());
+      api.clearApiCache();
+
+      setCloudConfig((prev) => ({
+        ...prev,
+        apiBase: api.getDefaultLocalApiBase(),
+        successMessage: '已切换到本地 API Base',
+      }));
+
+      setTimeout(() => {
+        setCloudConfig((prev) => ({ ...prev, successMessage: undefined }));
+      }, 3000);
+    } catch (err) {
+      console.error('Failed to switch to local API base:', err);
     }
   };
 
@@ -332,53 +490,41 @@ function Connectors() {
 
     try {
       // Test by calling a simple chat request
-      const response = await fetch('http://localhost:3000/v1/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-OpenStaff-Provider-Key': testKey,
-        },
-        body: JSON.stringify({
+      const chatRequest: api.ChatRequest = {
+        provider,
+        messages: [{ role: 'user', content: '测试连接' }],
+        stream: false,
+      };
+
+      const data = await api.sendChatMessage(chatRequest, testKey);
+      const modelName = data.model || config.model || 'qwen-plus';
+
+      // Update connector metadata after successful test
+      try {
+        await api.updateConnectorMeta({
           provider,
-          messages: [{ role: 'user', content: '测试连接' }],
-          stream: false,
-        }),
-      });
+          configured: true,
+          last_checked_at: new Date().toISOString(),
+          account_label: modelName,
+        });
+      } catch (apiError) {
+        console.error('Failed to update connector meta:', apiError);
+      }
 
-      if (response.ok) {
-        const data = await response.json();
-        const modelName = data.model || config.model || 'qwen-plus';
-
-        // Update connector metadata after successful test
-        try {
-          await api.updateConnectorMeta({
-            provider,
-            configured: true,
-            last_checked_at: new Date().toISOString(),
-            account_label: modelName,
-          });
-        } catch (apiError) {
-          console.error('Failed to update connector meta:', apiError);
-        }
-
+      setConfig((prev) => ({
+        ...prev,
+        status: 'test-success',
+        error: undefined,
+        successMessage: `连接成功 ✓ 模型: ${modelName}`,
+      }));
+      // Auto-clear success message after 5 seconds
+      setTimeout(() => {
         setConfig((prev) => ({
           ...prev,
-          status: 'test-success',
-          error: undefined,
-          successMessage: `连接成功 ✓ 模型: ${modelName}`,
+          status: prev.hasKey ? 'saved' : 'empty',
+          successMessage: undefined,
         }));
-        // Auto-clear success message after 5 seconds
-        setTimeout(() => {
-          setConfig((prev) => ({
-            ...prev,
-            status: prev.hasKey ? 'saved' : 'empty',
-            successMessage: undefined,
-          }));
-        }, 5000);
-      } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
+      }, 5000);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '连接测试失败';
       setConfig((prev) => ({
@@ -521,8 +667,8 @@ function Connectors() {
   return (
     <div className="connectors-container">
       <div className="connectors-header">
-        <h1>Connectors</h1>
-        <p className="connectors-subtitle">模型 Key (BYOK) · MCP / OAuth 连接</p>
+        <h1>连接与密钥</h1>
+        <p className="connectors-subtitle">连接 · 鉴权密钥 (Connectors / 实例云鉴权 · 模型推理)</p>
       </div>
 
       <div className="security-banner">
@@ -532,6 +678,57 @@ function Connectors() {
           认证层。请勿在公共设备保存。
         </div>
       </div>
+
+      {/* Demo 可用性提示条（正刀：BFF 就位） */}
+      {isCloudApiBase ? (
+        <div
+          style={{
+            backgroundColor: '#dbeafe',
+            border: '1px solid #3b82f6',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ fontSize: '20px' }}>🔗</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, color: '#1e40af', marginBottom: '4px' }}>
+              连云 Demo 经 API BFF
+            </div>
+            <div style={{ fontSize: '14px', color: '#1e40af' }}>
+              当前连接到云端 Base ({cloudConfig.apiBase})。Demo 通过 API 内部转发到
+              scheduler/runtime（docs/24-demo-insights-bff.md）。
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            backgroundColor: '#d1fae5',
+            border: '1px solid #10b981',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ fontSize: '20px' }}>✅</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, color: '#065f46', marginBottom: '4px' }}>
+              本机模式 - Demo 可用
+            </div>
+            <div style={{ fontSize: '14px', color: '#065f46' }}>
+              当前连接到本机 Base ({cloudConfig.apiBase})，Demo 功能可用。可在 Chat / Computer
+              页面点火 Demo 任务。
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isTauri && (
         <div
@@ -570,18 +767,7 @@ function Connectors() {
                   fontFamily: 'monospace',
                 }}
               >
-                OPENSTAFF_LLM_API_KEY
-              </code>{' '}
-              +{' '}
-              <code
-                style={{
-                  backgroundColor: '#f8f9fa',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  fontFamily: 'monospace',
-                }}
-              >
-                just dev-up
+                OPENSTAFF_API_KEY
               </code>
               。
             </div>
@@ -590,14 +776,148 @@ function Connectors() {
       )}
 
       <div className="section">
-        <h2 className="section-title">模型 API Key (BYOK)</h2>
-        <p className="section-desc">
-          本地存储 + Gateway 无日志转发。支持通义千问 (百炼 OpenAI 兼容) 与智谱 AI (GLM API)。
-        </p>
+        <h2 className="section-title">SETTINGS</h2>
+        <div className="settings-columns">
+          <div className="settings-column-left">
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
+              云 API · OpenStaff 实例鉴权
+            </h3>
+            <p
+              style={{
+                fontSize: '0.85rem',
+                color: 'var(--g7)',
+                marginBottom: '1.5rem',
+              }}
+            >
+              连接到 OpenStaff 云端控制面。云 API Key 仅用于写操作鉴权，与模型推理（Slot
+              B）独立。Key 存储于 OS Keychain / Tauri secure store，不存明文。
+            </p>
 
-        <div className="providers-grid">
-          {renderProviderCard(qwenConfig, setQwenConfig)}
-          {renderProviderCard(glmConfig, setGlmConfig)}
+            <div className="provider-card">
+              <div className="provider-body" style={{ borderTop: 'none', paddingTop: 0 }}>
+                <div className="form-group">
+                  <label>默认 API Base URL</label>
+                  <input
+                    type="text"
+                    value={cloudConfig.apiBase}
+                    onChange={(e) =>
+                      setCloudConfig((prev) => ({ ...prev, apiBase: e.target.value }))
+                    }
+                    placeholder="http://123.57.167.155/openstaff"
+                  />
+                  <div className="model-hint" style={{ marginTop: '8px' }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      默认云端: {api.getDefaultCloudApiBase()}
+                      <br />
+                      本地: {api.getDefaultLocalApiBase()}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={handleCloudApiBaseReset}
+                        disabled={!isTauri}
+                        className="btn-test"
+                        style={{ fontSize: '12px', padding: '4px 8px' }}
+                      >
+                        重置为云端
+                      </button>
+                      <button
+                        onClick={handleCloudApiBaseLocal}
+                        disabled={!isTauri}
+                        className="btn-test"
+                        style={{ fontSize: '12px', padding: '4px 8px' }}
+                      >
+                        切换本地
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>OpenStaff API Key</label>
+                  <input
+                    type={cloudConfig.hasKey ? 'password' : 'text'}
+                    value={cloudConfig.apiKey}
+                    onChange={(e) =>
+                      setCloudConfig((prev) => ({ ...prev, apiKey: e.target.value }))
+                    }
+                    placeholder={
+                      cloudConfig.hasKey ? '已配置（点击「更换」以修改）' : '输入云 API Key'
+                    }
+                    disabled={cloudConfig.hasKey}
+                  />
+                  <div className="model-hint" style={{ marginTop: '8px' }}>
+                    用于 Agent CRUD / demo fire / peer messages 等写接口。开发环境可用
+                    OPENSTAFF_API_KEY 环境变量。
+                  </div>
+                </div>
+
+                {cloudConfig.successMessage && (
+                  <div
+                    className="success-message"
+                    style={{
+                      backgroundColor: '#d4edda',
+                      color: '#155724',
+                      border: '1px solid #c3e6cb',
+                      borderRadius: '4px',
+                      padding: '12px',
+                      marginBottom: '16px',
+                    }}
+                  >
+                    {cloudConfig.successMessage}
+                  </div>
+                )}
+
+                {cloudConfig.error && <div className="error-message">{cloudConfig.error}</div>}
+
+                <div className="provider-actions">
+                  {!cloudConfig.hasKey ? (
+                    <button
+                      onClick={handleCloudApiSave}
+                      disabled={!isTauri}
+                      className="btn-save"
+                      title={!isTauri ? '保存需要 Tauri 环境' : ''}
+                    >
+                      保存
+                    </button>
+                  ) : (
+                    <>
+                      <button onClick={handleCloudApiChangeKey} className="btn-change">
+                        更换
+                      </button>
+                      <button
+                        onClick={handleCloudApiClear}
+                        disabled={!isTauri}
+                        className="btn-clear"
+                        title={!isTauri ? '清除需要 Tauri 环境' : ''}
+                      >
+                        清空
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-column-right">
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
+              模型 Connectors
+            </h3>
+            <p
+              style={{
+                fontSize: '0.85rem',
+                color: 'var(--g7)',
+                marginBottom: '1.5rem',
+              }}
+            >
+              用于 LLM 对话，与 Slot A 独立分槽。自带 API Key（BYOK），Gateway 转发不记录明文。
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {renderProviderCard(qwenConfig, setQwenConfig)}
+              {renderProviderCard(glmConfig, setGlmConfig)}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -687,17 +1007,18 @@ function Connectors() {
             )}
             {githubConnector.status === 'connected' && (
               <>
-                <button
-                  onClick={handleGitHubTest}
-                  disabled={githubConnector.status === 'testing'}
-                  className="btn-test"
-                >
-                  {githubConnector.status === 'testing' ? '测试中...' : '测试连接'}
+                <button onClick={handleGitHubTest} className="btn-test">
+                  测试连接
                 </button>
                 <button onClick={handleGitHubDisconnect} className="btn-disconnect">
                   断开
                 </button>
               </>
+            )}
+            {githubConnector.status === 'testing' && (
+              <button disabled className="btn-test">
+                测试中...
+              </button>
             )}
           </div>
         </div>

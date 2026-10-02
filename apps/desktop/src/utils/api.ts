@@ -27,9 +27,21 @@ export interface ConnectorMeta {
   account_label?: string;
 }
 
+const DEFAULT_CLOUD_API_BASE = 'http://123.57.167.155/openstaff';
+const DEFAULT_LOCAL_API_BASE = 'http://127.0.0.1:3000';
+
 const API_BASE =
   (import.meta as { env?: { PUBLIC_API_BASE?: string } }).env?.PUBLIC_API_BASE ||
-  'http://localhost:3000';
+  DEFAULT_CLOUD_API_BASE;
+
+export function isLocalBase(base: string): boolean {
+  return (
+    base.includes('127.0.0.1') ||
+    base.includes('localhost') ||
+    base.startsWith('http://localhost:') ||
+    base.startsWith('http://127.0.0.1:')
+  );
+}
 
 export class ApiError extends Error {
   constructor(
@@ -41,21 +53,123 @@ export class ApiError extends Error {
   }
 }
 
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+let cachedApiBase: string | null = null;
+let cachedCloudApiKey: string | null = null;
+
+// 红点③：Base 切换通知机制
+type BaseChangeListener = () => void;
+const baseChangeListeners: BaseChangeListener[] = [];
+
+export function onApiBaseChange(listener: BaseChangeListener): () => void {
+  baseChangeListeners.push(listener);
+  return () => {
+    const index = baseChangeListeners.indexOf(listener);
+    if (index > -1) {
+      baseChangeListeners.splice(index, 1);
+    }
+  };
+}
+
+function notifyBaseChange(): void {
+  baseChangeListeners.forEach((listener) => listener());
+}
+
+export async function getApiBase(): Promise<string> {
+  if (cachedApiBase) {
+    return cachedApiBase;
+  }
+
   try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    const { getProviderKey } = await import('./tauri');
+    const savedBase = await getProviderKey('openstaff_api_base');
+    cachedApiBase = savedBase || API_BASE;
+    return cachedApiBase;
+  } catch {
+    cachedApiBase = API_BASE;
+    return cachedApiBase;
+  }
+}
+
+export async function getCloudApiKey(): Promise<string | null> {
+  if (cachedCloudApiKey !== null) {
+    return cachedCloudApiKey;
+  }
+
+  try {
+    const { getProviderKey } = await import('./tauri');
+    const key = await getProviderKey('openstaff_cloud');
+    cachedCloudApiKey = key || null;
+    return cachedCloudApiKey;
+  } catch {
+    return null;
+  }
+}
+
+export function clearApiCache(): void {
+  cachedApiBase = null;
+  cachedCloudApiKey = null;
+  // 红点③：通知所有监听器 Base 已变化
+  notifyBaseChange();
+}
+
+async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const base = await getApiBase();
+  const method = options?.method?.toUpperCase() || 'GET';
+  const needsAuth = method !== 'GET' && method !== 'HEAD';
+  const isLocal = isLocalBase(base);
+
+  const cloudKey = await getCloudApiKey();
+  const envKey = (import.meta as { env?: { OPENSTAFF_API_KEY?: string } }).env?.OPENSTAFF_API_KEY;
+  const apiKey = cloudKey || envKey;
+
+  // Only require auth for write operations to cloud base
+  if (needsAuth && !isLocal && !apiKey) {
+    throw new ApiError(401, '云鉴权未配置 - 请在设置中配置云 API Key 或切换到本地开发环境');
+  }
+
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Merge with provided headers
+    if (options?.headers) {
+      Object.entries(options.headers).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+          headers[key] = value;
+        }
+      });
+    }
+
+    // Add Bearer token if available (for both cloud and local with auth enabled)
+    if (apiKey && needsAuth) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
+    const response = await fetch(`${base}${endpoint}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new ApiError(401, '云鉴权失败 - 请检查云 API Key 配置');
+      }
       throw new ApiError(response.status, `API request failed: ${response.statusText}`);
     }
 
-    return await response.json();
+    // Handle 204 No Content (e.g., DELETE operations)
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    // Handle empty responses or non-JSON content
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json();
+    }
+
+    return undefined as T;
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;
@@ -94,25 +208,15 @@ export async function updateAgent(
 }
 
 export async function deleteAgent(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/v1/agents/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new ApiError(response.status, `Failed to delete agent: ${response.statusText}`);
-  }
-
-  // 204 No Content has empty body, don't call json()
-  if (response.status === 204) {
-    return;
-  }
-
-  // For other 2xx responses, try to parse JSON
-  if (response.headers.get('content-type')?.includes('application/json')) {
-    await response.json();
+  try {
+    await fetchApi<void>(`/v1/agents/${id}`, {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(0, 'Failed to delete agent');
   }
 }
 
@@ -151,6 +255,14 @@ export async function updateConnectorMeta(data: {
 
 export function isApiAvailable(): boolean {
   return !!API_BASE;
+}
+
+export function getDefaultCloudApiBase(): string {
+  return DEFAULT_CLOUD_API_BASE;
+}
+
+export function getDefaultLocalApiBase(): string {
+  return DEFAULT_LOCAL_API_BASE;
 }
 
 // Skills API
@@ -249,4 +361,89 @@ export async function sendPeerMessage(
     method: 'POST',
     body: JSON.stringify({ to_agent_id: toAgentId, body }),
   });
+}
+
+// Demo fire (scheduler)
+
+export interface DemoFireRequest {
+  routine_id: string;
+  skill_id: string;
+  trigger: string;
+}
+
+export interface DemoFireResponse {
+  job_id?: string;
+  status?: string;
+  message?: string;
+}
+
+export async function fireDemoJob(request: DemoFireRequest): Promise<DemoFireResponse> {
+  return fetchApi<DemoFireResponse>('/demo/fire', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+// Insights (runtime)
+
+export interface Insight {
+  reconcile_status: string;
+  facts?: Array<{ key: string; value: string }>;
+  [key: string]: unknown;
+}
+
+export async function getLatestInsight(): Promise<Insight> {
+  return fetchApi<Insight>('/v1/insights/latest');
+}
+
+// Chat (Gateway - uses Slot B provider keys, not Slot A)
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface ChatRequest {
+  provider: string;
+  messages: ChatMessage[];
+  stream?: boolean;
+}
+
+export interface ChatResponse {
+  message: {
+    role: string;
+    content: string;
+  };
+  model?: string;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
+export async function sendChatMessage(
+  request: ChatRequest,
+  providerKey: string
+): Promise<ChatResponse> {
+  const base = await getApiBase();
+
+  const response = await fetch(`${base}/v1/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-OpenStaff-Provider-Key': providerKey,
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new ApiError(
+      response.status,
+      errorData.error || `Chat request failed: ${response.statusText}`
+    );
+  }
+
+  return await response.json();
 }

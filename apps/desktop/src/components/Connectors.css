@@ -56,6 +56,19 @@
   margin-bottom: 2.5rem;
 }
 
+.settings-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+@media (max-width: 1024px) {
+  .settings-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 .section-title {
   font-size: 1.2rem;
   font-weight: 600;

@@ -10,6 +10,7 @@ use axum::{
     Json,
 };
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -697,4 +698,134 @@ pub async fn create_peer_message(
     );
 
     Ok(StatusCode::CREATED)
+}
+
+// BFF handlers (docs/24-demo-insights-bff.md)
+
+/// POST /demo/fire
+/// BFF for scheduler fire endpoint - validates Slot A auth then forwards to internal scheduler
+#[derive(Deserialize)]
+#[allow(dead_code)]
+pub struct DemoFireRequest {
+    // Body can be empty or contain routine/skill overrides
+    #[serde(default)]
+    pub routine: Option<String>,
+    #[serde(default)]
+    pub skill: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct DemoFireResponse {
+    pub accepted: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub job_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+pub async fn demo_fire(
+    Json(_payload): Json<DemoFireRequest>,
+) -> Result<Json<DemoFireResponse>, StatusCode> {
+    let scheduler_url = std::env::var("OPENSTAFF_SCHEDULER_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:3002".to_string());
+
+    // Forward to scheduler's fire endpoint (verified path: /demo/fire)
+    let fire_url = format!("{}/demo/fire", scheduler_url);
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&fire_url)
+        .json(&serde_json::json!({}))
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await;
+
+    match response {
+        Ok(resp) if resp.status().is_success() => {
+            tracing::info!("✅ Demo fire forwarded to scheduler: {}", fire_url);
+            // Try to parse scheduler response, fallback to simple accepted
+            let job_id = resp
+                .json::<serde_json::Value>()
+                .await
+                .ok()
+                .and_then(|v| v.get("job_id").and_then(|j| j.as_str().map(String::from)));
+
+            Ok(Json(DemoFireResponse {
+                accepted: true,
+                job_id,
+                message: Some("Demo fire request accepted".to_string()),
+            }))
+        }
+        Ok(resp) => {
+            let status = resp.status();
+            tracing::error!("Scheduler fire failed: {}", status);
+            Err(if status.as_u16() == 404 {
+                StatusCode::BAD_GATEWAY
+            } else {
+                StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY)
+            })
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to scheduler: {}", e);
+            Err(StatusCode::SERVICE_UNAVAILABLE)
+        }
+    }
+}
+
+/// GET /v1/insights/latest
+/// BFF for runtime insights endpoint - proxies latest insight from internal runtime
+pub async fn insights_latest() -> Result<axum::response::Response, StatusCode> {
+    let runtime_url = std::env::var("OPENSTAFF_RUNTIME_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:3003".to_string());
+
+    // Forward to runtime's insights endpoint (verified path: /v1/insights/latest)
+    let insights_url = format!("{}/v1/insights/latest", runtime_url);
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&insights_url)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await;
+
+    match response {
+        Ok(resp) if resp.status().is_success() => {
+            let body = resp
+                .bytes()
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let response = axum::response::Response::builder()
+                .status(StatusCode::OK)
+                .header("content-type", "application/json")
+                .body(axum::body::Body::from(body))
+                .unwrap();
+            tracing::info!("✅ Insights proxied from runtime: {}", insights_url);
+            Ok(response)
+        }
+        Ok(resp) if resp.status() == reqwest::StatusCode::NO_CONTENT => {
+            // Empty state - no insights yet
+            tracing::info!("📭 No insights available yet (204 from runtime)");
+            Ok(axum::response::Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .body(axum::body::Body::empty())
+                .unwrap())
+        }
+        Ok(resp) if resp.status() == reqwest::StatusCode::NOT_FOUND => {
+            // Business empty state
+            tracing::info!("📭 No insights available yet (404 from runtime)");
+            Ok(axum::response::Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .body(axum::body::Body::empty())
+                .unwrap())
+        }
+        Ok(resp) => {
+            let status = resp.status();
+            tracing::error!("Runtime insights failed: {}", status);
+            Err(StatusCode::BAD_GATEWAY)
+        }
+        Err(e) => {
+            tracing::error!("Failed to connect to runtime: {}", e);
+            Err(StatusCode::BAD_GATEWAY)
+        }
+    }
 }

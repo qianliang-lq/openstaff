@@ -9,7 +9,7 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   error?: boolean;
-  errorType?: '401' | '403' | 'network' | 'unknown';
+  errorType?: '401' | '403' | 'network' | 'unknown' | '400' | '500';
   gateDecision?: 'approved' | 'rejected' | 'revised';
   validationGate?: {
     status: 'pending' | 'approved' | 'rejected' | 'revised';
@@ -234,31 +234,18 @@ function ChatStage({
         throw new Error('401:未配置 Key');
       }
 
-      const systemPrompt: ChatMessage = {
+      const systemPrompt: api.ChatMessage = {
         role: 'system',
         content: `你是${agentName}，请帮助用户完成工作任务。`,
       };
 
-      const response = await fetch('http://localhost:3000/v1/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-OpenStaff-Provider-Key': providerKey,
-        },
-        body: JSON.stringify({
-          provider,
-          messages: [systemPrompt, ...messages.filter((m) => !m.error), userMessage],
-          stream: false,
-        }),
-      });
+      const chatRequest: api.ChatRequest = {
+        provider,
+        messages: [systemPrompt, ...messages.filter((m) => !m.error), userMessage],
+        stream: false,
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        const statusCode = response.status;
-        throw new Error(`${statusCode}:${errorData.error || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
+      const data = await api.sendChatMessage(chatRequest, providerKey);
 
       // Persist messages to API after successful chat
       try {
@@ -283,20 +270,38 @@ function ChatStage({
     } catch (error) {
       console.error('Chat error:', error);
 
-      const errorMsg = error instanceof Error ? error.message : '发送消息失败';
-      let errorType: '401' | '403' | 'network' | 'unknown' = 'unknown';
+      let errorContent: string;
+      let errorType: '401' | '403' | 'network' | 'unknown' | '400' | '500' = 'unknown';
 
-      if (errorMsg.includes('401')) {
-        errorType = '401';
-      } else if (errorMsg.includes('403')) {
-        errorType = '403';
-      } else if (errorMsg.includes('fetch') || errorMsg.includes('network')) {
-        errorType = 'network';
+      if (error instanceof api.ApiError) {
+        errorContent = error.message;
+        if (error.status === 401) {
+          errorType = '401';
+        } else if (error.status === 403) {
+          errorType = '403';
+        } else if (error.status >= 500) {
+          errorType = '500';
+        } else if (error.status >= 400) {
+          errorType = '400';
+        } else if (error.status === 0) {
+          errorType = 'network';
+        }
+      } else if (error instanceof Error) {
+        errorContent = error.message;
+        if (error.message.includes('401')) {
+          errorType = '401';
+        } else if (error.message.includes('403')) {
+          errorType = '403';
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          errorType = 'network';
+        }
+      } else {
+        errorContent = '发送消息失败';
       }
 
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: errorMsg,
+        content: errorContent,
         error: true,
         errorType,
       };
@@ -352,41 +357,12 @@ function ChatStage({
     setMessages((prev) => [...prev, runningMessage]);
 
     try {
-      const response = await fetch('http://localhost:3002/demo/fire', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          routine_id: 'external-insight-daily',
-          skill_id: 'external-insight-public-search',
-          trigger: 'manual',
-        }),
+      // Fire demo job via unified API client (follows cloud base + Bearer)
+      await api.fireDemoJob({
+        routine_id: 'external-insight-daily',
+        skill_id: 'external-insight-public-search',
+        trigger: 'manual',
       });
-
-      if (!response.ok) {
-        let errorDetail = '';
-        try {
-          const errorData = await response.text();
-          errorDetail = errorData ? `: ${errorData}` : '';
-        } catch {
-          // Ignore parse errors
-        }
-
-        if (response.status === 502 || response.status === 503) {
-          throw new Error(
-            `Scheduler 已启动但下游服务未就绪 (HTTP ${response.status})。请确保 Runtime 服务正在运行 (http://localhost:3003)${errorDetail}`
-          );
-        } else if (response.status >= 500) {
-          throw new Error(`Scheduler 服务内部错误 (HTTP ${response.status})${errorDetail}`);
-        } else if (response.status >= 400) {
-          throw new Error(`请求错误 (HTTP ${response.status})${errorDetail}`);
-        } else {
-          throw new Error(
-            `Scheduler 请求失败 (HTTP ${response.status})。请运行 'just health' 检查所有服务${errorDetail}`
-          );
-        }
-      }
 
       // Remove running message before polling
       setMessages((prev) => prev.filter((m) => m !== runningMessage));
@@ -398,21 +374,30 @@ function ChatStage({
       setMessages((prev) => prev.filter((m) => m !== runningMessage));
 
       let errorContent: string;
-      let errorType: '401' | 'network' | '502' | '503' | '500' | '400' = 'network';
+      let errorType: '401' | 'network' | 'unknown' | '400' | '500' = 'network';
 
-      if (error instanceof TypeError && error.message.includes('fetch')) {
+      if (error instanceof api.ApiError) {
+        if (error.status === 401) {
+          errorContent = `❌ ${error.message}`;
+          errorType = '401';
+        } else if (error.status === 0) {
+          errorContent =
+            '❌ 无法连接到控制面服务。请确保后端服务已启动或云 API 配置正确：\n\n• 本地开发：运行 `pnpm tauri:dev` 或 `just dev-up`\n• 云端连接：检查 Settings → 云 API 配置\n• 检查服务状态：`just health`';
+          errorType = 'network';
+        } else {
+          errorContent = `❌ ${error.message}`;
+          if (error.status >= 500) {
+            errorType = '500';
+          } else if (error.status >= 400) {
+            errorType = '400';
+          }
+        }
+      } else if (error instanceof TypeError && error.message.includes('fetch')) {
         errorContent =
-          '❌ 无法连接到 Scheduler 服务 (http://localhost:3002)。请确保后端服务已启动：\n\n• 运行 `pnpm tauri:dev` 会自动启动\n• 或手动运行 `just dev-up`\n• 检查服务状态：`just health`\n• 查看日志：`tail -f /tmp/openstaff-*.log`';
+          '❌ 无法连接到控制面服务。请确保后端服务已启动或云 API 配置正确：\n\n• 本地开发：运行 `pnpm tauri:dev` 或 `just dev-up`\n• 云端连接：检查 Settings → 云 API 配置\n• 检查服务状态：`just health`';
         errorType = 'network';
       } else if (error instanceof Error) {
         errorContent = `❌ ${error.message}`;
-        if (error.message.includes('502') || error.message.includes('503')) {
-          errorType = error.message.includes('502') ? '502' : '503';
-        } else if (error.message.includes('500')) {
-          errorType = '500';
-        } else if (error.message.includes('400')) {
-          errorType = '400';
-        }
       } else {
         errorContent = '❌ 运行失败，请查看控制台日志';
       }
@@ -436,17 +421,12 @@ function ChatStage({
 
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        const response = await fetch('http://localhost:3003/v1/insights/latest');
-        if (!response.ok) {
-          throw new Error('Runtime 服务未响应 (http://localhost:3003)');
-        }
-
-        const data = await response.json();
+        const data = await api.getLatestInsight();
 
         if (data.reconcile_status === 'PASS' && data.facts && data.facts.length > 0) {
-          setDisplayedFacts(data.facts);
+          setDisplayedFacts(data.facts as unknown as ExternalInsightFact[]);
           setReconcileStatus('PASS');
-          setDisplayDate(data.timestamp || '2026-09-27');
+          setDisplayDate((data as { timestamp?: string }).timestamp || '2026-09-27');
 
           const successMessage: ChatMessage = {
             role: 'assistant',
@@ -480,7 +460,7 @@ function ChatStage({
           setIsRunning(false);
           const errorMessage: ChatMessage = {
             role: 'assistant',
-            content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``,
+            content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志）\n• Gateway 模型调用超时\n• insights 数据格式不符预期`,
             error: true,
             errorType: 'network',
           };
@@ -496,7 +476,7 @@ function ChatStage({
       setIsRunning(false);
       const timeoutMessage: ChatMessage = {
         role: 'assistant',
-        content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``,
+        content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志）\n• Gateway 模型调用超时\n• insights 数据格式不符预期`,
         error: true,
         errorType: 'network',
       };
@@ -621,7 +601,16 @@ function ChatStage({
       )}
 
       <div className="chat-toolbar">
-        <button className="fire-job-btn" onClick={handleFireJob} disabled={isRunning}>
+        <button
+          className="fire-job-btn"
+          onClick={handleFireJob}
+          disabled={isRunning}
+          title={isRunning ? '运行中...' : '点火 Demo 任务'}
+          style={{
+            cursor: isRunning ? 'not-allowed' : 'pointer',
+            opacity: isRunning ? 0.6 : 1,
+          }}
+        >
           {isRunning ? '运行中...' : '立即跑一次 (Demo)'}
         </button>
         <button className="toggle-demo-btn" onClick={() => setShowMockContent(!showMockContent)}>
