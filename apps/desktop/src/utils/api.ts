@@ -99,7 +99,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
   const isLocal = isLocalBase(base);
 
   const cloudKey = await getCloudApiKey();
-  const envKey = import.meta.env.OPENSTAFF_API_KEY;
+  const envKey = (import.meta as { env?: { OPENSTAFF_API_KEY?: string } }).env?.OPENSTAFF_API_KEY;
   const apiKey = cloudKey || envKey;
 
   // Only require auth for write operations to cloud base
@@ -110,8 +110,16 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options?.headers,
     };
+
+    // Merge with provided headers
+    if (options?.headers) {
+      Object.entries(options.headers).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+          headers[key] = value;
+        }
+      });
+    }
 
     // Add Bearer token if available (for both cloud and local with auth enabled)
     if (apiKey && needsAuth) {
@@ -130,7 +138,18 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
       throw new ApiError(response.status, `API request failed: ${response.statusText}`);
     }
 
-    return await response.json();
+    // Handle 204 No Content (e.g., DELETE operations)
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    // Handle empty responses or non-JSON content
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json();
+    }
+
+    return undefined as T;
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;
@@ -169,25 +188,15 @@ export async function updateAgent(
 }
 
 export async function deleteAgent(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/v1/agents/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new ApiError(response.status, `Failed to delete agent: ${response.statusText}`);
-  }
-
-  // 204 No Content has empty body, don't call json()
-  if (response.status === 204) {
-    return;
-  }
-
-  // For other 2xx responses, try to parse JSON
-  if (response.headers.get('content-type')?.includes('application/json')) {
-    await response.json();
+  try {
+    await fetchApi<void>(`/v1/agents/${id}`, {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(0, 'Failed to delete agent');
   }
 }
 
@@ -332,4 +341,37 @@ export async function sendPeerMessage(
     method: 'POST',
     body: JSON.stringify({ to_agent_id: toAgentId, body }),
   });
+}
+
+// Demo fire (scheduler)
+
+export interface DemoFireRequest {
+  routine_id: string;
+  skill_id: string;
+  trigger: string;
+}
+
+export interface DemoFireResponse {
+  job_id?: string;
+  status?: string;
+  message?: string;
+}
+
+export async function fireDemoJob(request: DemoFireRequest): Promise<DemoFireResponse> {
+  return fetchApi<DemoFireResponse>('/demo/fire', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+// Insights (runtime)
+
+export interface Insight {
+  reconcile_status: string;
+  facts?: Array<{ key: string; value: string }>;
+  [key: string]: unknown;
+}
+
+export async function getLatestInsight(): Promise<Insight> {
+  return fetchApi<Insight>('/v1/insights/latest');
 }

@@ -7,6 +7,7 @@ import Skills from './pages/Skills';
 import Connectors from './Connectors';
 import Memory from './pages/Memory';
 import { ExternalInsightFact } from './ExternalInsightReportCard';
+import * as api from '../utils/api';
 import './MainStage.css';
 
 interface MainStageProps {
@@ -68,28 +69,16 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
     setDemoResponse(null);
 
     try {
-      const schedulerUrl = 'http://localhost:3002';
-      const response = await fetch(`${schedulerUrl}/demo/fire`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          routine_id: 'external-insight-daily',
-          skill_id: 'external-insight-public-search',
-          trigger: 'manual',
-        }),
+      // Fire demo job via unified API client (follows cloud base + Bearer)
+      const fireResponse = await api.fireDemoJob({
+        routine_id: 'external-insight-daily',
+        skill_id: 'external-insight-public-search',
+        trigger: 'manual',
       });
 
-      if (!response.ok) {
-        throw new Error(`Scheduler 服务返回错误 (${response.status}): 请确保后端服务正在运行`);
-      }
+      console.log('Fire response:', fireResponse);
 
-      const data = await response.json();
-      console.log('Fire response:', data);
-
-      // Poll runtime for job result
-      const runtimeUrl = 'http://localhost:3003';
+      // Poll for job result
       let pollAttempts = 0;
       const maxPolls = 10;
       const pollInterval = 1000;
@@ -99,21 +88,21 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
         await new Promise((resolve) => setTimeout(resolve, pollInterval));
 
         try {
-          const insightResponse = await fetch(`${runtimeUrl}/v1/insights/latest`);
-          if (!insightResponse.ok) {
-            console.log('Polling attempt', pollAttempts + 1, 'failed: response not ok');
-            pollAttempts++;
-            continue;
-          }
-
-          const insightData = await insightResponse.json();
+          const insightData = await api.getLatestInsight();
 
           if (
             insightData.reconcile_status === 'PASS' &&
             insightData.facts &&
             insightData.facts.length > 0
           ) {
-            setDemoResponse(insightData);
+            setDemoResponse({
+              reconcile_status: insightData.reconcile_status,
+              facts: insightData.facts as unknown as ExternalInsightFact[],
+              summary: (insightData as { summary?: string[] }).summary,
+              artifacts_path: (insightData as { artifacts_path?: string }).artifacts_path || '',
+              timestamp:
+                (insightData as { timestamp?: string }).timestamp || new Date().toISOString(),
+            });
             foundResult = true;
             setIsRunningDemo(false);
             return;
@@ -127,7 +116,7 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
           console.log('Polling attempt', pollAttempts + 1, 'failed:', error);
           if (pollAttempts === maxPolls - 1) {
             setDemoError(
-              `❌ 运行超时 (${maxPolls}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``
+              `❌ 运行超时 (${maxPolls}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志）\n• Gateway 模型调用超时\n• insights 数据格式不符预期`
             );
             setIsRunningDemo(false);
             foundResult = true;
@@ -140,16 +129,14 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
 
       if (!foundResult) {
         setDemoError(
-          `❌ 运行超时 (${maxPolls}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``
+          `❌ 运行超时 (${maxPolls}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志）\n• Gateway 模型调用超时\n• insights 数据格式不符预期`
         );
         setIsRunningDemo(false);
       }
     } catch (error) {
       console.error('Failed to fire job:', error);
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : '运行失败，请检查后端服务 (Scheduler: 3002, Runtime: 3003)';
+        error instanceof Error ? error.message : '运行失败，请检查后端服务或云 API 配置';
       setDemoError(errorMessage);
       setDemoResponse(null);
     } finally {
