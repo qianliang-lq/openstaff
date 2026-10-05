@@ -127,7 +127,29 @@ function ChatStage({
       // 规范：只用云端真源字段 id, role, body, ts
       const apiMessages = await api.listMessages(currentAgent.id);
       const mappedMessages: ChatMessage[] = apiMessages.map((m) => {
-        // 红点①：检测 insight_report kind，重建完整报告卡
+        // 健壮性：优先从 body JSON 检测 kind（API 可能不持久化/返回顶层 kind）
+        try {
+          // 尝试解析 body 为 JSON
+          if (m.body && m.body.trim().startsWith('{')) {
+            const payload = JSON.parse(m.body);
+            // 检查 payload 内部的 kind
+            if (payload.kind === 'insight_report') {
+              return {
+                role: m.role as 'user' | 'assistant',
+                content: '✅ 外部洞察日报已生成',
+                insightReport: {
+                  date: payload.timestamp,
+                  facts: payload.facts as ExternalInsightFact[],
+                  reconcileStatus: payload.reconcile_status,
+                },
+              };
+            }
+          }
+        } catch (parseError) {
+          // body 不是 JSON 或解析失败，继续尝试其他方式
+        }
+
+        // 回退：检查顶层 m.kind（如果 API 支持返回）
         if (m.kind === 'insight_report') {
           try {
             const payload = JSON.parse(m.body) as api.InsightReportPayload;
@@ -148,6 +170,7 @@ function ChatStage({
             };
           }
         }
+
         // 普通消息
         return {
           role: m.role as 'user' | 'assistant',
