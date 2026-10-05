@@ -54,6 +54,12 @@
 
 内容若仍是页面壳（如 title=`Filters (0 selected)`），那是 runtime 抓取质量，另刀；本刀只绑真 JSON，不造假条。
 
+**落库（`fadfb14` 红点，2026-10-05）**：报告卡必须写进该岗 `messages`，不能只留内存、也不能只存「已生成 N 条」一行。切回 Chat 靠 `GET messages` 还原整张卡（标题、摘要、链接都在），不靠再猜 `insights/latest`（latest 会被下一次点火盖掉）。
+
+建议一条 assistant 消息，`body` 为 JSON（或等价结构），至少含：`kind: "insight_report"`、`timestamp`、`reconcile_status`、`facts`（上面那几个字段）。桌面见 `kind` 画卡，不当纯文本。
+
+`mockFacts` /「显示演示内容」**不得**走「立即跑一次」路径，也不得写入云消息当真报告。按钮若留，文案标明样例。
+
 ---
 
 ## 3. 不做

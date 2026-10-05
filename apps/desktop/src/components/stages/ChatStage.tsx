@@ -39,6 +39,7 @@ interface ChatStageProps {
   hasAgent?: boolean;
 }
 
+// 红点②：mockFacts 仅供显示样例，不走点火路径，不写入云消息
 const mockFacts: ExternalInsightFact[] = [
   {
     bucket: '竞对',
@@ -81,7 +82,7 @@ function ChatStage({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showMockContent, setShowMockContent] = useState(false);
+  const [showMockContent, setShowMockContent] = useState(false); // 红点②：仅控制样例显示，不走点火或 DB
   const [hasAnyKey, setHasAnyKey] = useState<boolean | null>(null);
   const [lastError, setLastError] = useState<ChatMessage | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -125,10 +126,34 @@ function ChatStage({
 
       // 规范：只用云端真源字段 id, role, body, ts
       const apiMessages = await api.listMessages(currentAgent.id);
-      const mappedMessages: ChatMessage[] = apiMessages.map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.peer_agent_id ? `[@岗间消息 from ${m.peer_agent_id}] ${m.body}` : m.body,
-      }));
+      const mappedMessages: ChatMessage[] = apiMessages.map((m) => {
+        // 红点①：检测 insight_report kind，重建完整报告卡
+        if (m.kind === 'insight_report') {
+          try {
+            const payload = JSON.parse(m.body) as api.InsightReportPayload;
+            return {
+              role: m.role as 'user' | 'assistant',
+              content: '✅ 外部洞察日报已生成',
+              insightReport: {
+                date: payload.timestamp,
+                facts: payload.facts as ExternalInsightFact[],
+                reconcileStatus: payload.reconcile_status,
+              },
+            };
+          } catch (parseError) {
+            console.error('Failed to parse insight report payload:', parseError);
+            return {
+              role: m.role as 'user' | 'assistant',
+              content: m.body,
+            };
+          }
+        }
+        // 普通消息
+        return {
+          role: m.role as 'user' | 'assistant',
+          content: m.peer_agent_id ? `[@岗间消息 from ${m.peer_agent_id}] ${m.body}` : m.body,
+        };
+      });
       // 规范：用 API 返回覆盖内存
       setMessages(mappedMessages);
     } catch (error) {
@@ -462,18 +487,32 @@ function ChatStage({
           };
           setMessages((prev) => [...prev, insightMessage]);
 
-          // Bug 1 修复：持久化助手消息到云端
+          // 红点①：持久化完整报告到云端 messages（JSON body）
           try {
             const agents = await api.listAgents();
             const currentAgent = agents.find((a) => a.name === agentName);
             if (currentAgent) {
+              const payload: api.InsightReportPayload = {
+                kind: 'insight_report',
+                timestamp: (data as { timestamp?: string }).timestamp || '2026-09-27',
+                reconcile_status: data.reconcile_status as 'PASS' | 'FAILED',
+                facts: (data.facts as unknown as ExternalInsightFact[]).map((f) => ({
+                  bucket: f.bucket,
+                  title: f.title,
+                  summary_zh: f.summary_zh,
+                  url: f.url,
+                  tags: f.tags,
+                  pdf_url: f.pdf_url,
+                })),
+              };
               await api.createMessage(currentAgent.id, {
                 role: 'assistant',
-                body: `[洞察报告] ${data.facts.length} 条外部洞察 - ${(data as { timestamp?: string }).timestamp || '2026-09-27'}`,
+                body: JSON.stringify(payload),
+                kind: 'insight_report',
               });
             }
           } catch (apiError) {
-            console.error('Failed to persist insight message:', apiError);
+            console.error('Failed to persist insight report:', apiError);
           }
 
           setIsRunning(false);
@@ -657,7 +696,7 @@ function ChatStage({
           {isRunning ? '运行中...' : '立即跑一次 (Demo)'}
         </button>
         <button className="toggle-demo-btn" onClick={() => setShowMockContent(!showMockContent)}>
-          {showMockContent ? '隐藏演示内容' : '显示演示内容'}
+          {showMockContent ? '隐藏样例' : '显示样例内容'}
         </button>
         {hasAnyKey && (
           <div className="status-pill configured">
@@ -796,6 +835,7 @@ function ChatStage({
           </div>
         )}
 
+        {/* 红点②：样例内容不走点火路径，不写入云消息，标注清晰 */}
         {showMockContent && (
           <>
             <div className="message user">

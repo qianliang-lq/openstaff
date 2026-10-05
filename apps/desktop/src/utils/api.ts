@@ -19,6 +19,22 @@ export interface Message {
   body: string;
   ts: string;
   peer_agent_id?: string;
+  kind?: string; // 红点①：结构化消息类型（如 'insight_report'）
+}
+
+// 红点①：洞察报告载荷（存入 body 作为 JSON）
+export interface InsightReportPayload {
+  kind: 'insight_report';
+  timestamp: string;
+  reconcile_status: 'PASS' | 'FAILED';
+  facts: Array<{
+    bucket: string;
+    title: string;
+    summary_zh: string;
+    url: string;
+    tags: string[];
+    pdf_url?: string;
+  }>;
 }
 
 export interface ConnectorMeta {
@@ -230,6 +246,7 @@ export async function createMessage(
   data: {
     role: 'user' | 'assistant';
     body: string;
+    kind?: string; // 红点①：支持结构化消息类型
   }
 ): Promise<Message> {
   return fetchApi<Message>(`/v1/agents/${agentId}/messages`, {
