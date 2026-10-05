@@ -68,6 +68,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health_check))
         .route("/api/v1/echo", post(echo_handler))
         .route("/v1/chat", post(chat::chat_handler))
+        // BFF routes (docs/24-demo-insights-bff.md)
+        .route("/demo/fire", post(handlers::demo_fire))
+        .route("/v1/insights/latest", get(handlers::insights_latest))
         .route(
             "/v1/agents",
             get(handlers::list_agents).post(handlers::create_agent),

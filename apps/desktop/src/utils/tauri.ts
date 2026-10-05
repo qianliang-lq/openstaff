@@ -66,3 +66,45 @@ export async function deleteProviderKey(provider: string): Promise<void> {
 
   return tauriInvoke('delete_provider_key', { provider });
 }
+
+/**
+ * Get cloud API key (Slot A)
+ */
+export async function getCloudApiKey(): Promise<string | null> {
+  return getProviderKey('openstaff_cloud');
+}
+
+/**
+ * Save cloud API key (Slot A)
+ */
+export async function saveCloudApiKey(key: string): Promise<void> {
+  return saveProviderKey('openstaff_cloud', key);
+}
+
+/**
+ * Delete cloud API key (Slot A)
+ */
+export async function deleteCloudApiKey(): Promise<void> {
+  return deleteProviderKey('openstaff_cloud');
+}
+
+/**
+ * Get cloud API base URL
+ */
+export async function getCloudApiBase(): Promise<string | null> {
+  return getProviderKey('openstaff_api_base');
+}
+
+/**
+ * Save cloud API base URL
+ */
+export async function saveCloudApiBase(base: string): Promise<void> {
+  return saveProviderKey('openstaff_api_base', base);
+}
+
+/**
+ * Delete cloud API base URL (revert to default)
+ */
+export async function deleteCloudApiBase(): Promise<void> {
+  return deleteProviderKey('openstaff_api_base');
+}

@@ -7,6 +7,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+  envPrefix: ['VITE_', 'PUBLIC_', 'OPENSTAFF_'],
   test: {
     globals: true,
     environment: 'jsdom',

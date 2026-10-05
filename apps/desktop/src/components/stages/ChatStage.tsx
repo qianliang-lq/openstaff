@@ -9,11 +9,17 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   error?: boolean;
-  errorType?: '401' | '403' | 'network' | 'unknown';
+  errorType?: '401' | '403' | 'network' | 'unknown' | '400' | '500';
   gateDecision?: 'approved' | 'rejected' | 'revised';
   validationGate?: {
     status: 'pending' | 'approved' | 'rejected' | 'revised';
     prompt?: string;
+  };
+  // Bug 2 修复：支持内嵌洞察报告数据
+  insightReport?: {
+    date: string;
+    facts: ExternalInsightFact[];
+    reconcileStatus: 'PASS' | 'FAILED';
   };
 }
 
@@ -33,6 +39,7 @@ interface ChatStageProps {
   hasAgent?: boolean;
 }
 
+// 红点②：mockFacts 仅供显示样例，不走点火路径，不写入云消息
 const mockFacts: ExternalInsightFact[] = [
   {
     bucket: '竞对',
@@ -75,7 +82,7 @@ function ChatStage({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showMockContent, setShowMockContent] = useState(false);
+  const [showMockContent, setShowMockContent] = useState(false); // 红点②：仅控制样例显示，不走点火或 DB
   const [hasAnyKey, setHasAnyKey] = useState<boolean | null>(null);
   const [lastError, setLastError] = useState<ChatMessage | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -117,11 +124,60 @@ function ChatStage({
       const currentAgent = agents.find((a) => a.name === agentName);
       if (!currentAgent) return;
 
+      // 规范：只用云端真源字段 id, role, body, ts
       const apiMessages = await api.listMessages(currentAgent.id);
-      const mappedMessages: ChatMessage[] = apiMessages.map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.peer_agent_id ? `[@岗间消息 from ${m.peer_agent_id}] ${m.body}` : m.body,
-      }));
+      const mappedMessages: ChatMessage[] = apiMessages.map((m) => {
+        // 健壮性：优先从 body JSON 检测 kind（API 可能不持久化/返回顶层 kind）
+        try {
+          // 尝试解析 body 为 JSON
+          if (m.body && m.body.trim().startsWith('{')) {
+            const payload = JSON.parse(m.body);
+            // 检查 payload 内部的 kind
+            if (payload.kind === 'insight_report') {
+              return {
+                role: m.role as 'user' | 'assistant',
+                content: '✅ 外部洞察日报已生成',
+                insightReport: {
+                  date: payload.timestamp,
+                  facts: payload.facts as ExternalInsightFact[],
+                  reconcileStatus: payload.reconcile_status,
+                },
+              };
+            }
+          }
+        } catch (parseError) {
+          // body 不是 JSON 或解析失败，继续尝试其他方式
+        }
+
+        // 回退：检查顶层 m.kind（如果 API 支持返回）
+        if (m.kind === 'insight_report') {
+          try {
+            const payload = JSON.parse(m.body) as api.InsightReportPayload;
+            return {
+              role: m.role as 'user' | 'assistant',
+              content: '✅ 外部洞察日报已生成',
+              insightReport: {
+                date: payload.timestamp,
+                facts: payload.facts as ExternalInsightFact[],
+                reconcileStatus: payload.reconcile_status,
+              },
+            };
+          } catch (parseError) {
+            console.error('Failed to parse insight report payload:', parseError);
+            return {
+              role: m.role as 'user' | 'assistant',
+              content: m.body,
+            };
+          }
+        }
+
+        // 普通消息
+        return {
+          role: m.role as 'user' | 'assistant',
+          content: m.peer_agent_id ? `[@岗间消息 from ${m.peer_agent_id}] ${m.body}` : m.body,
+        };
+      });
+      // 规范：用 API 返回覆盖内存
       setMessages(mappedMessages);
     } catch (error) {
       console.error('Failed to load messages from API:', error);
@@ -234,31 +290,18 @@ function ChatStage({
         throw new Error('401:未配置 Key');
       }
 
-      const systemPrompt: ChatMessage = {
+      const systemPrompt: api.ChatMessage = {
         role: 'system',
         content: `你是${agentName}，请帮助用户完成工作任务。`,
       };
 
-      const response = await fetch('http://localhost:3000/v1/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-OpenStaff-Provider-Key': providerKey,
-        },
-        body: JSON.stringify({
-          provider,
-          messages: [systemPrompt, ...messages.filter((m) => !m.error), userMessage],
-          stream: false,
-        }),
-      });
+      const chatRequest: api.ChatRequest = {
+        provider,
+        messages: [systemPrompt, ...messages.filter((m) => !m.error), userMessage],
+        stream: false,
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        const statusCode = response.status;
-        throw new Error(`${statusCode}:${errorData.error || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
+      const data = await api.sendChatMessage(chatRequest, providerKey);
 
       // Persist messages to API after successful chat
       try {
@@ -280,23 +323,55 @@ function ChatStage({
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Bug 1 修复：持久化助手消息到云端
+      try {
+        const agents = await api.listAgents();
+        const currentAgent = agents.find((a) => a.name === agentName);
+        if (currentAgent) {
+          await api.createMessage(currentAgent.id, {
+            role: 'assistant',
+            body: data.message.content,
+          });
+        }
+      } catch (apiError) {
+        console.error('Failed to persist assistant message:', apiError);
+      }
     } catch (error) {
       console.error('Chat error:', error);
 
-      const errorMsg = error instanceof Error ? error.message : '发送消息失败';
-      let errorType: '401' | '403' | 'network' | 'unknown' = 'unknown';
+      let errorContent: string;
+      let errorType: '401' | '403' | 'network' | 'unknown' | '400' | '500' = 'unknown';
 
-      if (errorMsg.includes('401')) {
-        errorType = '401';
-      } else if (errorMsg.includes('403')) {
-        errorType = '403';
-      } else if (errorMsg.includes('fetch') || errorMsg.includes('network')) {
-        errorType = 'network';
+      if (error instanceof api.ApiError) {
+        errorContent = error.message;
+        if (error.status === 401) {
+          errorType = '401';
+        } else if (error.status === 403) {
+          errorType = '403';
+        } else if (error.status >= 500) {
+          errorType = '500';
+        } else if (error.status >= 400) {
+          errorType = '400';
+        } else if (error.status === 0) {
+          errorType = 'network';
+        }
+      } else if (error instanceof Error) {
+        errorContent = error.message;
+        if (error.message.includes('401')) {
+          errorType = '401';
+        } else if (error.message.includes('403')) {
+          errorType = '403';
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          errorType = 'network';
+        }
+      } else {
+        errorContent = '发送消息失败';
       }
 
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: errorMsg,
+        content: errorContent,
         error: true,
         errorType,
       };
@@ -352,41 +427,12 @@ function ChatStage({
     setMessages((prev) => [...prev, runningMessage]);
 
     try {
-      const response = await fetch('http://localhost:3002/demo/fire', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          routine_id: 'external-insight-daily',
-          skill_id: 'external-insight-public-search',
-          trigger: 'manual',
-        }),
+      // Fire demo job via unified API client (follows cloud base + Bearer)
+      await api.fireDemoJob({
+        routine_id: 'external-insight-daily',
+        skill_id: 'external-insight-public-search',
+        trigger: 'manual',
       });
-
-      if (!response.ok) {
-        let errorDetail = '';
-        try {
-          const errorData = await response.text();
-          errorDetail = errorData ? `: ${errorData}` : '';
-        } catch {
-          // Ignore parse errors
-        }
-
-        if (response.status === 502 || response.status === 503) {
-          throw new Error(
-            `Scheduler 已启动但下游服务未就绪 (HTTP ${response.status})。请确保 Runtime 服务正在运行 (http://localhost:3003)${errorDetail}`
-          );
-        } else if (response.status >= 500) {
-          throw new Error(`Scheduler 服务内部错误 (HTTP ${response.status})${errorDetail}`);
-        } else if (response.status >= 400) {
-          throw new Error(`请求错误 (HTTP ${response.status})${errorDetail}`);
-        } else {
-          throw new Error(
-            `Scheduler 请求失败 (HTTP ${response.status})。请运行 'just health' 检查所有服务${errorDetail}`
-          );
-        }
-      }
 
       // Remove running message before polling
       setMessages((prev) => prev.filter((m) => m !== runningMessage));
@@ -398,21 +444,30 @@ function ChatStage({
       setMessages((prev) => prev.filter((m) => m !== runningMessage));
 
       let errorContent: string;
-      let errorType: '401' | 'network' | '502' | '503' | '500' | '400' = 'network';
+      let errorType: '401' | 'network' | 'unknown' | '400' | '500' = 'network';
 
-      if (error instanceof TypeError && error.message.includes('fetch')) {
+      if (error instanceof api.ApiError) {
+        if (error.status === 401) {
+          errorContent = `❌ ${error.message}`;
+          errorType = '401';
+        } else if (error.status === 0) {
+          errorContent =
+            '❌ 无法连接到控制面服务。请确保后端服务已启动或云 API 配置正确：\n\n• 本地开发：运行 `pnpm tauri:dev` 或 `just dev-up`\n• 云端连接：检查 Settings → 云 API 配置\n• 检查服务状态：`just health`';
+          errorType = 'network';
+        } else {
+          errorContent = `❌ ${error.message}`;
+          if (error.status >= 500) {
+            errorType = '500';
+          } else if (error.status >= 400) {
+            errorType = '400';
+          }
+        }
+      } else if (error instanceof TypeError && error.message.includes('fetch')) {
         errorContent =
-          '❌ 无法连接到 Scheduler 服务 (http://localhost:3002)。请确保后端服务已启动：\n\n• 运行 `pnpm tauri:dev` 会自动启动\n• 或手动运行 `just dev-up`\n• 检查服务状态：`just health`\n• 查看日志：`tail -f /tmp/openstaff-*.log`';
+          '❌ 无法连接到控制面服务。请确保后端服务已启动或云 API 配置正确：\n\n• 本地开发：运行 `pnpm tauri:dev` 或 `just dev-up`\n• 云端连接：检查 Settings → 云 API 配置\n• 检查服务状态：`just health`';
         errorType = 'network';
       } else if (error instanceof Error) {
         errorContent = `❌ ${error.message}`;
-        if (error.message.includes('502') || error.message.includes('503')) {
-          errorType = error.message.includes('502') ? '502' : '503';
-        } else if (error.message.includes('500')) {
-          errorType = '500';
-        } else if (error.message.includes('400')) {
-          errorType = '400';
-        }
       } else {
         errorContent = '❌ 运行失败，请查看控制台日志';
       }
@@ -436,23 +491,53 @@ function ChatStage({
 
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        const response = await fetch('http://localhost:3003/v1/insights/latest');
-        if (!response.ok) {
-          throw new Error('Runtime 服务未响应 (http://localhost:3003)');
-        }
-
-        const data = await response.json();
+        const data = await api.getLatestInsight();
 
         if (data.reconcile_status === 'PASS' && data.facts && data.facts.length > 0) {
-          setDisplayedFacts(data.facts);
+          setDisplayedFacts(data.facts as unknown as ExternalInsightFact[]);
           setReconcileStatus('PASS');
-          setDisplayDate(data.timestamp || '2026-09-27');
+          setDisplayDate((data as { timestamp?: string }).timestamp || '2026-09-27');
 
-          const successMessage: ChatMessage = {
+          // Bug 2 修复：渲染真实洞察报告卡，而不是假的计数消息
+          const insightMessage: ChatMessage = {
             role: 'assistant',
-            content: `✅ 运行成功！已生成 ${data.facts.length} 条外部洞察`,
+            content: '✅ 外部洞察日报已生成',
+            insightReport: {
+              date: (data as { timestamp?: string }).timestamp || '2026-09-27',
+              facts: data.facts as unknown as ExternalInsightFact[],
+              reconcileStatus: 'PASS',
+            },
           };
-          setMessages((prev) => [...prev, successMessage]);
+          setMessages((prev) => [...prev, insightMessage]);
+
+          // 红点①：持久化完整报告到云端 messages（JSON body）
+          try {
+            const agents = await api.listAgents();
+            const currentAgent = agents.find((a) => a.name === agentName);
+            if (currentAgent) {
+              const payload: api.InsightReportPayload = {
+                kind: 'insight_report',
+                timestamp: (data as { timestamp?: string }).timestamp || '2026-09-27',
+                reconcile_status: data.reconcile_status as 'PASS' | 'FAILED',
+                facts: (data.facts as unknown as ExternalInsightFact[]).map((f) => ({
+                  bucket: f.bucket,
+                  title: f.title,
+                  summary_zh: f.summary_zh,
+                  url: f.url,
+                  tags: f.tags,
+                  pdf_url: f.pdf_url,
+                })),
+              };
+              await api.createMessage(currentAgent.id, {
+                role: 'assistant',
+                body: JSON.stringify(payload),
+                kind: 'insight_report',
+              });
+            }
+          } catch (apiError) {
+            console.error('Failed to persist insight report:', apiError);
+          }
+
           setIsRunning(false);
           foundResult = true;
           return;
@@ -480,7 +565,7 @@ function ChatStage({
           setIsRunning(false);
           const errorMessage: ChatMessage = {
             role: 'assistant',
-            content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``,
+            content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志）\n• Gateway 模型调用超时\n• insights 数据格式不符预期`,
             error: true,
             errorType: 'network',
           };
@@ -496,7 +581,7 @@ function ChatStage({
       setIsRunning(false);
       const timeoutMessage: ChatMessage = {
         role: 'assistant',
-        content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志：\`tail -f /tmp/openstaff-runtime.log\`）\n• Gateway 模型调用超时\n• insights 数据格式不符预期\n\n稍后可手动查询：\`curl http://localhost:3003/v1/insights/latest\``,
+        content: `❌ 运行超时 (${maxAttempts}s)。任务已触发但结果未及时生成。\n\n可能原因：\n• Runtime 仍在处理（查看日志）\n• Gateway 模型调用超时\n• insights 数据格式不符预期`,
         error: true,
         errorType: 'network',
       };
@@ -621,11 +706,20 @@ function ChatStage({
       )}
 
       <div className="chat-toolbar">
-        <button className="fire-job-btn" onClick={handleFireJob} disabled={isRunning}>
+        <button
+          className="fire-job-btn"
+          onClick={handleFireJob}
+          disabled={isRunning}
+          title={isRunning ? '运行中...' : '点火 Demo 任务'}
+          style={{
+            cursor: isRunning ? 'not-allowed' : 'pointer',
+            opacity: isRunning ? 0.6 : 1,
+          }}
+        >
           {isRunning ? '运行中...' : '立即跑一次 (Demo)'}
         </button>
         <button className="toggle-demo-btn" onClick={() => setShowMockContent(!showMockContent)}>
-          {showMockContent ? '隐藏演示内容' : '显示演示内容'}
+          {showMockContent ? '隐藏样例' : '显示样例内容'}
         </button>
         {hasAnyKey && (
           <div className="status-pill configured">
@@ -719,6 +813,15 @@ function ChatStage({
               {msg.role === 'assistant' && <div className="message-avatar">产</div>}
               <div className="message-content">
                 <div className="message-bubble">{msg.content}</div>
+                {/* Bug 2 修复：渲染真实洞察报告卡 */}
+                {msg.insightReport && (
+                  <ExternalInsightReportCard
+                    date={msg.insightReport.date}
+                    facts={msg.insightReport.facts}
+                    factsPath={`artifacts/external-insight/${msg.insightReport.date}-public-facts.json`}
+                    reconcileStatus={msg.insightReport.reconcileStatus}
+                  />
+                )}
                 {msg.validationGate?.status === 'pending' && (
                   <ValidationGateWidget
                     onDecision={(decision) => {
@@ -755,6 +858,7 @@ function ChatStage({
           </div>
         )}
 
+        {/* 红点②：样例内容不走点火路径，不写入云消息，标注清晰 */}
         {showMockContent && (
           <>
             <div className="message user">
