@@ -267,11 +267,11 @@ function MainStage({ activeTab, onTabChange, activeAgent }: MainStageProps) {
             onNavigateToConnectors={() => onTabChange('connectors')}
           />
         )}
-        {activeTab === 'computer' && <Computer />}
-        {activeTab === 'routines' && <Routines />}
+        {activeTab === 'computer' && <Computer agentName={activeAgent} />}
+        {activeTab === 'routines' && <Routines agentName={activeAgent} />}
         {activeTab === 'skills' && <Skills agentName={activeAgent} />}
         {activeTab === 'connectors' && <Connectors />}
-        {activeTab === 'memory' && <Memory />}
+        {activeTab === 'memory' && <Memory agentName={activeAgent} />}
       </div>
     </div>
   );
