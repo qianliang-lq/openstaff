@@ -15,6 +15,12 @@ interface ChatMessage {
     status: 'pending' | 'approved' | 'rejected' | 'revised';
     prompt?: string;
   };
+  // Bug 2 修复：支持内嵌洞察报告数据
+  insightReport?: {
+    date: string;
+    facts: ExternalInsightFact[];
+    reconcileStatus: 'PASS' | 'FAILED';
+  };
 }
 
 interface DemoResponse {
@@ -117,11 +123,13 @@ function ChatStage({
       const currentAgent = agents.find((a) => a.name === agentName);
       if (!currentAgent) return;
 
+      // 规范：只用云端真源字段 id, role, body, ts
       const apiMessages = await api.listMessages(currentAgent.id);
       const mappedMessages: ChatMessage[] = apiMessages.map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: m.peer_agent_id ? `[@岗间消息 from ${m.peer_agent_id}] ${m.body}` : m.body,
       }));
+      // 规范：用 API 返回覆盖内存
       setMessages(mappedMessages);
     } catch (error) {
       console.error('Failed to load messages from API:', error);
@@ -267,6 +275,20 @@ function ChatStage({
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Bug 1 修复：持久化助手消息到云端
+      try {
+        const agents = await api.listAgents();
+        const currentAgent = agents.find((a) => a.name === agentName);
+        if (currentAgent) {
+          await api.createMessage(currentAgent.id, {
+            role: 'assistant',
+            body: data.message.content,
+          });
+        }
+      } catch (apiError) {
+        console.error('Failed to persist assistant message:', apiError);
+      }
     } catch (error) {
       console.error('Chat error:', error);
 
@@ -428,11 +450,32 @@ function ChatStage({
           setReconcileStatus('PASS');
           setDisplayDate((data as { timestamp?: string }).timestamp || '2026-09-27');
 
-          const successMessage: ChatMessage = {
+          // Bug 2 修复：渲染真实洞察报告卡，而不是假的计数消息
+          const insightMessage: ChatMessage = {
             role: 'assistant',
-            content: `✅ 运行成功！已生成 ${data.facts.length} 条外部洞察`,
+            content: '✅ 外部洞察日报已生成',
+            insightReport: {
+              date: (data as { timestamp?: string }).timestamp || '2026-09-27',
+              facts: data.facts as unknown as ExternalInsightFact[],
+              reconcileStatus: 'PASS',
+            },
           };
-          setMessages((prev) => [...prev, successMessage]);
+          setMessages((prev) => [...prev, insightMessage]);
+
+          // Bug 1 修复：持久化助手消息到云端
+          try {
+            const agents = await api.listAgents();
+            const currentAgent = agents.find((a) => a.name === agentName);
+            if (currentAgent) {
+              await api.createMessage(currentAgent.id, {
+                role: 'assistant',
+                body: `[洞察报告] ${data.facts.length} 条外部洞察 - ${(data as { timestamp?: string }).timestamp || '2026-09-27'}`,
+              });
+            }
+          } catch (apiError) {
+            console.error('Failed to persist insight message:', apiError);
+          }
+
           setIsRunning(false);
           foundResult = true;
           return;
@@ -708,6 +751,15 @@ function ChatStage({
               {msg.role === 'assistant' && <div className="message-avatar">产</div>}
               <div className="message-content">
                 <div className="message-bubble">{msg.content}</div>
+                {/* Bug 2 修复：渲染真实洞察报告卡 */}
+                {msg.insightReport && (
+                  <ExternalInsightReportCard
+                    date={msg.insightReport.date}
+                    facts={msg.insightReport.facts}
+                    factsPath={`artifacts/external-insight/${msg.insightReport.date}-public-facts.json`}
+                    reconcileStatus={msg.insightReport.reconcileStatus}
+                  />
+                )}
                 {msg.validationGate?.status === 'pending' && (
                   <ValidationGateWidget
                     onDecision={(decision) => {

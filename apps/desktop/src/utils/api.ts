@@ -18,6 +18,7 @@ export interface Message {
   role: 'user' | 'assistant';
   body: string;
   ts: string;
+  peer_agent_id?: string;
 }
 
 export interface ConnectorMeta {

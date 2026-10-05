@@ -18,17 +18,19 @@ export interface ExternalInsightReportCardProps {
 }
 
 function ExternalInsightReportCard({
-  date: _date,
+  date,
   facts,
   factsPath,
   reconcileStatus,
 }: ExternalInsightReportCardProps) {
   const [expanded, setExpanded] = useState(false);
 
+  // 规范：只在 PASS 时渲染
   if (reconcileStatus === 'FAILED') {
     return null;
   }
 
+  // 规范：禁假计数，显示 ≤3，多的进详情
   const summaryFacts = facts.slice(0, 3);
 
   const extractDomain = (url: string) => {
@@ -61,13 +63,15 @@ function ExternalInsightReportCard({
     <div className="external-insight-report-card">
       <div className="report-header">
         <div className="header-top">
-          <div className="report-title">外搜洞察日报</div>
+          <div className="report-title">外搜洞察日报 · {date}</div>
           <div className="header-badges">
             <span className="badge badge-success">reconcile PASS</span>
             <span className="badge badge-audited">已审计</span>
           </div>
         </div>
-        <div className="report-meta">Routine · Skill</div>
+        <div className="report-meta">
+          Routine · Skill · {facts.length} 条事实
+        </div>
       </div>
 
       <div className="report-body">
@@ -81,13 +85,6 @@ function ExternalInsightReportCard({
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="guidance-section">
-          <div className="guidance-label">外部→我方→低成本下一步：</div>
-          <div className="guidance-text">
-            建议评估 MCP 协议集成可行性，预计可降低 30% 的 API 对接成本
-          </div>
         </div>
 
         {expanded && (
