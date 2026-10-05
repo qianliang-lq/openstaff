@@ -54,3 +54,4 @@ coverage/
 # Documentation builds
 docs/_build/
 site/
+*.tsbuildinfo

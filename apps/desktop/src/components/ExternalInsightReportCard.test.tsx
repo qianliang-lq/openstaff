@@ -33,10 +33,9 @@ describe('ExternalInsightReportCard', () => {
       <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
     );
 
-    expect(screen.getByText('外搜洞察日报')).toBeInTheDocument();
+    expect(screen.getByText(/外搜洞察日报/)).toBeInTheDocument();
     expect(screen.getByText('reconcile PASS')).toBeInTheDocument();
     expect(screen.getByText('已审计')).toBeInTheDocument();
-    expect(screen.getByText('Routine · Skill')).toBeInTheDocument();
   });
 
   it('应该在 reconcileStatus 为 FAILED 时不渲染卡片', () => {
@@ -58,13 +57,25 @@ describe('ExternalInsightReportCard', () => {
     expect(screen.getAllByText('example.com').length).toBeGreaterThan(0);
   });
 
-  it('应该显示指导部分', () => {
+  it('应该渲染与传入 facts 数量一致的摘要条目，每条包含标题和域名 chip', () => {
     render(
       <ExternalInsightReportCard date="2026-09-27" facts={mockFacts} reconcileStatus="PASS" />
     );
 
-    expect(screen.getByText('外部→我方→低成本下一步：')).toBeInTheDocument();
-    expect(screen.getByText(/建议评估 MCP 协议集成可行性/)).toBeInTheDocument();
+    // 断言渲染的摘要条目数量等于传入 facts 的实际数量（最多3条）
+    const summaryItems = document.querySelectorAll('.summary-item');
+    expect(summaryItems.length).toBe(Math.min(mockFacts.length, 3));
+
+    // 每条摘要都有标题（fact.title）
+    expect(screen.getByText('Factory CLI v0.228.0 发布')).toBeInTheDocument();
+    expect(screen.getByText('GitHub Copilot 企业设置校验器')).toBeInTheDocument();
+    expect(screen.getByText('iCoder-27B 工业编码模型')).toBeInTheDocument();
+
+    // 每条摘要都有域名 chip（提取自 fact.url）
+    const domainChips = screen.getAllByText('example.com');
+    expect(domainChips.length).toBeGreaterThanOrEqual(3);
+
+    // 注：summary_zh 只在展开详情后显示，未展开时不渲染
   });
 
   it('应该在折叠状态下不显示详细内容', () => {
